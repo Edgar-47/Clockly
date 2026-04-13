@@ -15,7 +15,7 @@ from app.models.employee import Employee
 from app.services.employee_service import EmployeeService
 from app.services.time_clock_service import TimeClockService
 from app.ui import theme as th
-from app.utils.helpers import format_timestamp, label_for_entry_type
+from app.utils.helpers import format_timestamp
 
 
 class ClockKioskView(ctk.CTkFrame):
@@ -241,15 +241,20 @@ class ClockKioskView(ctk.CTkFrame):
         self._resize_after_id = self.after(120, self._render_employee_cards)
 
     def _employee_status(self, employee: Employee) -> tuple[str, str]:
-        last = self.time_clock_service.get_last_entry(employee.id)
-        if not last:
-            return "Sin fichajes", th.T_MUTED
-
-        label = label_for_entry_type(last.entry_type)
-        time_text = format_timestamp(last.timestamp, "%H:%M")
-        if last.entry_type == TimeClockService.ENTRY:
+        active = self.time_clock_service.get_active_session(employee.id)
+        if active:
+            time_text = format_timestamp(active.clock_in_time, "%H:%M")
             return f"Dentro desde {time_text}", th.SUCCESS_TEXT
-        return f"Última {label.lower()} {time_text}", th.T_MUTED
+
+        latest = (
+            self.time_clock_service.attendance_session_repository.get_latest_for_user(
+                employee.id
+            )
+        )
+        if latest and latest.clock_out_time:
+            time_text = format_timestamp(latest.clock_out_time, "%H:%M")
+            return f"Ultima salida {time_text}", th.T_MUTED
+        return "Sin fichajes", th.T_MUTED
 
     def _open_password_dialog(self, employee: Employee) -> None:
         _PasswordDialog(
@@ -261,8 +266,7 @@ class ClockKioskView(ctk.CTkFrame):
         )
 
     def _suggest_next_entry_type(self, employee: Employee) -> str:
-        last = self.time_clock_service.get_last_entry(employee.id)
-        if last and last.entry_type == TimeClockService.ENTRY:
+        if self.time_clock_service.get_active_session(employee.id):
             return TimeClockService.EXIT
         return TimeClockService.ENTRY
 

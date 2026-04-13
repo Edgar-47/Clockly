@@ -5,6 +5,7 @@ from app.models.attendance_session import AttendanceSession
 class AttendanceSessionRepository:
     _SELECT_COLUMNS = """
         id, user_id, clock_in_time, clock_out_time, is_active, total_seconds, notes,
+        exit_note, incident_type,
         closed_by_admin, manual_close_reason, closed_by_user_id
     """
 
@@ -94,6 +95,8 @@ class AttendanceSessionRepository:
         clock_out_time: str,
         total_seconds: int,
         notes: str | None = None,
+        exit_note: str | None = None,
+        incident_type: str | None = None,
     ) -> None:
         with get_connection() as connection:
             connection.execute(
@@ -102,10 +105,19 @@ class AttendanceSessionRepository:
                 SET clock_out_time = ?,
                     is_active = 0,
                     total_seconds = ?,
-                    notes = COALESCE(?, notes)
+                    notes = COALESCE(?, notes),
+                    exit_note = COALESCE(?, exit_note),
+                    incident_type = COALESCE(?, incident_type)
                 WHERE id = ? AND is_active = 1
                 """,
-                (clock_out_time, total_seconds, notes, session_id),
+                (
+                    clock_out_time,
+                    total_seconds,
+                    notes,
+                    exit_note,
+                    incident_type,
+                    session_id,
+                ),
             )
 
     def admin_clock_out(
@@ -116,6 +128,8 @@ class AttendanceSessionRepository:
         total_seconds: int,
         reason: str,
         closed_by_user_id: int,
+        exit_note: str | None = None,
+        incident_type: str | None = None,
     ) -> None:
         with get_connection() as connection:
             connection.execute(
@@ -126,10 +140,20 @@ class AttendanceSessionRepository:
                     total_seconds = ?,
                     closed_by_admin = 1,
                     manual_close_reason = ?,
-                    closed_by_user_id = ?
+                    closed_by_user_id = ?,
+                    exit_note = COALESCE(?, exit_note),
+                    incident_type = COALESCE(?, incident_type)
                 WHERE id = ? AND is_active = 1
                 """,
-                (clock_out_time, total_seconds, reason, closed_by_user_id, session_id),
+                (
+                    clock_out_time,
+                    total_seconds,
+                    reason,
+                    closed_by_user_id,
+                    exit_note,
+                    incident_type,
+                    session_id,
+                ),
             )
 
     def list_with_user_names(
@@ -173,6 +197,8 @@ class AttendanceSessionRepository:
                 s.is_active,
                 s.total_seconds,
                 s.notes,
+                s.exit_note,
+                s.incident_type,
                 s.closed_by_admin,
                 s.manual_close_reason,
                 s.closed_by_user_id
@@ -186,3 +212,37 @@ class AttendanceSessionRepository:
             rows = connection.execute(query, params).fetchall()
 
         return [dict(row) for row in rows]
+
+    def list_closed_overlapping(
+        self,
+        *,
+        start: str,
+        end: str,
+        user_ids: list[int] | None = None,
+    ) -> list[AttendanceSession]:
+        clauses = [
+            "is_active = 0",
+            "clock_out_time IS NOT NULL",
+            "clock_in_time < ?",
+            "clock_out_time > ?",
+        ]
+        params: list = [end, start]
+
+        if user_ids is not None:
+            if not user_ids:
+                return []
+            placeholders = ",".join("?" for _ in user_ids)
+            clauses.append(f"user_id IN ({placeholders})")
+            params.extend(user_ids)
+
+        query = f"""
+            SELECT {self._SELECT_COLUMNS}
+            FROM attendance_sessions
+            WHERE {" AND ".join(clauses)}
+            ORDER BY clock_in_time ASC, id ASC
+        """
+
+        with get_connection() as connection:
+            rows = connection.execute(query, params).fetchall()
+
+        return [AttendanceSession.from_row(row) for row in rows]

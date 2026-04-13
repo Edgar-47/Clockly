@@ -19,6 +19,11 @@ from tkinter import StringVar, ttk
 import customtkinter as ctk
 
 from app.models.employee import Employee
+from app.services.attendance_report_service import (
+    AttendanceReportService,
+    EmployeePeriodSummary,
+    SessionReport,
+)
 from app.services.employee_service import EmployeeService
 from app.services.export_service import ExportService
 from app.services.time_clock_service import TimeClockService
@@ -65,6 +70,7 @@ class AdminDashboardView(ctk.CTkFrame):
         employee: Employee,
         employee_service: EmployeeService,
         export_service: ExportService,
+        attendance_report_service: AttendanceReportService,
         time_clock_service: TimeClockService,
         on_logout: Callable[[], None],
     ) -> None:
@@ -72,13 +78,15 @@ class AdminDashboardView(ctk.CTkFrame):
         self.employee = employee
         self.employee_service = employee_service
         self.export_service = export_service
+        self.attendance_report_service = attendance_report_service
         self.time_clock_service = time_clock_service
         self.on_logout = on_logout
 
         # Datos cacheados para las estadísticas
         self._cached_employees: list = []
         self._cached_statuses: dict = {}
-        self._cached_sessions: list = []
+        self._cached_employee_summaries: dict[int, EmployeePeriodSummary] = {}
+        self._cached_sessions: list[SessionReport] = []
 
         # Mapa nombre de empleado → id (para filtro de sesiones)
         self._employee_name_to_id: dict[str, int] = {}
@@ -176,11 +184,13 @@ class AdminDashboardView(ctk.CTkFrame):
     def _build_stats_row(self, parent: ctk.CTkFrame) -> None:
         row = ctk.CTkFrame(parent, fg_color="transparent")
         row.pack(fill="x", pady=(0, 14))
-        row.columnconfigure((0, 1, 2), weight=1, uniform="stat")
+        row.columnconfigure((0, 1, 2, 3, 4), weight=1, uniform="stat")
 
-        self._stat_clocked_lbl  = self._stat_card(row, "Fichados ahora",  "—", th.SUCCESS_TEXT, col=0)
-        self._stat_active_lbl   = self._stat_card(row, "Empleados activos","—", th.T_PRIMARY,    col=1)
-        self._stat_today_lbl    = self._stat_card(row, "Sesiones hoy",    "—", th.ACCENT,        col=2)
+        self._stat_clocked_lbl = self._stat_card(row, "Fichados ahora", "—", th.SUCCESS_TEXT, col=0)
+        self._stat_active_lbl = self._stat_card(row, "Empleados activos", "—", th.T_PRIMARY, col=1)
+        self._stat_hours_today_lbl = self._stat_card(row, "Horas hoy", "—", th.ACCENT, col=2)
+        self._stat_incidents_lbl = self._stat_card(row, "Incidencias", "—", th.WARNING_TEXT, col=3)
+        self._stat_today_lbl = self._stat_card(row, "Sesiones hoy", "—", th.ACCENT_SOFT, col=4)
 
     def _stat_card(
         self,
@@ -191,7 +201,12 @@ class AdminDashboardView(ctk.CTkFrame):
         col: int,
     ) -> ctk.CTkLabel:
         """Crea una tarjeta de métrica y devuelve el label del valor."""
-        padx = (0, 12) if col < 2 else (12, 0)
+        if col == 0:
+            padx = (0, 8)
+        elif col == 4:
+            padx = (8, 0)
+        else:
+            padx = (8, 8)
         card = ctk.CTkFrame(
             parent,
             fg_color=th.BG_RAISED,
@@ -234,10 +249,17 @@ class AdminDashboardView(ctk.CTkFrame):
         today_str      = datetime.now().date().isoformat()
         today_sessions = len([
             r for r in self._cached_sessions
-            if str(r.get("clock_in_time", "")).startswith(today_str)
+            if str(r.clock_in_time).startswith(today_str)
         ])
+        incident_count = len([r for r in self._cached_sessions if r.has_incident])
+        today_seconds = sum(
+            summary.today.total_seconds
+            for summary in self._cached_employee_summaries.values()
+        )
         self._animate_stat(self._stat_clocked_lbl,  clocked_count)
         self._animate_stat(self._stat_active_lbl,   active_count)
+        self._stat_hours_today_lbl.configure(text=self._format_hours(today_seconds))
+        self._animate_stat(self._stat_incidents_lbl, incident_count)
         self._animate_stat(self._stat_today_lbl,    today_sessions)
 
     # ── Formulario de nuevo empleado ──────────────────────────────────────────
@@ -378,7 +400,18 @@ class AdminDashboardView(ctk.CTkFrame):
             command=self._open_edit_dialog_for_selected,
         ).pack(side="right")
 
-        columns = ("name", "dni", "role", "active", "attendance", "created")
+        columns = (
+            "name",
+            "dni",
+            "role",
+            "active",
+            "attendance",
+            "today",
+            "week",
+            "month",
+            "shifts",
+            "avg",
+        )
         self._users_tree = ttk.Treeview(
             card,
             columns=columns,
@@ -387,12 +420,16 @@ class AdminDashboardView(ctk.CTkFrame):
             selectmode="browse",
         )
         config = {
-            "name":       ("Nombre",   185, "w"),
-            "dni":        ("DNI",      120, "center"),
-            "role":       ("Rol",       90, "center"),
-            "active":     ("Activo",    70, "center"),
-            "attendance": ("Estado",   110, "center"),
-            "created":    ("Alta",     110, "center"),
+            "name":       ("Nombre",    155, "w"),
+            "dni":        ("DNI",       105, "center"),
+            "role":       ("Rol",        78, "center"),
+            "active":     ("Activo",     62, "center"),
+            "attendance": ("Estado",     94, "center"),
+            "today":      ("Hoy",        72, "center"),
+            "week":       ("Semana",     78, "center"),
+            "month":      ("Mes",        78, "center"),
+            "shifts":     ("Turnos mes", 82, "center"),
+            "avg":        ("Media",      76, "center"),
         }
         for col, (heading, width, anchor) in config.items():
             self._users_tree.heading(col, text=heading)
@@ -471,7 +508,16 @@ class AdminDashboardView(ctk.CTkFrame):
         self._build_session_filters(card)
 
         # Treeview de sesiones
-        columns = ("employee", "dni", "in", "out", "duration", "status")
+        columns = (
+            "employee",
+            "dni",
+            "in",
+            "out",
+            "duration",
+            "status",
+            "incidents",
+            "notes",
+        )
         self._sessions_tree = ttk.Treeview(
             card,
             columns=columns,
@@ -480,16 +526,21 @@ class AdminDashboardView(ctk.CTkFrame):
             selectmode="browse",
         )
         config = {
-            "employee": ("Empleado",  180, "w"),
-            "dni":      ("DNI",       110, "center"),
-            "in":       ("Entrada",   140, "center"),
-            "out":      ("Salida",    140, "center"),
-            "duration": ("Duración",   85, "center"),
-            "status":   ("Estado",     95, "center"),
+            "employee":  ("Empleado",    150, "w"),
+            "dni":       ("DNI",          95, "center"),
+            "in":        ("Entrada",     130, "center"),
+            "out":       ("Salida",      130, "center"),
+            "duration":  ("Duración",     90, "center"),
+            "status":    ("Estado",       90, "center"),
+            "incidents": ("Incidencias", 170, "w"),
+            "notes":     ("Notas",       160, "w"),
         }
         for col, (heading, width, anchor) in config.items():
             self._sessions_tree.heading(col, text=heading)
             self._sessions_tree.column(col, width=width, anchor=anchor)
+
+        self._sessions_tree.tag_configure("warning", foreground=th.WARNING_TEXT)
+        self._sessions_tree.tag_configure("critical", foreground=th.DANGER_TEXT)
 
         self._sessions_tree.grid(row=2, column=0, sticky="nsew", padx=8, pady=(0, 4))
 
@@ -577,6 +628,26 @@ class AdminDashboardView(ctk.CTkFrame):
             corner_radius=th.R_MD,
         ).pack(**pad)
 
+        lbl("INCIDENCIA").pack(side="left", padx=(10, 0), pady=6)
+        self._filter_incidence_var = StringVar(value="Todas")
+        ctk.CTkComboBox(
+            bar,
+            width=150,
+            height=30,
+            font=th.f(11),
+            values=["Todas", "Incidencias", "Abiertas ant.", ">8h", ">10h", ">12h"],
+            variable=self._filter_incidence_var,
+            fg_color=th.BG_FIELD,
+            border_color=th.BORDER_LT,
+            border_width=1,
+            button_color=th.BORDER_LT,
+            button_hover_color=th.BG_HOVER,
+            dropdown_fg_color=th.BG_CARD,
+            dropdown_text_color=th.T_PRIMARY,
+            text_color=th.T_PRIMARY,
+            corner_radius=th.R_MD,
+        ).pack(**pad)
+
         ctk.CTkButton(
             bar,
             text="Filtrar",
@@ -611,6 +682,14 @@ class AdminDashboardView(ctk.CTkFrame):
             status.employee.id: status
             for status in self.time_clock_service.get_attendance_statuses(self._cached_employees)
         }
+        employee_ids = [
+            employee.id
+            for employee in self._cached_employees
+            if employee.role == "employee"
+        ]
+        self._cached_employee_summaries = (
+            self.attendance_report_service.get_current_period_summaries(employee_ids)
+        )
 
         # Rebuild employee filter map
         self._employee_name_to_id = {}
@@ -627,6 +706,8 @@ class AdminDashboardView(ctk.CTkFrame):
         for emp in self._cached_employees:
             status = self._cached_statuses.get(emp.id)
             is_clocked = status.is_clocked_in if status else False
+            summary = self._cached_employee_summaries.get(emp.id)
+            month_summary = summary.month if summary else None
 
             self._users_tree.insert(
                 "",
@@ -638,7 +719,13 @@ class AdminDashboardView(ctk.CTkFrame):
                     emp.role,
                     "Sí" if emp.active else "No",
                     "Fichado" if is_clocked else "Sin fichar",
-                    format_timestamp(emp.created_at, "%d/%m/%Y") if emp.created_at else "",
+                    self._format_hours(summary.today.total_seconds) if summary else "—",
+                    self._format_hours(summary.week.total_seconds) if summary else "—",
+                    self._format_hours(summary.month.total_seconds) if summary else "—",
+                    str(month_summary.shift_count) if month_summary else "—",
+                    self._format_hours(month_summary.average_seconds)
+                    if month_summary
+                    else "—",
                 ),
             )
 
@@ -659,39 +746,36 @@ class AdminDashboardView(ctk.CTkFrame):
         elif status_sel == "Cerrados":
             is_active = 0
 
-        self._cached_sessions = (
-            self.time_clock_service.attendance_session_repository.list_with_user_names(
-                date_from=date_from,
-                date_to=date_to,
-                user_id=user_id,
-                is_active=is_active,
-            )
+        self._cached_sessions = self.attendance_report_service.list_session_reports(
+            date_from=date_from,
+            date_to=date_to,
+            user_id=user_id,
+            is_active=is_active,
+            incident_filter=self._selected_incident_filter(),
         )
 
         for row in self._cached_sessions:
-            total_sec = row["total_seconds"]
-            if row["is_active"]:
-                total_sec = self._seconds_since(row["clock_in_time"])
-
-            if row.get("closed_by_admin"):
-                status_text = "Cierre admin"
-            elif row["is_active"]:
-                status_text = "Activo"
-            else:
-                status_text = "Cerrado"
+            tags = ()
+            if row.severity == "critical":
+                tags = ("critical",)
+            elif row.severity == "warning":
+                tags = ("warning",)
 
             self._sessions_tree.insert(
                 "",
                 "end",
-                iid=str(row["id"]),
+                iid=str(row.id),
                 values=(
-                    row["employee_name"],
-                    row["dni"],
-                    format_timestamp(row["clock_in_time"]),
-                    format_timestamp(row["clock_out_time"]) if row["clock_out_time"] else "—",
-                    self._format_seconds(total_sec or 0),
-                    status_text,
+                    row.employee_name,
+                    row.dni,
+                    format_timestamp(row.clock_in_time),
+                    format_timestamp(row.clock_out_time) if row.clock_out_time else "—",
+                    self._format_session_duration(row),
+                    row.status_label,
+                    row.incident_label,
+                    row.notes_label or "—",
                 ),
+                tags=tags,
             )
 
     # ── Acciones de usuario ───────────────────────────────────────────────────
@@ -962,16 +1046,16 @@ class AdminDashboardView(ctk.CTkFrame):
             return
 
         session_id = int(selected[0])
-        session_row = next((r for r in self._cached_sessions if r["id"] == session_id), None)
+        session_row = next((r for r in self._cached_sessions if r.id == session_id), None)
         if not session_row:
             return
-        if not session_row["is_active"]:
+        if not session_row.is_active:
             self._toast(self._export_status, "  ✕  La sesión seleccionada ya está cerrada.", th.DANGER_TEXT, th.DANGER_DIM, key="export")
             return
 
         self._open_admin_close_dialog(session_id, session_row)
 
-    def _open_admin_close_dialog(self, session_id: int, session_row: dict) -> None:
+    def _open_admin_close_dialog(self, session_id: int, session_row: SessionReport) -> None:
         dlg = ctk.CTkToplevel(self)
         dlg.title("Cerrar turno manualmente")
         dlg.geometry("440x340")
@@ -985,8 +1069,8 @@ class AdminDashboardView(ctk.CTkFrame):
         ).pack(anchor="w", padx=22, pady=(20, 2))
 
         # Session info
-        emp_name    = session_row.get("employee_name", "—")
-        clock_in    = format_timestamp(session_row.get("clock_in_time", ""))
+        emp_name    = session_row.employee_name or "—"
+        clock_in    = format_timestamp(session_row.clock_in_time)
         info_text   = f"{emp_name}  ·  Entrada: {clock_in}"
         ctk.CTkLabel(
             dlg, text=info_text, font=th.f(11), text_color=th.T_MUTED
@@ -1049,14 +1133,21 @@ class AdminDashboardView(ctk.CTkFrame):
         self._filter_to.delete(0, "end")
         self._filter_emp_var.set("Todos")
         self._filter_status_var.set("Todos")
+        self._filter_incidence_var.set("Todas")
         self._reload_sessions()
         self._refresh_stats()
 
     # ── Exportar ──────────────────────────────────────────────────────────────
 
     def _export_entries(self) -> None:
+        emp_name = self._filter_emp_var.get()
+        user_id = self._employee_name_to_id.get(emp_name) if emp_name != "Todos" else None
         try:
-            path = self.export_service.export_time_entries_to_excel()
+            path = self.export_service.export_time_entries_to_excel(
+                date_from=self._filter_from.get().strip() or None,
+                date_to=self._filter_to.get().strip() or None,
+                employee_id=user_id,
+            )
         except RuntimeError as exc:
             self._toast(self._export_status, f"  ✕  {exc}", th.DANGER_TEXT, th.DANGER_DIM, key="export")
             return
@@ -1066,6 +1157,7 @@ class AdminDashboardView(ctk.CTkFrame):
     # ── Auto-refresco ─────────────────────────────────────────────────────────
 
     def _manual_refresh(self) -> None:
+        self._reload_users()
         self._reload_sessions()
         self._refresh_stats()
         self._cancel_refresh()
@@ -1083,6 +1175,7 @@ class AdminDashboardView(ctk.CTkFrame):
 
     def _auto_refresh(self) -> None:
         if self.winfo_exists():
+            self._reload_users()
             self._reload_sessions()
             self._refresh_stats()
             self._schedule_refresh()
@@ -1132,7 +1225,30 @@ class AdminDashboardView(ctk.CTkFrame):
             return 0
         return max(int((datetime.now() - started).total_seconds()), 0)
 
+    def _selected_incident_filter(self) -> str:
+        selected = self._filter_incidence_var.get()
+        return {
+            "Incidencias": AttendanceReportService.INCIDENT_FILTER_ANY,
+            "Abiertas ant.": AttendanceReportService.INCIDENT_FILTER_PREVIOUS_OPEN,
+            ">8h": AttendanceReportService.INCIDENT_FILTER_EXCESS_8,
+            ">10h": AttendanceReportService.INCIDENT_FILTER_EXCESS_10,
+            ">12h": AttendanceReportService.INCIDENT_FILTER_EXCESS_12,
+        }.get(selected, AttendanceReportService.INCIDENT_FILTER_ALL)
+
     def _format_seconds(self, total_seconds: int) -> str:
         hours, remainder = divmod(max(int(total_seconds), 0), 3600)
         minutes, seconds = divmod(remainder, 60)
         return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
+    def _format_hours(self, total_seconds: int | None) -> str:
+        if total_seconds is None:
+            return "—"
+        hours, remainder = divmod(max(int(total_seconds), 0), 3600)
+        minutes, _ = divmod(remainder, 60)
+        return f"{hours}h {minutes:02d}m"
+
+    def _format_session_duration(self, row: SessionReport) -> str:
+        if row.is_active:
+            elapsed = row.display_duration_seconds or 0
+            return f"En curso {self._format_seconds(elapsed)}"
+        return self._format_seconds(row.counted_duration_seconds or 0)

@@ -21,7 +21,7 @@ import customtkinter as ctk
 from app.models.employee import Employee
 from app.services.time_clock_service import TimeClockService
 from app.ui import theme as th
-from app.utils.helpers import format_timestamp, label_for_entry_type
+from app.utils.helpers import format_timestamp
 
 
 class ClockView(ctk.CTkFrame):
@@ -236,23 +236,33 @@ class ClockView(ctk.CTkFrame):
     # ═════════════════════════════════════════════════════════════════════════
 
     def _refresh_status(self) -> None:
-        last = self.time_clock_service.get_last_entry(self.employee.id)
-        if last:
-            tipo = label_for_entry_type(last.entry_type)
-            ts = format_timestamp(last.timestamp)
-            is_entrada = last.entry_type == TimeClockService.ENTRY
-            dot_color = th.SUCCESS if is_entrada else th.DANGER
-            self._badge_dot.configure(fg_color=dot_color)
+        active = self.time_clock_service.get_active_session(self.employee.id)
+        if active:
+            self._badge_dot.configure(fg_color=th.SUCCESS)
             self._badge_lbl.configure(
-                text=f"Último fichaje: {tipo}   ·   {ts}",
+                text=f"Turno activo desde {format_timestamp(active.clock_in_time)}",
                 text_color=th.T_PRIMARY,
             )
-        else:
-            self._badge_dot.configure(fg_color=th.T_MUTED)
-            self._badge_lbl.configure(
-                text="Sin fichajes previos",
-                text_color=th.T_SECONDARY,
+            return
+
+        latest = (
+            self.time_clock_service.attendance_session_repository.get_latest_for_user(
+                self.employee.id
             )
+        )
+        if latest and latest.clock_out_time:
+            self._badge_dot.configure(fg_color=th.DANGER)
+            self._badge_lbl.configure(
+                text=f"Ultima salida: {format_timestamp(latest.clock_out_time)}",
+                text_color=th.T_PRIMARY,
+            )
+            return
+
+        self._badge_dot.configure(fg_color=th.T_MUTED)
+        self._badge_lbl.configure(
+            text="Sin fichajes previos",
+            text_color=th.T_SECONDARY,
+        )
 
     # ═════════════════════════════════════════════════════════════════════════
     # Button action

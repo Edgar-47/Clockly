@@ -7,6 +7,10 @@ from app.models.attendance_session import AttendanceSession
 from app.models.attendance_status import AttendanceStatus
 from app.models.employee import Employee
 from app.models.time_entry import TimeEntry
+from app.services.attendance_policy import (
+    normalize_exit_note,
+    normalize_incident_type,
+)
 
 
 class TimeClockService:
@@ -29,7 +33,14 @@ class TimeClockService:
         # attendance_session_repository instead.
         self.time_entry_repository = time_entry_repository or TimeEntryRepository()
 
-    def register(self, *, employee_id: int, entry_type: str) -> int:
+    def register(
+        self,
+        *,
+        employee_id: int,
+        entry_type: str,
+        exit_note: str | None = None,
+        incident_type: str | None = None,
+    ) -> int:
         if entry_type not in self.VALID_TYPES:
             raise ValueError("Tipo de fichaje no valido.")
 
@@ -37,7 +48,11 @@ class TimeClockService:
             session = self.start_session_for_employee(employee_id)
             return session.id
 
-        session = self.clock_out_employee(employee_id)
+        session = self.clock_out_employee(
+            employee_id,
+            exit_note=exit_note,
+            incident_type=incident_type,
+        )
         return session.id
 
     def start_session_for_employee(self, employee_id: int) -> AttendanceSession:
@@ -56,18 +71,28 @@ class TimeClockService:
             raise RuntimeError("No se pudo crear la sesion de asistencia.")
         return session
 
-    def clock_out_employee(self, employee_id: int) -> AttendanceSession:
+    def clock_out_employee(
+        self,
+        employee_id: int,
+        *,
+        exit_note: str | None = None,
+        incident_type: str | None = None,
+    ) -> AttendanceSession:
         employee = self._require_clockable_employee(employee_id)
         active = self.attendance_session_repository.get_active_for_user(employee.id)
         if not active:
             raise ValueError("No hay una sesion activa para cerrar.")
 
+        clean_exit_note = normalize_exit_note(exit_note)
+        clean_incident_type = normalize_incident_type(incident_type)
         timestamp = self._now_local()
         total_seconds = self._seconds_between(active.clock_in_time, timestamp)
         self.attendance_session_repository.clock_out(
             session_id=active.id,
             clock_out_time=timestamp,
             total_seconds=total_seconds,
+            exit_note=clean_exit_note,
+            incident_type=clean_incident_type,
         )
         session = self.attendance_session_repository.get_by_id(active.id)
         if session is None:
@@ -156,12 +181,15 @@ class TimeClockService:
 
         timestamp = self._now_local()
         total_seconds = self._seconds_between(session.clock_in_time, timestamp)
+        clean_exit_note = normalize_exit_note(clean_reason)
         self.attendance_session_repository.admin_clock_out(
             session_id=session_id,
             clock_out_time=timestamp,
             total_seconds=total_seconds,
             reason=clean_reason,
             closed_by_user_id=admin_user_id,
+            exit_note=clean_exit_note,
+            incident_type="correccion_manual",
         )
         updated = self.attendance_session_repository.get_by_id(session_id)
         if updated is None:

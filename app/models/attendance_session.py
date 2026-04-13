@@ -11,6 +11,8 @@ class AttendanceSession:
     is_active: bool
     total_seconds: int | None = None
     notes: str | None = None
+    exit_note: str | None = None
+    incident_type: str | None = None
     closed_by_admin: bool = False
     manual_close_reason: str | None = None
     closed_by_user_id: int | None = None
@@ -26,6 +28,8 @@ class AttendanceSession:
             is_active=bool(d["is_active"]),
             total_seconds=d.get("total_seconds"),
             notes=d.get("notes"),
+            exit_note=d.get("exit_note"),
+            incident_type=d.get("incident_type"),
             closed_by_admin=bool(d.get("closed_by_admin", 0)),
             manual_close_reason=d.get("manual_close_reason"),
             closed_by_user_id=d.get("closed_by_user_id"),

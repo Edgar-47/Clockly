@@ -101,6 +101,44 @@ def test_clock_out_closes_session(db):
     assert closed.total_seconds >= 0
 
 
+def test_clock_out_persists_exit_context(db):
+    emp_svc = EmployeeService()
+    clk_svc = TimeClockService()
+    emp_id = _make_employee(emp_svc)
+
+    clk_svc.start_session_for_employee(emp_id)
+    closed = clk_svc.clock_out_employee(
+        emp_id,
+        exit_note="Descanso largo comunicado",
+        incident_type="descanso",
+    )
+
+    assert closed.exit_note == "Descanso largo comunicado"
+    assert closed.incident_type == "descanso"
+
+
+def test_clock_out_rejects_invalid_incident_type(db):
+    emp_svc = EmployeeService()
+    clk_svc = TimeClockService()
+    emp_id = _make_employee(emp_svc)
+
+    clk_svc.start_session_for_employee(emp_id)
+
+    with pytest.raises(ValueError, match="incidencia"):
+        clk_svc.clock_out_employee(emp_id, incident_type="no_existe")
+
+
+def test_clock_out_rejects_too_long_exit_note(db):
+    emp_svc = EmployeeService()
+    clk_svc = TimeClockService()
+    emp_id = _make_employee(emp_svc)
+
+    clk_svc.start_session_for_employee(emp_id)
+
+    with pytest.raises(ValueError, match="nota de salida"):
+        clk_svc.clock_out_employee(emp_id, exit_note="x" * 501)
+
+
 def test_clock_out_no_active_session_raises(db):
     emp_svc = EmployeeService()
     clk_svc = TimeClockService()

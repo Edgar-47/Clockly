@@ -12,6 +12,7 @@ from pathlib import Path
 
 from app.config import EXPORTS_DIR, ensure_runtime_directories
 from app.database.attendance_session_repository import AttendanceSessionRepository
+from app.services.attendance_report_service import AttendanceReportService
 from app.utils.helpers import split_timestamp
 
 
@@ -28,9 +29,14 @@ class ExportService:
     def __init__(
         self,
         attendance_session_repository: AttendanceSessionRepository | None = None,
+        attendance_report_service: AttendanceReportService | None = None,
     ) -> None:
         self.attendance_session_repository = (
             attendance_session_repository or AttendanceSessionRepository()
+        )
+        self.attendance_report_service = (
+            attendance_report_service
+            or AttendanceReportService(self.attendance_session_repository)
         )
 
     def export_sessions_to_excel(
@@ -67,7 +73,7 @@ class ExportService:
 
         ensure_runtime_directories()
 
-        rows = self.attendance_session_repository.list_with_user_names(
+        reports = self.attendance_report_service.list_session_reports(
             date_from=date_from,
             date_to=date_to,
             user_id=user_id,
@@ -87,7 +93,10 @@ class ExportService:
             "Salida",
             "Duración",
             "Estado",
+            "Incidencias",
             "Notas",
+            "Nota salida",
+            "Motivo cierre admin",
         ]
         sheet.append(headers)
 
@@ -99,29 +108,30 @@ class ExportService:
             cell.alignment = Alignment(horizontal="center")
 
         # ── Data rows ────────────────────────────────────────────────────────
-        for row in rows:
-            date_str, in_time = split_timestamp(row["clock_in_time"])
+        for row in reports:
+            date_str, in_time = split_timestamp(row.clock_in_time)
 
-            if row["clock_out_time"]:
-                _, out_time = split_timestamp(row["clock_out_time"])
+            if row.clock_out_time:
+                _, out_time = split_timestamp(row.clock_out_time)
             else:
                 out_time = "—"
 
-            is_active = bool(row["is_active"])
-            duration = _fmt_duration(row["total_seconds"], is_active)
-            status = "Abierta" if is_active else "Cerrada"
+            duration = _fmt_duration(row.counted_duration_seconds, row.is_active)
 
             sheet.append(
                 [
-                    row["id"],
-                    row["employee_name"],
-                    row["dni"],
+                    row.id,
+                    row.employee_name,
+                    row.dni,
                     date_str,
                     in_time,
                     out_time,
                     duration,
-                    status,
-                    row["notes"] or "",
+                    row.status_label,
+                    row.incident_label,
+                    row.notes or "",
+                    row.exit_note or "",
+                    row.manual_close_reason or "",
                 ]
             )
 
@@ -135,7 +145,10 @@ class ExportService:
             "F": 10,  # Salida
             "G": 12,  # Duración
             "H": 10,  # Estado
-            "I": 32,  # Notas
+            "I": 24,  # Incidencias
+            "J": 32,  # Notas
+            "K": 32,  # Nota salida
+            "L": 32,  # Motivo cierre admin
         }
         for col_letter, min_w in min_widths.items():
             col_cells = sheet[col_letter]

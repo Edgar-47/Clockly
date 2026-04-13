@@ -10,6 +10,7 @@ can log in immediately without disturbing any active sessions.
 """
 
 from collections.abc import Callable
+from tkinter import StringVar
 
 import customtkinter as ctk
 
@@ -30,7 +31,7 @@ class AttendanceView(ctk.CTkFrame):
         attendance_session: AttendanceSession | None,
         time_clock_service: TimeClockService,
         on_clock_in: Callable[[], AttendanceSession],
-        on_clock_out: Callable[[], AttendanceSession],
+        on_clock_out: Callable[[str | None, str | None], AttendanceSession],
         on_return_to_login: Callable[[], None],
     ) -> None:
         super().__init__(master, corner_radius=0, fg_color=th.BG_ROOT)
@@ -44,6 +45,13 @@ class AttendanceView(ctk.CTkFrame):
         self._pulse_after_id: str | None = None
         self._pulse_state = False
         self._sidebar: ActiveEmployeesSidebar | None = None
+        self._incident_label_to_type = {
+            "Sin incidencia": None,
+            "Descanso": "descanso",
+            "Olvido": "olvido",
+            "Correccion manual": "correccion_manual",
+            "Otro": "otro",
+        }
 
         self._build()
         self._apply_state()
@@ -284,7 +292,7 @@ class AttendanceView(ctk.CTkFrame):
             hover_color=th.DANGER_HOVER,
             text_color="#FFFFFF",
             state="normal",
-            command=self._clock_out,
+            command=self._open_clock_out_dialog,
         )
 
         self._tick_elapsed()
@@ -334,12 +342,131 @@ class AttendanceView(ctk.CTkFrame):
             fg_color=th.SUCCESS_DIM,
         )
 
-    def _clock_out(self) -> None:
+    def _open_clock_out_dialog(self) -> None:
+        dlg = ctk.CTkToplevel(self)
+        dlg.title("Desfichar")
+        dlg.geometry("460x360")
+        dlg.resizable(False, False)
+        dlg.grab_set()
+        dlg.configure(fg_color=th.BG_CARD)
+        dlg.focus_force()
+
+        ctk.CTkLabel(
+            dlg,
+            text="Cerrar turno",
+            font=th.bold(18),
+            text_color=th.T_PRIMARY,
+        ).pack(anchor="w", padx=22, pady=(22, 2))
+        ctk.CTkLabel(
+            dlg,
+            text="Puedes anadir una nota opcional antes de registrar la salida.",
+            font=th.f(12),
+            text_color=th.T_SECONDARY,
+            wraplength=400,
+            justify="left",
+        ).pack(anchor="w", padx=22, pady=(0, 16))
+        th.separator(dlg, padx=22, pady=(0, 14))
+
+        ctk.CTkLabel(
+            dlg,
+            text="TIPO",
+            font=th.bold(9),
+            text_color=th.T_MUTED,
+            anchor="w",
+        ).pack(fill="x", padx=22)
+        incident_var = StringVar(value="Sin incidencia")
+        ctk.CTkComboBox(
+            dlg,
+            height=38,
+            font=th.f(13),
+            values=list(self._incident_label_to_type.keys()),
+            variable=incident_var,
+            fg_color=th.BG_FIELD,
+            border_color=th.BORDER_LT,
+            border_width=1,
+            button_color=th.BORDER_LT,
+            button_hover_color=th.BG_HOVER,
+            dropdown_fg_color=th.BG_CARD,
+            dropdown_text_color=th.T_PRIMARY,
+            text_color=th.T_PRIMARY,
+            corner_radius=th.R_MD,
+        ).pack(fill="x", padx=22, pady=(4, 12))
+
+        ctk.CTkLabel(
+            dlg,
+            text="NOTA OPCIONAL",
+            font=th.bold(9),
+            text_color=th.T_MUTED,
+            anchor="w",
+        ).pack(fill="x", padx=22)
+        note_entry = ctk.CTkEntry(
+            dlg,
+            height=38,
+            font=th.f(13),
+            placeholder_text="Ej. descanso, olvido, ajuste operativo",
+            **th.entry_kwargs(),
+        )
+        note_entry.pack(fill="x", padx=22, pady=(4, 8))
+
+        status_lbl = ctk.CTkLabel(
+            dlg,
+            text="",
+            font=th.f(11),
+            text_color=th.DANGER_TEXT,
+            fg_color="transparent",
+            wraplength=400,
+        )
+        status_lbl.pack(fill="x", padx=22, pady=(0, 8))
+
+        def _confirm() -> None:
+            incident_type = self._incident_label_to_type.get(incident_var.get())
+            self._clock_out(
+                exit_note=note_entry.get(),
+                incident_type=incident_type,
+                dialog=dlg,
+                status_label=status_lbl,
+            )
+
+        ctk.CTkButton(
+            dlg,
+            text="Confirmar salida",
+            height=42,
+            font=th.bold(13),
+            fg_color=th.DANGER,
+            hover_color=th.DANGER_HOVER,
+            text_color="#FFFFFF",
+            corner_radius=th.R_MD,
+            command=_confirm,
+        ).pack(fill="x", padx=22, pady=(2, 6))
+
+        ctk.CTkButton(
+            dlg,
+            text="Cancelar",
+            height=36,
+            font=th.f(12),
+            **th.quiet_button_kwargs(),
+            command=dlg.destroy,
+        ).pack(fill="x", padx=22)
+
+        note_entry.focus()
+        dlg.bind("<Return>", lambda _: _confirm())
+        dlg.bind("<Escape>", lambda _: dlg.destroy())
+
+    def _clock_out(
+        self,
+        *,
+        exit_note: str | None = None,
+        incident_type: str | None = None,
+        dialog: ctk.CTkToplevel | None = None,
+        status_label: ctk.CTkLabel | None = None,
+    ) -> None:
         self._feedback_label.configure(text="", fg_color="transparent")
         self._action_button.configure(state="disabled", text="Registrando...")
         try:
-            self.attendance_session = self.on_clock_out()
+            self.attendance_session = self.on_clock_out(exit_note, incident_type)
         except ValueError as exc:
+            if status_label is not None:
+                status_label.configure(text=f"  ✕  {exc}", text_color=th.DANGER_TEXT)
             self._feedback_label.configure(
                 text=f"  ✕  {exc}",
                 text_color=th.DANGER_TEXT,
@@ -348,6 +475,8 @@ class AttendanceView(ctk.CTkFrame):
             self._action_button.configure(state="normal", text="Desfichar")
             return
 
+        if dialog is not None:
+            dialog.destroy()
         self._apply_state()
         if self._sidebar:
             self._sidebar.refresh()

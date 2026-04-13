@@ -26,7 +26,12 @@ CREATE TABLE IF NOT EXISTS attendance_sessions (
     is_active INTEGER NOT NULL DEFAULT 1,
     total_seconds INTEGER,
     notes TEXT,
+    exit_note TEXT,
+    incident_type TEXT,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    closed_by_admin INTEGER NOT NULL DEFAULT 0,
+    manual_close_reason TEXT,
+    closed_by_user_id INTEGER,
     FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
@@ -80,6 +85,7 @@ def initialize_database() -> None:
         _ensure_default_admin(connection)
         _sync_users_to_legacy_employees(connection)
         _migrate_attendance_sessions_from_time_entries(connection)
+        _migrate_attendance_sessions_add_context_columns(connection)
         _migrate_attendance_sessions_add_admin_close_columns(connection)
 
 
@@ -362,6 +368,15 @@ def _migrate_attendance_sessions_add_admin_close_columns(connection) -> None:
         connection.execute(
             "ALTER TABLE attendance_sessions ADD COLUMN closed_by_user_id INTEGER"
         )
+
+
+def _migrate_attendance_sessions_add_context_columns(connection) -> None:
+    """Add exit context columns to attendance_sessions if they don't exist yet."""
+    columns = _table_columns(connection, "attendance_sessions")
+    if "exit_note" not in columns:
+        connection.execute("ALTER TABLE attendance_sessions ADD COLUMN exit_note TEXT")
+    if "incident_type" not in columns:
+        connection.execute("ALTER TABLE attendance_sessions ADD COLUMN incident_type TEXT")
 
 
 def _seconds_between(start: str, end: str) -> int:

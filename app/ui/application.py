@@ -18,7 +18,13 @@ from tkinter import PhotoImage
 from app.config import APP_TITLE
 from app.database import initialize_database
 from app.models.employee import Employee
-from app.services import AuthService, EmployeeService, ExportService, TimeClockService
+from app.services import (
+    AttendanceReportService,
+    AuthService,
+    EmployeeService,
+    ExportService,
+    TimeClockService,
+)
 from app.ui import theme as th
 
 ctk.set_appearance_mode("dark")
@@ -39,7 +45,15 @@ class TimeClockApplication(ctk.CTk):
         self.auth_service        = AuthService()
         self.employee_service    = EmployeeService()
         self.time_clock_service  = TimeClockService()
-        self.export_service      = ExportService()
+        self.attendance_report_service = AttendanceReportService(
+            self.time_clock_service.attendance_session_repository
+        )
+        self.export_service      = ExportService(
+            attendance_session_repository=(
+                self.time_clock_service.attendance_session_repository
+            ),
+            attendance_report_service=self.attendance_report_service,
+        )
 
         self.current_employee: Employee | None = None
         self._active_frame: ctk.CTkFrame | None = None
@@ -99,6 +113,7 @@ class TimeClockApplication(ctk.CTk):
                 employee=self.current_employee,
                 employee_service=self.employee_service,
                 export_service=self.export_service,
+                attendance_report_service=self.attendance_report_service,
                 time_clock_service=self.time_clock_service,
                 on_logout=self.show_login,
             )
@@ -126,10 +141,14 @@ class TimeClockApplication(ctk.CTk):
             raise ValueError("No hay usuario autenticado.")
         return self.time_clock_service.start_session_for_employee(self.current_employee.id)
 
-    def _handle_clock_out(self):
+    def _handle_clock_out(self, exit_note=None, incident_type=None):
         if not self.current_employee:
             raise ValueError("No hay usuario autenticado.")
-        return self.time_clock_service.clock_out_employee(self.current_employee.id)
+        return self.time_clock_service.clock_out_employee(
+            self.current_employee.id,
+            exit_note=exit_note,
+            incident_type=incident_type,
+        )
 
     def _handle_register(self, employee_id: int, password: str, entry_type: str) -> str:
         """

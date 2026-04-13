@@ -79,6 +79,9 @@ def test_export_columns_match_sessions(db, tmp_path, monkeypatch):
     assert "Salida" in headers
     assert "Duración" in headers
     assert "Estado" in headers
+    assert "Incidencias" in headers
+    assert "Nota salida" in headers
+    assert "Motivo cierre admin" in headers
 
 
 def test_export_data_rows_count(db, tmp_path, monkeypatch):
@@ -126,6 +129,34 @@ def test_export_open_session_shows_en_curso(db, tmp_path, monkeypatch):
     duration_value = ws.cell(row=2, column=dur_col).value
 
     assert duration_value == "En curso"
+
+
+def test_export_includes_exit_note_and_incident(db, tmp_path, monkeypatch):
+    _patch_exports_dir(tmp_path, monkeypatch)
+    emp_svc = EmployeeService()
+    clk_svc = TimeClockService()
+    exp_svc = ExportService()
+
+    emp_id = _make_employee(emp_svc)
+    clk_svc.start_session_for_employee(emp_id)
+    clk_svc.clock_out_employee(
+        emp_id,
+        exit_note="Olvido de fichaje avisado",
+        incident_type="olvido",
+    )
+
+    path = exp_svc.export_sessions_to_excel()
+
+    from openpyxl import load_workbook
+    wb = load_workbook(path)
+    ws = wb.active
+    headers = [ws.cell(row=1, column=c).value for c in range(1, ws.max_column + 1)]
+
+    incident_col = headers.index("Incidencias") + 1
+    exit_note_col = headers.index("Nota salida") + 1
+
+    assert ws.cell(row=2, column=incident_col).value == "Olvido"
+    assert ws.cell(row=2, column=exit_note_col).value == "Olvido de fichaje avisado"
 
 
 def test_export_backward_compat_alias(db, tmp_path, monkeypatch):
