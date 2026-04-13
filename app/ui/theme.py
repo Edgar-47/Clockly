@@ -7,7 +7,17 @@ the app professional without leaning on a flat blue theme.
 
 from __future__ import annotations
 
+from math import ceil
+from pathlib import Path
+from tkinter import PhotoImage
+
 import customtkinter as ctk
+
+ASSET_DIR = Path(__file__).resolve().parents[1] / "assets" / "brand"
+LOGO_DARK = ASSET_DIR / "Logo_ClockLy_Fondo_Oscuro.png"
+LOGO_LIGHT = ASSET_DIR / "Logo_ClockLy_Fondo_Claro.png"
+LOGO_TRANSPARENT = ASSET_DIR / "Logo_ClockLy_Transparente.png"
+LOGO_MARK = ASSET_DIR / "Logo_ClockLy_Transparente_Solo_Logo.png"
 
 # Backgrounds
 BG_ROOT = "#0E100F"
@@ -74,6 +84,28 @@ def f(size: int, weight: str = "normal") -> ctk.CTkFont:
 
 def bold(size: int) -> ctk.CTkFont:
     return f(size, "bold")
+
+
+def image(path: Path, *, size: tuple[int, int]) -> PhotoImage:
+    source = PhotoImage(file=path)
+    scale = max(
+        1,
+        ceil(source.width() / size[0]),
+        ceil(source.height() / size[1]),
+    )
+    return source.subsample(scale, scale)
+
+
+def logo_for_dark(*, size: tuple[int, int]) -> PhotoImage:
+    return image(LOGO_DARK, size=size)
+
+
+def logo_for_light(*, size: tuple[int, int]) -> PhotoImage:
+    return image(LOGO_LIGHT, size=size)
+
+
+def logo_mark(*, size: tuple[int, int]) -> PhotoImage:
+    return image(LOGO_MARK, size=size)
 
 
 # ── Common widget factory helpers ─────────────────────────────────────────────

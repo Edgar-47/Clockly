@@ -13,6 +13,7 @@ OS-level popups.
 """
 
 import customtkinter as ctk
+from tkinter import PhotoImage
 
 from app.config import APP_TITLE
 from app.database import initialize_database
@@ -44,6 +45,7 @@ class TimeClockApplication(ctk.CTk):
         self._active_frame: ctk.CTkFrame | None = None
 
         self.title(APP_TITLE)
+        self._set_window_icon()
         self.geometry(f"{self.WIDTH}x{self.HEIGHT}")
         self.minsize(760, 560)
         self.resizable(True, True)
@@ -69,11 +71,9 @@ class TimeClockApplication(ctk.CTk):
             self.show_login()
             return
 
+        # Fetch existing active session — may be None if employee is not yet clocked in.
+        # Never auto-start a session here; let the employee choose via the UI.
         session = self.time_clock_service.get_active_session(self.current_employee.id)
-        if session is None:
-            session = self.time_clock_service.start_session_for_employee(
-                self.current_employee.id
-            )
 
         from app.ui.attendance_view import AttendanceView
         self._swap(
@@ -82,6 +82,7 @@ class TimeClockApplication(ctk.CTk):
                 employee=self.current_employee,
                 attendance_session=session,
                 time_clock_service=self.time_clock_service,
+                on_clock_in=self._handle_clock_in,
                 on_clock_out=self._handle_clock_out,
                 on_return_to_login=self.show_login,
             )
@@ -116,8 +117,14 @@ class TimeClockApplication(ctk.CTk):
             self.show_admin()
             return
 
-        self.time_clock_service.start_session_for_employee(employee.id)
+        # Navigate to the attendance view; the employee will choose to clock in/out.
+        # Any other employees who are currently clocked in are not affected.
         self.show_clock()
+
+    def _handle_clock_in(self):
+        if not self.current_employee:
+            raise ValueError("No hay usuario autenticado.")
+        return self.time_clock_service.start_session_for_employee(self.current_employee.id)
 
     def _handle_clock_out(self):
         if not self.current_employee:
@@ -152,3 +159,10 @@ class TimeClockApplication(ctk.CTk):
         x = max((screen_w - self.WIDTH) // 2, 0)
         y = max((screen_h - self.HEIGHT) // 2, 0)
         self.geometry(f"{self.WIDTH}x{self.HEIGHT}+{x}+{y}")
+
+    def _set_window_icon(self) -> None:
+        try:
+            self._window_icon = PhotoImage(file=str(th.LOGO_MARK))
+            self.iconphoto(True, self._window_icon)
+        except Exception:
+            self._window_icon = None

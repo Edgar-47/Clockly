@@ -54,22 +54,15 @@ class ClockKioskView(ctk.CTkFrame):
         brand = ctk.CTkFrame(bar, fg_color="transparent")
         brand.pack(side="left", padx=22, pady=0)
 
-        mark = ctk.CTkFrame(
+        ctk.CTkLabel(
             brand,
-            width=34,
-            height=34,
-            corner_radius=th.R_MD,
-            fg_color=th.ACCENT,
-        )
-        mark.pack(side="left", padx=(0, 12), pady=17)
-        mark.pack_propagate(False)
-        ctk.CTkLabel(mark, text="F", font=th.bold(15), text_color="#062421").place(
-            relx=0.5, rely=0.5, anchor="center"
-        )
+            text="",
+            image=th.logo_mark(size=(38, 38)),
+        ).pack(side="left", padx=(0, 12), pady=17)
 
         ctk.CTkLabel(
             brand,
-            text="FICHAJE RESTAURANTE",
+            text="CLOCKLY",
             font=th.bold(13),
             text_color=th.T_PRIMARY,
         ).pack(side="left", pady=22)

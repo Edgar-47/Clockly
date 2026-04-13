@@ -74,12 +74,19 @@ class AdminDashboardView(ctk.CTkFrame):
         left = ctk.CTkFrame(bar, fg_color="transparent")
         left.pack(side="left", padx=22, pady=14)
 
+        brand_line = ctk.CTkFrame(left, fg_color="transparent")
+        brand_line.pack(anchor="w")
         ctk.CTkLabel(
-            left,
+            brand_line,
+            text="",
+            image=th.logo_mark(size=(28, 28)),
+        ).pack(side="left", padx=(0, 9))
+        ctk.CTkLabel(
+            brand_line,
             text="Admin panel",
             font=th.bold(19),
             text_color=th.T_PRIMARY,
-        ).pack(anchor="w")
+        ).pack(side="left")
         ctk.CTkLabel(
             left,
             text="Create employees, review users, and monitor attendance.",

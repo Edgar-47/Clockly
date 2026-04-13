@@ -67,27 +67,15 @@ class LoginView(ctk.CTkFrame):
         inner = ctk.CTkFrame(panel, fg_color="transparent")
         inner.place(relx=0.5, rely=0.5, anchor="center")
 
-        logo_ring = ctk.CTkFrame(
-            inner,
-            width=78,
-            height=78,
-            corner_radius=th.R_LG,
-            fg_color=th.ACCENT_DIM,
-            border_width=2,
-            border_color=th.ACCENT,
-        )
-        logo_ring.pack(pady=(0, 22))
-        logo_ring.pack_propagate(False)
         ctk.CTkLabel(
-            logo_ring,
-            text="F",
-            font=th.bold(32),
-            text_color=th.ACCENT_SOFT,
-        ).place(relx=0.5, rely=0.5, anchor="center")
+            inner,
+            text="",
+            image=th.logo_for_dark(size=(280, 170)),
+        ).pack(pady=(0, 18))
 
         ctk.CTkLabel(
             inner,
-            text="Fichaje Restaurante",
+            text="Control horario ClockLy",
             font=th.bold(27),
             text_color=th.BRAND_TEXT,
             justify="center",
