@@ -1,4 +1,4 @@
-# Fichaje Restaurante
+# ClockLy
 
 Aplicación de escritorio para **gestionar el fichaje de entrada y salida de empleados** en restaurantes, bares y cafeterías.
 
