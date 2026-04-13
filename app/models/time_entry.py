@@ -8,6 +8,7 @@ class TimeEntry:
     entry_type: str
     timestamp: str
     notes: str | None = None
+    business_id: str | None = None
 
     @classmethod
     def from_row(cls, row) -> "TimeEntry":
@@ -17,4 +18,5 @@ class TimeEntry:
             entry_type=row["entry_type"],
             timestamp=row["timestamp"],
             notes=row["notes"],
+            business_id=row["business_id"] if "business_id" in row.keys() else None,
         )

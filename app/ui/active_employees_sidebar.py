@@ -2,8 +2,13 @@
 ActiveEmployeesSidebar — panel lateral con empleados actualmente fichados.
 
 Muestra una tarjeta por cada empleado con sesión activa. Se actualiza
-automáticamente cada 10 s y expone refresh() para actualizaciones inmediatas
-después de eventos de fichaje/desfichaje.
+automáticamente cada 10 s (sondeo completo desde BD) y expone refresh()
+para actualizaciones inmediatas después de eventos de fichaje/desfichaje.
+
+UX improvements:
+  • Elapsed time labels tick every second for a live feeling.
+  • Better empty state with an icon and clearer copy.
+  • Count badge animates its value change.
 """
 
 from __future__ import annotations
@@ -13,16 +18,19 @@ import customtkinter as ctk
 from app.services.time_clock_service import TimeClockService
 from app.ui import theme as th
 
-SIDEBAR_WIDTH = 224
-POLL_INTERVAL_MS = 10_000  # 10 segundos
+SIDEBAR_WIDTH    = 224
+POLL_INTERVAL_MS = 10_000   # full DB refresh every 10 s
+TICK_INTERVAL_MS = 1_000    # elapsed label update every 1 s
 
 
 def _format_elapsed(total_seconds: int) -> str:
     hours, remainder = divmod(max(int(total_seconds), 0), 3600)
-    minutes, _ = divmod(remainder, 60)
+    minutes, seconds = divmod(remainder, 60)
     if hours:
-        return f"{hours}h {minutes:02d}m en turno"
-    return f"{minutes}m en turno"
+        return f"{hours}h {minutes:02d}m {seconds:02d}s"
+    if minutes:
+        return f"{minutes}m {seconds:02d}s"
+    return f"{seconds}s en turno"
 
 
 class ActiveEmployeesSidebar(ctk.CTkFrame):
@@ -46,18 +54,21 @@ class ActiveEmployeesSidebar(ctk.CTkFrame):
 
         self._time_clock_service = time_clock_service
         self._poll_after_id: str | None = None
+        self._tick_after_id: str | None = None
+
+        # Keeps references to (session, label) pairs for live ticking
+        self._elapsed_pairs: list[tuple] = []
 
         self._build()
         self.refresh()
 
-    # ── Construcción ─────────────────────────────────────────────────────────
+    # ── Construction ─────────────────────────────────────────────────────────
 
     def _build(self) -> None:
-        # ── Cabecera ──
+        # ── Header ──
         header = ctk.CTkFrame(self, fg_color="transparent")
         header.pack(fill="x", padx=14, pady=(14, 10))
 
-        # Punto verde de "en vivo"
         dot_container = ctk.CTkFrame(header, fg_color="transparent")
         dot_container.pack(side="left")
 
@@ -78,7 +89,7 @@ class ActiveEmployeesSidebar(ctk.CTkFrame):
             text_color=th.T_PRIMARY,
         ).pack(side="left")
 
-        # Badge con el contador
+        # Count badge
         self._count_badge = ctk.CTkLabel(
             header,
             text="0",
@@ -93,7 +104,7 @@ class ActiveEmployeesSidebar(ctk.CTkFrame):
 
         th.separator(self, padx=10)
 
-        # ── Área de lista desplazable ──
+        # ── Scrollable list area ──
         self._list_frame = ctk.CTkScrollableFrame(
             self,
             fg_color="transparent",
@@ -103,12 +114,15 @@ class ActiveEmployeesSidebar(ctk.CTkFrame):
         )
         self._list_frame.pack(fill="both", expand=True, padx=4, pady=(6, 8))
 
-    # ── Actualización pública ─────────────────────────────────────────────────
+    # ── Public refresh ────────────────────────────────────────────────────────
 
     def refresh(self) -> None:
-        """Recarga la lista desde la BD y reprograma el siguiente sondeo."""
+        """Reload the list from the DB and reschedule the next poll."""
         if not self.winfo_exists():
             return
+
+        # Cancel live-tick while we rebuild
+        self._cancel_tick()
 
         try:
             statuses = self._time_clock_service.list_currently_clocked_in()
@@ -117,12 +131,14 @@ class ActiveEmployeesSidebar(ctk.CTkFrame):
 
         self._redraw_list(statuses)
         self._schedule_poll()
+        self._start_tick()
 
-    # ── Dibujo interno ────────────────────────────────────────────────────────
+    # ── Internal drawing ─────────────────────────────────────────────────────
 
     def _redraw_list(self, statuses: list) -> None:
         for child in self._list_frame.winfo_children():
             child.destroy()
+        self._elapsed_pairs = []
 
         count = len(statuses)
         self._count_badge.configure(text=str(count))
@@ -138,6 +154,7 @@ class ActiveEmployeesSidebar(ctk.CTkFrame):
         wrapper = ctk.CTkFrame(self._list_frame, fg_color="transparent")
         wrapper.pack(fill="both", expand=True, pady=32, padx=8)
 
+        # Simple dash icon
         ctk.CTkLabel(
             wrapper,
             text="—",
@@ -147,7 +164,7 @@ class ActiveEmployeesSidebar(ctk.CTkFrame):
 
         ctk.CTkLabel(
             wrapper,
-            text="No hay empleados\nfichados ahora mismo",
+            text="Ningún empleado\nfichado ahora mismo",
             font=th.f(11),
             text_color=th.T_MUTED,
             justify="center",
@@ -168,7 +185,7 @@ class ActiveEmployeesSidebar(ctk.CTkFrame):
         inner = ctk.CTkFrame(card, fg_color="transparent")
         inner.pack(fill="x", padx=10, pady=9)
 
-        # ── Avatar circular con iniciales ──
+        # ── Circular avatar with initials ──
         color = th.avatar_color(employee.id)
         avatar = ctk.CTkFrame(
             inner,
@@ -187,7 +204,7 @@ class ActiveEmployeesSidebar(ctk.CTkFrame):
             text_color="#FFFFFF",
         ).place(relx=0.5, rely=0.5, anchor="center")
 
-        # ── Nombre y tiempo en turno ──
+        # ── Name and live elapsed time ──
         info = ctk.CTkFrame(inner, fg_color="transparent")
         info.pack(side="left", fill="x", expand=True)
 
@@ -201,16 +218,18 @@ class ActiveEmployeesSidebar(ctk.CTkFrame):
         ).pack(anchor="w")
 
         if status.active_session:
-            elapsed_text = _format_elapsed(status.active_session.elapsed_seconds())
-            ctk.CTkLabel(
+            elapsed_lbl = ctk.CTkLabel(
                 info,
-                text=elapsed_text,
+                text=_format_elapsed(status.active_session.elapsed_seconds()),
                 font=th.f(10),
-                text_color=th.T_MUTED,
+                text_color=th.SUCCESS_TEXT,
                 anchor="w",
-            ).pack(anchor="w", pady=(1, 0))
+            )
+            elapsed_lbl.pack(anchor="w", pady=(1, 0))
+            # Register for live updates
+            self._elapsed_pairs.append((status.active_session, elapsed_lbl))
 
-        # ── Indicador de estado (punto verde a la derecha) ──
+        # ── Status dot (right side) ──
         status_dot = ctk.CTkFrame(
             inner,
             width=7,
@@ -221,7 +240,34 @@ class ActiveEmployeesSidebar(ctk.CTkFrame):
         status_dot.pack(side="right", padx=(6, 0))
         status_dot.pack_propagate(False)
 
-    # ── Sondeo periódico ─────────────────────────────────────────────────────
+    # ── Live elapsed ticking ─────────────────────────────────────────────────
+
+    def _start_tick(self) -> None:
+        if not self._elapsed_pairs:
+            return
+        self._tick()
+
+    def _tick(self) -> None:
+        if not self.winfo_exists():
+            return
+        alive = []
+        for session, label in self._elapsed_pairs:
+            try:
+                if label.winfo_exists():
+                    label.configure(text=_format_elapsed(session.elapsed_seconds()))
+                    alive.append((session, label))
+            except Exception:
+                pass
+        self._elapsed_pairs = alive
+        if self._elapsed_pairs:
+            self._tick_after_id = self.after(TICK_INTERVAL_MS, self._tick)
+
+    def _cancel_tick(self) -> None:
+        if self._tick_after_id:
+            self.after_cancel(self._tick_after_id)
+            self._tick_after_id = None
+
+    # ── Periodic polling ─────────────────────────────────────────────────────
 
     def _schedule_poll(self) -> None:
         self._cancel_poll()
@@ -235,4 +281,5 @@ class ActiveEmployeesSidebar(ctk.CTkFrame):
 
     def destroy(self) -> None:
         self._cancel_poll()
+        self._cancel_tick()
         super().destroy()

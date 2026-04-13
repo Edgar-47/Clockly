@@ -203,7 +203,7 @@ class AttendanceReportService:
         incident_filter: str | None = None,
         now: datetime | None = None,
     ) -> list[SessionReport]:
-        rows = self.attendance_session_repository.list_with_user_names(
+        rows = self.attendance_session_repository.list_exportable_sessions(
             date_from=date_from,
             date_to=date_to,
             user_id=user_id,

@@ -11,6 +11,7 @@ class Employee:
     role: str
     active: bool
     created_at: str | None = None
+    last_business_id: str | None = None
 
     @property
     def username(self) -> str:
@@ -56,4 +57,5 @@ class Employee:
             role=row["role"],
             active=bool(row["active"]),
             created_at=row["created_at"] if "created_at" in keys else None,
+            last_business_id=row["last_business_id"] if "last_business_id" in keys else None,
         )

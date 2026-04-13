@@ -3,6 +3,14 @@ from pathlib import Path
 
 
 APP_TITLE = "Fichaje Restaurante"
+
+# ── Kiosk mode ────────────────────────────────────────────────────────────────
+# Set the environment variable CLOCKLY_KIOSK_MODE=1 (or "true" / "yes") to
+# launch the application directly into tablet kiosk mode, bypassing the
+# individual login screen.  Admins can still reach the admin panel via the
+# "Acceso admin" button inside the kiosk UI.
+_kiosk_env: str = os.getenv("CLOCKLY_KIOSK_MODE", "").strip().lower()
+KIOSK_MODE: bool = _kiosk_env in ("1", "true", "yes")
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "app" / "data"
 

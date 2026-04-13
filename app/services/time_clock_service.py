@@ -23,15 +23,24 @@ class TimeClockService:
         employee_repository: EmployeeRepository | None = None,
         attendance_session_repository: AttendanceSessionRepository | None = None,
         time_entry_repository: TimeEntryRepository | None = None,
+        *,
+        business_id: str | None = None,
     ) -> None:
-        self.employee_repository = employee_repository or EmployeeRepository()
+        self.business_id = business_id
+        self.employee_repository = employee_repository or EmployeeRepository(
+            business_id=business_id
+        )
         self.attendance_session_repository = (
-            attendance_session_repository or AttendanceSessionRepository()
+            attendance_session_repository or AttendanceSessionRepository(
+                business_id=business_id
+            )
         )
         # Legacy: kept only for get_last_entry(), which is used by admin_view.py
         # and clock_view.py (inactive views). New code should read from
         # attendance_session_repository instead.
-        self.time_entry_repository = time_entry_repository or TimeEntryRepository()
+        self.time_entry_repository = time_entry_repository or TimeEntryRepository(
+            business_id=business_id
+        )
 
     def register(
         self,

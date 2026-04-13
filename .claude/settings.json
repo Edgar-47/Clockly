@@ -1,7 +1,13 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python -c ':*)"
+      "Bash(python -c ':*)",
+      "Bash(wc -l \"c:\\\\Users\\\\epedr\\\\OneDrive\\\\App_Fichaje\\\\app\\\\ui\"/*.py)",
+      "Bash(python -m py_compile app/ui/attendance_view.py app/ui/admin_dashboard_view.py app/ui/kiosk_view.py app/ui/active_employees_sidebar.py)",
+      "Bash(python -m py_compile app/ui/application.py app/ui/login_view.py app/ui/theme.py)",
+      "Bash(python -m pytest tests/ -q --tb=short)",
+      "Bash(python -m py_compile app/ui/admin_dashboard_view.py)",
+      "Bash(python -c \"from app.ui.admin_dashboard_view import AdminDashboardView; print\\('admin_dashboard_view OK'\\)\")"
     ]
   }
 }

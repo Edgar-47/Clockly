@@ -9,6 +9,7 @@ class AttendanceSession:
     clock_in_time: str
     clock_out_time: str | None
     is_active: bool
+    business_id: str | None = None
     total_seconds: int | None = None
     notes: str | None = None
     exit_note: str | None = None
@@ -26,6 +27,7 @@ class AttendanceSession:
             clock_in_time=d["clock_in_time"],
             clock_out_time=d["clock_out_time"],
             is_active=bool(d["is_active"]),
+            business_id=d.get("business_id"),
             total_seconds=d.get("total_seconds"),
             notes=d.get("notes"),
             exit_note=d.get("exit_note"),

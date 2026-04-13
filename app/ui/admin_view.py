@@ -846,13 +846,14 @@ class AdminView(ctk.CTkFrame):
         date_from = self._fich_from.get().strip() or None
         date_to   = self._fich_to.get().strip() or None
 
-        rows = self.export_service.time_entry_repository.list_with_employee_names(
-            date_from=date_from, date_to=date_to
+        rows = self.export_service.list_export_sessions(
+            date_from=date_from,
+            date_to=date_to,
         )
 
         total = len(rows)
-        entries = sum(1 for row in rows if row["entry_type"] == TimeClockService.ENTRY)
-        exits = sum(1 for row in rows if row["entry_type"] == TimeClockService.EXIT)
+        entries = total
+        exits = sum(1 for row in rows if not row.is_active)
         self._fich_total_card.set(total)
         self._fich_entry_card.set(entries)
         self._fich_exit_card.set(exits)
@@ -862,19 +863,19 @@ class AdminView(ctk.CTkFrame):
 
         self._fich_tree.delete(*self._fich_tree.get_children())
         for i, row in enumerate(rows):
-            date_str, time_str = split_timestamp(row["timestamp"])
-            is_entrada = row["entry_type"] == TimeClockService.ENTRY
+            date_str, time_str = split_timestamp(row.clock_in_time)
+            is_entrada = row.is_active
             row_tag  = "even" if i % 2 == 0 else "odd"
             type_tag = "entrada" if is_entrada else "salida"
             self._fich_tree.insert(
                 "", "end",
                 values=(
-                    row["id"],
-                    row["employee_name"],
-                    label_for_entry_type(row["entry_type"]),
+                    row.id,
+                    row.employee_name,
+                    "Abierta" if row.is_active else "Cerrada",
                     date_str,
                     time_str,
-                    row["notes"] or "",
+                    row.notes_label or "",
                 ),
                 tags=(row_tag, type_tag),
             )
@@ -1003,10 +1004,10 @@ class AdminView(ctk.CTkFrame):
         date_to   = self._exp_to.get().strip() or None
 
         try:
-            path = self.export_service.export_time_entries_to_excel(
+            path = self.export_service.export_sessions_to_excel(
                 date_from=date_from, date_to=date_to
             )
-        except RuntimeError as exc:
+        except (RuntimeError, ValueError) as exc:
             self._exp_status.configure(
                 text=f"Error: {exc}", text_color=th.DANGER_TEXT
             )

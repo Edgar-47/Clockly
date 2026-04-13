@@ -11,8 +11,16 @@ from app.utils.security import hash_password
 class EmployeeService:
     VALID_ROLES = {"admin", "employee"}
 
-    def __init__(self, employee_repository: EmployeeRepository | None = None) -> None:
-        self.employee_repository = employee_repository or EmployeeRepository()
+    def __init__(
+        self,
+        employee_repository: EmployeeRepository | None = None,
+        *,
+        business_id: str | None = None,
+    ) -> None:
+        self.business_id = business_id
+        self.employee_repository = employee_repository or EmployeeRepository(
+            business_id=business_id
+        )
 
     def list_employees(self) -> list[Employee]:
         return self.employee_repository.list_all()
@@ -61,6 +69,7 @@ class EmployeeService:
                 dni=clean_dni,
                 password_hash=hash_password(password),
                 role=clean_role,
+                business_id=self.business_id,
             )
         except sqlite3.IntegrityError as exc:
             raise ValueError("Ya existe un empleado con ese DNI.") from exc

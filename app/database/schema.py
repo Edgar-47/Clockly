@@ -15,11 +15,61 @@ CREATE TABLE IF NOT EXISTS users (
     role TEXT NOT NULL DEFAULT 'employee'
         CHECK (role IN ('admin', 'employee')),
     active INTEGER NOT NULL DEFAULT 1,
+    last_business_id TEXT,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS businesses (
+    id TEXT PRIMARY KEY,
+    owner_user_id INTEGER NOT NULL,
+    business_name TEXT NOT NULL,
+    business_type TEXT NOT NULL,
+    login_code TEXT NOT NULL COLLATE NOCASE,
+    slug TEXT NOT NULL,
+    business_key TEXT NOT NULL,
+    settings_json TEXT NOT NULL DEFAULT '{}',
+    last_accessed_at TEXT,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (owner_user_id) REFERENCES users(id)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_businesses_login_code_active
+ON businesses(login_code)
+WHERE is_active = 1;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_businesses_slug
+ON businesses(slug);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_businesses_business_key
+ON businesses(business_key);
+
+CREATE INDEX IF NOT EXISTS idx_businesses_owner
+ON businesses(owner_user_id);
+
+CREATE TABLE IF NOT EXISTS business_members (
+    business_id TEXT NOT NULL,
+    user_id INTEGER NOT NULL,
+    member_role TEXT NOT NULL DEFAULT 'employee'
+        CHECK (member_role IN ('owner', 'admin', 'employee')),
+    is_default INTEGER NOT NULL DEFAULT 0,
+    joined_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_accessed_at TEXT,
+    PRIMARY KEY (business_id, user_id),
+    FOREIGN KEY (business_id) REFERENCES businesses(id),
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_business_members_user
+ON business_members(user_id, is_default, last_accessed_at);
+
+CREATE INDEX IF NOT EXISTS idx_business_members_business
+ON business_members(business_id, member_role);
+
 CREATE TABLE IF NOT EXISTS attendance_sessions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    business_id TEXT,
     user_id INTEGER NOT NULL,
     clock_in_time TEXT NOT NULL,
     clock_out_time TEXT,
@@ -60,6 +110,7 @@ CREATE TABLE IF NOT EXISTS employees (
 
 CREATE TABLE IF NOT EXISTS time_entries (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    business_id TEXT,
     employee_id INTEGER NOT NULL,
     entry_type TEXT NOT NULL
         CHECK (entry_type IN ('entrada', 'salida')),
@@ -74,12 +125,14 @@ ON time_entries(employee_id, timestamp);
 
 CREATE INDEX IF NOT EXISTS idx_time_entries_timestamp
 ON time_entries(timestamp);
+
 """
 
 
 def initialize_database() -> None:
     with get_connection() as connection:
-        connection.executescript(SCHEMA_SQL)
+        _execute_schema(connection)
+        _migrate_business_foundation(connection)
         _migrate_legacy_employee_columns(connection)
         _migrate_users_from_legacy_employees(connection)
         _ensure_default_admin(connection)
@@ -89,9 +142,58 @@ def initialize_database() -> None:
         _migrate_attendance_sessions_add_admin_close_columns(connection)
 
 
+def _execute_schema(connection) -> None:
+    """
+    Execute schema statements one by one.
+
+    On OneDrive-backed folders, sqlite3.executescript can raise a generic
+    disk I/O error even when the individual statements are valid and writable.
+    Splitting keeps initialisation reliable for the desktop app and tests.
+    """
+    for statement in SCHEMA_SQL.split(";"):
+        clean_statement = statement.strip()
+        if clean_statement:
+            connection.execute(clean_statement)
+
+
 def _table_columns(connection, table_name: str) -> set[str]:
     rows = connection.execute(f"PRAGMA table_info({table_name})").fetchall()
     return {row["name"] for row in rows}
+
+
+def _migrate_business_foundation(connection) -> None:
+    """Add SaaS business context columns to older local databases."""
+    user_columns = _table_columns(connection, "users")
+    if "last_business_id" not in user_columns:
+        connection.execute("ALTER TABLE users ADD COLUMN last_business_id TEXT")
+
+    session_columns = _table_columns(connection, "attendance_sessions")
+    if "business_id" not in session_columns:
+        connection.execute("ALTER TABLE attendance_sessions ADD COLUMN business_id TEXT")
+    connection.execute("DROP INDEX IF EXISTS idx_attendance_sessions_one_active")
+    connection.execute(
+        """
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_attendance_sessions_one_active
+        ON attendance_sessions(COALESCE(business_id, ''), user_id)
+        WHERE is_active = 1
+        """
+    )
+    connection.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_attendance_sessions_business_clock_in
+        ON attendance_sessions(business_id, clock_in_time)
+        """
+    )
+
+    time_entry_columns = _table_columns(connection, "time_entries")
+    if "business_id" not in time_entry_columns:
+        connection.execute("ALTER TABLE time_entries ADD COLUMN business_id TEXT")
+    connection.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_time_entries_business_timestamp
+        ON time_entries(business_id, timestamp)
+        """
+    )
 
 
 def _migrate_legacy_employee_columns(connection) -> None:

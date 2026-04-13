@@ -1,3 +1,4 @@
+import os
 import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -20,6 +21,9 @@ from app.config import DATABASE_PATH, ensure_runtime_directories
 
 _CONNECT_TIMEOUT = 15        # seconds SQLite waits for the file to be openable
 _BUSY_TIMEOUT_MS = 8_000     # ms SQLite retries on SQLITE_BUSY before raising
+_JOURNAL_MODE = os.getenv("FICHAJE_SQLITE_JOURNAL_MODE", "WAL").strip().upper()
+if _JOURNAL_MODE not in {"WAL", "DELETE", "TRUNCATE", "PERSIST", "MEMORY", "OFF"}:
+    _JOURNAL_MODE = "WAL"
 
 
 @contextmanager
@@ -29,7 +33,7 @@ def get_connection() -> Iterator[sqlite3.Connection]:
     connection.row_factory = sqlite3.Row
     # WAL mode: readers never block writers and writers rarely block readers.
     # Also reduces the window during which OneDrive can steal the lock.
-    connection.execute("PRAGMA journal_mode = WAL")
+    connection.execute(f"PRAGMA journal_mode = {_JOURNAL_MODE}")
     connection.execute("PRAGMA synchronous = NORMAL")   # safe with WAL
     connection.execute(f"PRAGMA busy_timeout = {_BUSY_TIMEOUT_MS}")
     connection.execute("PRAGMA foreign_keys = ON")

@@ -95,6 +95,12 @@ pip install -r requirements.txt
 python main.py
 ```
 
+Para arrancar la aplicacion mas rapido en Windows, tambien puedes hacer doble clic en:
+
+```bat
+ejecutar_app.bat
+```
+
 ---
 
 # Primer acceso

@@ -13,11 +13,13 @@ Las notificaciones de estado se auto-desvanecen en 4 s.
 """
 
 from collections.abc import Callable
-from datetime import datetime
-from tkinter import StringVar, ttk
+from datetime import datetime, timedelta
+from tkinter import StringVar, filedialog, ttk
 
 import customtkinter as ctk
 
+from app.config import EXPORTS_DIR
+from app.models.business import Business
 from app.models.employee import Employee
 from app.services.attendance_report_service import (
     AttendanceReportService,
@@ -68,19 +70,27 @@ class AdminDashboardView(ctk.CTkFrame):
         master,
         *,
         employee: Employee,
+        business: Business | None = None,
+        business_count: int = 0,
         employee_service: EmployeeService,
         export_service: ExportService,
         attendance_report_service: AttendanceReportService,
         time_clock_service: TimeClockService,
         on_logout: Callable[[], None],
+        on_change_business: Callable[[], None] | None = None,
+        on_create_business: Callable[[], None] | None = None,
     ) -> None:
         super().__init__(master, corner_radius=0, fg_color=th.BG_ROOT)
         self.employee = employee
+        self.business = business
+        self.business_count = business_count
         self.employee_service = employee_service
         self.export_service = export_service
         self.attendance_report_service = attendance_report_service
         self.time_clock_service = time_clock_service
         self.on_logout = on_logout
+        self.on_change_business = on_change_business
+        self.on_create_business = on_create_business
 
         # Datos cacheados para las estadísticas
         self._cached_employees: list = []
@@ -130,9 +140,14 @@ class AdminDashboardView(ctk.CTkFrame):
             text_color=th.T_PRIMARY,
         ).pack(side="left")
 
+        business_text = (
+            f"Negocio activo: {self.business.business_name}"
+            if self.business
+            else "Negocio activo pendiente"
+        )
         ctk.CTkLabel(
             left,
-            text="Gestiona empleados, usuarios y registros de asistencia.",
+            text=business_text,
             font=th.f(11),
             text_color=th.T_MUTED,
         ).pack(anchor="w", pady=(3, 0))
@@ -150,6 +165,28 @@ class AdminDashboardView(ctk.CTkFrame):
             **th.quiet_button_kwargs(),
             command=self.on_logout,
         ).pack(side="right")
+
+        if self.on_create_business:
+            ctk.CTkButton(
+                right,
+                text="Nuevo negocio",
+                width=126,
+                height=36,
+                font=th.f(12),
+                **th.quiet_button_kwargs(),
+                command=self.on_create_business,
+            ).pack(side="right", padx=(0, 8))
+
+        if self.on_change_business and self.business_count > 1:
+            ctk.CTkButton(
+                right,
+                text="Cambiar negocio",
+                width=134,
+                height=36,
+                font=th.f(12),
+                **th.quiet_button_kwargs(),
+                command=self.on_change_business,
+            ).pack(side="right", padx=(0, 8))
 
         ctk.CTkLabel(
             right,
@@ -360,12 +397,13 @@ class AdminDashboardView(ctk.CTkFrame):
         header = ctk.CTkFrame(card, fg_color="transparent")
         header.grid(row=0, column=0, sticky="ew", padx=14, pady=(12, 8))
 
-        ctk.CTkLabel(
+        self._users_title_lbl = ctk.CTkLabel(
             header,
             text="Empleados registrados",
             font=th.bold(14),
             text_color=th.T_PRIMARY,
-        ).pack(side="left")
+        )
+        self._users_title_lbl.pack(side="left")
 
         btn_row = ctk.CTkFrame(header, fg_color="transparent")
         btn_row.pack(side="right")
@@ -437,6 +475,17 @@ class AdminDashboardView(ctk.CTkFrame):
 
         self._users_tree.grid(row=1, column=0, sticky="nsew", padx=8, pady=(0, 4))
 
+        # Empty-state overlay — shown when no rows are loaded
+        self._users_empty_lbl = ctk.CTkLabel(
+            card,
+            text="Sin empleados registrados.\nCrea el primer empleado usando el formulario.",
+            font=th.f(12),
+            text_color=th.T_MUTED,
+            fg_color="transparent",
+            justify="center",
+        )
+        # Not gridded by default; shown in _reload_users when needed
+
         self._user_status = ctk.CTkLabel(
             card,
             text="",
@@ -459,12 +508,24 @@ class AdminDashboardView(ctk.CTkFrame):
         header = ctk.CTkFrame(card, fg_color="transparent")
         header.grid(row=0, column=0, sticky="ew", padx=14, pady=(12, 6))
 
-        ctk.CTkLabel(
-            header,
+        title_col = ctk.CTkFrame(header, fg_color="transparent")
+        title_col.pack(side="left")
+
+        self._sessions_title_lbl = ctk.CTkLabel(
+            title_col,
             text="Registros de asistencia",
             font=th.bold(14),
             text_color=th.T_PRIMARY,
-        ).pack(side="left")
+        )
+        self._sessions_title_lbl.pack(anchor="w")
+
+        self._last_refresh_lbl = ctk.CTkLabel(
+            title_col,
+            text="",
+            font=th.f(9),
+            text_color=th.T_MUTED,
+        )
+        self._last_refresh_lbl.pack(anchor="w")
 
         btn_row = ctk.CTkFrame(header, fg_color="transparent")
         btn_row.pack(side="right")
@@ -494,15 +555,27 @@ class AdminDashboardView(ctk.CTkFrame):
             command=self._open_admin_close_dialog_for_selected,
         ).pack(side="left", padx=(0, 6))
 
-        ctk.CTkButton(
+        self._export_excel_btn = ctk.CTkButton(
             btn_row,
-            text="Exportar a Excel",
-            width=130,
+            text="Excel",
+            width=86,
             height=34,
             font=th.f(11),
             **th.primary_button_kwargs(),
-            command=self._export_entries,
-        ).pack(side="left")
+            command=self._export_excel,
+        )
+        self._export_excel_btn.pack(side="left", padx=(0, 6))
+
+        self._export_pdf_btn = ctk.CTkButton(
+            btn_row,
+            text="PDF",
+            width=72,
+            height=34,
+            font=th.f(11),
+            **th.quiet_button_kwargs(),
+            command=self._export_pdf,
+        )
+        self._export_pdf_btn.pack(side="left")
 
         # Barra de filtros
         self._build_session_filters(card)
@@ -544,6 +617,16 @@ class AdminDashboardView(ctk.CTkFrame):
 
         self._sessions_tree.grid(row=2, column=0, sticky="nsew", padx=8, pady=(0, 4))
 
+        # Empty-state overlay — shown when no sessions match the current filter
+        self._sessions_empty_lbl = ctk.CTkLabel(
+            card,
+            text="Sin registros para los filtros seleccionados.",
+            font=th.f(12),
+            text_color=th.T_MUTED,
+            fg_color="transparent",
+            justify="center",
+        )
+
         self._export_status = ctk.CTkLabel(
             card,
             text="",
@@ -555,9 +638,45 @@ class AdminDashboardView(ctk.CTkFrame):
         self._export_status.grid(row=3, column=0, sticky="w", padx=14, pady=(0, 10))
 
     def _build_session_filters(self, card: ctk.CTkFrame) -> None:
-        """Compact filter bar for the sessions table."""
-        bar = ctk.CTkFrame(card, fg_color=th.BG_RAISED, corner_radius=th.R_MD)
-        bar.grid(row=1, column=0, sticky="ew", padx=8, pady=(0, 6))
+        """Two-row filter area: quick-date shortcuts + detailed filter controls."""
+        container = ctk.CTkFrame(card, fg_color="transparent")
+        container.grid(row=1, column=0, sticky="ew", padx=8, pady=(0, 4))
+
+        # ── Row 1: Quick-date shortcuts ──────────────────────────────────────
+        quick_row = ctk.CTkFrame(container, fg_color="transparent")
+        quick_row.pack(fill="x", pady=(0, 4))
+
+        ctk.CTkLabel(
+            quick_row,
+            text="ACCESO RÁPIDO:",
+            font=th.bold(9),
+            text_color=th.T_MUTED,
+        ).pack(side="left", padx=(4, 6))
+
+        def _quick_btn(text: str, cmd) -> None:
+            ctk.CTkButton(
+                quick_row,
+                text=text,
+                width=70,
+                height=24,
+                font=th.f(10),
+                fg_color=th.BG_RAISED,
+                hover_color=th.BG_HOVER,
+                border_width=1,
+                border_color=th.BORDER_LT,
+                text_color=th.T_SECONDARY,
+                corner_radius=th.R_SM,
+                command=cmd,
+            ).pack(side="left", padx=(0, 4))
+
+        _quick_btn("Hoy",      self._filter_today)
+        _quick_btn("Ayer",     self._filter_yesterday)
+        _quick_btn("Semana",   self._filter_this_week)
+        _quick_btn("Este mes", self._filter_this_month)
+
+        # ── Row 2: Detailed filter bar ────────────────────────────────────────
+        bar = ctk.CTkFrame(container, fg_color=th.BG_RAISED, corner_radius=th.R_MD)
+        bar.pack(fill="x")
 
         def lbl(text: str) -> ctk.CTkLabel:
             return ctk.CTkLabel(
@@ -567,24 +686,25 @@ class AdminDashboardView(ctk.CTkFrame):
                 text_color=th.T_MUTED,
             )
 
-        def small_entry(width: int = 100) -> ctk.CTkEntry:
-            return ctk.CTkEntry(
+        def small_entry(placeholder: str = "", width: int = 100) -> ctk.CTkEntry:
+            e = ctk.CTkEntry(
                 bar,
                 width=width,
                 height=30,
                 font=th.f(11),
+                placeholder_text=placeholder,
                 **th.entry_kwargs(),
             )
+            return e
 
         pad = {"side": "left", "padx": (6, 0), "pady": 6}
 
         lbl("DESDE").pack(**pad)
-        self._filter_from = small_entry()
+        self._filter_from = small_entry("AAAA-MM-DD")
         self._filter_from.pack(**pad)
-        self._filter_from.insert(0, "")
 
         lbl("HASTA").pack(side="left", padx=(10, 0), pady=6)
-        self._filter_to = small_entry()
+        self._filter_to = small_entry("AAAA-MM-DD")
         self._filter_to.pack(**pad)
 
         lbl("EMPLEADO").pack(side="left", padx=(10, 0), pady=6)
@@ -677,6 +797,11 @@ class AdminDashboardView(ctk.CTkFrame):
 
     def _reload_users(self) -> None:
         self._users_tree.delete(*self._users_tree.get_children())
+        # Hide empty-state in case it was showing
+        try:
+            self._users_empty_lbl.grid_remove()
+        except Exception:
+            pass
         self._cached_employees = self.employee_service.list_employees()
         self._cached_statuses = {
             status.employee.id: status
@@ -729,12 +854,37 @@ class AdminDashboardView(ctk.CTkFrame):
                 ),
             )
 
+        count = len(self._cached_employees)
+        self._users_title_lbl.configure(
+            text=f"Empleados registrados  ({count})"
+        )
+        if count == 0:
+            self._users_tree.grid_remove()
+            self._users_empty_lbl.grid(row=1, column=0, pady=40)
+        else:
+            self._users_empty_lbl.grid_remove()
+            self._users_tree.grid()
+
     def _reload_sessions(self) -> None:
         """Reload session table, respecting active filter values."""
         self._sessions_tree.delete(*self._sessions_tree.get_children())
+        # Hide empty-state while loading
+        try:
+            self._sessions_empty_lbl.grid_remove()
+        except Exception:
+            pass
 
-        date_from = self._filter_from.get().strip() or None
-        date_to   = self._filter_to.get().strip() or None
+        try:
+            date_from, date_to = self.export_service.validate_filters(
+                date_from=self._filter_from.get().strip() or None,
+                date_to=self._filter_to.get().strip() or None,
+            )
+        except ValueError:
+            self._cached_sessions = []
+            self._update_sessions_header(0)
+            self._sessions_tree.grid_remove()
+            self._sessions_empty_lbl.grid(row=2, column=0, pady=40)
+            return
 
         emp_name  = self._filter_emp_var.get()
         user_id   = self._employee_name_to_id.get(emp_name) if emp_name != "Todos" else None
@@ -777,6 +927,23 @@ class AdminDashboardView(ctk.CTkFrame):
                 ),
                 tags=tags,
             )
+
+        count = len(self._cached_sessions)
+        self._update_sessions_header(count)
+        if count == 0:
+            self._sessions_tree.grid_remove()
+            self._sessions_empty_lbl.grid(row=2, column=0, pady=40)
+        else:
+            self._sessions_empty_lbl.grid_remove()
+            self._sessions_tree.grid()
+
+    def _update_sessions_header(self, count: int) -> None:
+        """Update the sessions table title with row count and last-refresh time."""
+        self._sessions_title_lbl.configure(
+            text=f"Registros de asistencia  ({count})"
+        )
+        now_str = datetime.now().strftime("%H:%M:%S")
+        self._last_refresh_lbl.configure(text=f"Actualizado a las {now_str}")
 
     # ── Acciones de usuario ───────────────────────────────────────────────────
 
@@ -1124,7 +1291,47 @@ class AdminDashboardView(ctk.CTkFrame):
 
     # ── Filtros de sesiones ───────────────────────────────────────────────────
 
+    def _set_date_filter(self, date_from: str, date_to: str) -> None:
+        """Set date filter fields to the given ISO dates and apply."""
+        self._filter_from.delete(0, "end")
+        self._filter_from.insert(0, date_from)
+        self._filter_to.delete(0, "end")
+        self._filter_to.insert(0, date_to)
+        self._apply_session_filters()
+
+    def _filter_today(self) -> None:
+        today = datetime.now().date().isoformat()
+        self._set_date_filter(today, today)
+
+    def _filter_yesterday(self) -> None:
+        yesterday = (datetime.now().date() - timedelta(days=1)).isoformat()
+        self._set_date_filter(yesterday, yesterday)
+
+    def _filter_this_week(self) -> None:
+        today = datetime.now().date()
+        monday = (today - timedelta(days=today.weekday())).isoformat()
+        self._set_date_filter(monday, today.isoformat())
+
+    def _filter_this_month(self) -> None:
+        today = datetime.now().date()
+        first = today.replace(day=1).isoformat()
+        self._set_date_filter(first, today.isoformat())
+
     def _apply_session_filters(self) -> None:
+        try:
+            self.export_service.validate_filters(
+                date_from=self._filter_from.get().strip() or None,
+                date_to=self._filter_to.get().strip() or None,
+            )
+        except ValueError as exc:
+            self._toast(
+                self._export_status,
+                f"  ✕  {exc}",
+                th.DANGER_TEXT,
+                th.DANGER_DIM,
+                key="export",
+            )
+            return
         self._reload_sessions()
         self._refresh_stats()
 
@@ -1139,20 +1346,131 @@ class AdminDashboardView(ctk.CTkFrame):
 
     # ── Exportar ──────────────────────────────────────────────────────────────
 
-    def _export_entries(self) -> None:
+    def _export_excel(self) -> None:
+        self._export_entries("xlsx")
+
+    def _export_pdf(self) -> None:
+        self._export_entries("pdf")
+
+    def _export_entries(self, export_format: str) -> None:
+        date_from = self._filter_from.get().strip() or None
+        date_to = self._filter_to.get().strip() or None
         emp_name = self._filter_emp_var.get()
         user_id = self._employee_name_to_id.get(emp_name) if emp_name != "Todos" else None
+        employee_name = emp_name if emp_name != "Todos" else None
+
         try:
-            path = self.export_service.export_time_entries_to_excel(
-                date_from=self._filter_from.get().strip() or None,
-                date_to=self._filter_to.get().strip() or None,
-                employee_id=user_id,
+            output_path = self._ask_export_path(
+                export_format,
+                date_from=date_from,
+                date_to=date_to,
+                employee_name=employee_name,
             )
-        except RuntimeError as exc:
-            self._toast(self._export_status, f"  ✕  {exc}", th.DANGER_TEXT, th.DANGER_DIM, key="export")
+        except ValueError as exc:
+            self._toast(
+                self._export_status,
+                f"  ✕  {exc}",
+                th.DANGER_TEXT,
+                th.DANGER_DIM,
+                key="export",
+            )
             return
 
-        self._toast(self._export_status, f"  ✓  Exportación guardada: {path}", th.SUCCESS_TEXT, th.SUCCESS_DIM, key="export")
+        if output_path is None:
+            self._toast(
+                self._export_status,
+                "  Exportación cancelada.",
+                th.T_MUTED,
+                "transparent",
+                key="export",
+            )
+            return
+
+        self._set_export_buttons_state("disabled")
+        self._toast(
+            self._export_status,
+            f"  Generando {export_format.upper()}...",
+            th.T_SECONDARY,
+            th.BG_RAISED,
+            key="export",
+        )
+        self.update_idletasks()
+
+        try:
+            if export_format == "pdf":
+                path = self.export_service.export_sessions_to_pdf(
+                    date_from=date_from,
+                    date_to=date_to,
+                    user_id=user_id,
+                    employee_name=employee_name,
+                    output_path=output_path,
+                )
+            else:
+                path = self.export_service.export_sessions_to_excel(
+                    date_from=date_from,
+                    date_to=date_to,
+                    user_id=user_id,
+                    employee_name=employee_name,
+                    output_path=output_path,
+                )
+        except (RuntimeError, ValueError) as exc:
+            self._toast(
+                self._export_status,
+                f"  ✕  {exc}",
+                th.DANGER_TEXT,
+                th.DANGER_DIM,
+                key="export",
+            )
+            return
+        finally:
+            self._set_export_buttons_state("normal")
+
+        self._toast(
+            self._export_status,
+            f"  ✓  Exportación guardada: {path}",
+            th.SUCCESS_TEXT,
+            th.SUCCESS_DIM,
+            key="export",
+        )
+
+    def _ask_export_path(
+        self,
+        export_format: str,
+        *,
+        date_from: str | None,
+        date_to: str | None,
+        employee_name: str | None,
+    ) -> str | None:
+        filename = self.export_service.build_export_filename(
+            date_from=date_from,
+            date_to=date_to,
+            employee_name=employee_name,
+            extension=export_format,
+        )
+        EXPORTS_DIR.mkdir(parents=True, exist_ok=True)
+        if export_format == "pdf":
+            filetypes = [("PDF", "*.pdf")]
+            title = "Guardar informe PDF"
+            defaultextension = ".pdf"
+        else:
+            filetypes = [("Excel", "*.xlsx")]
+            title = "Guardar exportación Excel"
+            defaultextension = ".xlsx"
+        filetypes.append(("Todos los archivos", "*.*"))
+
+        selected = filedialog.asksaveasfilename(
+            parent=self.winfo_toplevel(),
+            title=title,
+            initialdir=str(EXPORTS_DIR),
+            initialfile=filename,
+            defaultextension=defaultextension,
+            filetypes=filetypes,
+        )
+        return selected or None
+
+    def _set_export_buttons_state(self, state: str) -> None:
+        self._export_excel_btn.configure(state=state)
+        self._export_pdf_btn.configure(state=state)
 
     # ── Auto-refresco ─────────────────────────────────────────────────────────
 
@@ -1162,6 +1480,14 @@ class AdminDashboardView(ctk.CTkFrame):
         self._refresh_stats()
         self._cancel_refresh()
         self._schedule_refresh()
+        # Brief visual confirmation on the refresh button via the toast system
+        self._toast(
+            self._export_status,
+            f"  ✓  Datos actualizados a las {datetime.now().strftime('%H:%M:%S')}.",
+            th.SUCCESS_TEXT,
+            th.SUCCESS_DIM,
+            key="export",
+        )
 
     def _schedule_refresh(self) -> None:
         self._cancel_refresh()
