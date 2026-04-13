@@ -17,6 +17,7 @@ from app.models.attendance_session import AttendanceSession
 from app.models.employee import Employee
 from app.services.time_clock_service import TimeClockService
 from app.ui import theme as th
+from app.ui.active_employees_sidebar import ActiveEmployeesSidebar
 from app.utils.helpers import format_timestamp
 
 
@@ -40,6 +41,9 @@ class AttendanceView(ctk.CTkFrame):
         self.on_clock_out = on_clock_out
         self.on_return_to_login = on_return_to_login
         self._timer_after_id: str | None = None
+        self._pulse_after_id: str | None = None
+        self._pulse_state = False
+        self._sidebar: ActiveEmployeesSidebar | None = None
 
         self._build()
         self._apply_state()
@@ -85,7 +89,7 @@ class AttendanceView(ctk.CTkFrame):
         self._header_status = ctk.CTkLabel(
             bar,
             text="",
-            font=th.bold(12),
+            font=th.bold(11),
             text_color=th.T_SECONDARY,
         )
         self._header_status.pack(side="right", padx=8, pady=20)
@@ -94,9 +98,32 @@ class AttendanceView(ctk.CTkFrame):
 
     def _build_body(self) -> None:
         body = ctk.CTkFrame(self, fg_color="transparent")
-        body.pack(fill="both", expand=True, padx=th.PAGE_PAD, pady=th.PAGE_PAD)
+        body.pack(fill="both", expand=True)
 
-        card = th.card(body, width=560, height=580)
+        # Sidebar (pack primero en la derecha para que el área principal
+        # ocupe todo el espacio restante con fill="both", expand=True).
+        self._sidebar = ActiveEmployeesSidebar(
+            body,
+            time_clock_service=self.time_clock_service,
+        )
+        self._sidebar.pack(
+            side="right",
+            fill="y",
+            padx=(0, th.PAGE_PAD),
+            pady=th.PAGE_PAD,
+        )
+
+        # Área principal (contiene la tarjeta de fichaje centrada)
+        main_area = ctk.CTkFrame(body, fg_color="transparent")
+        main_area.pack(
+            side="left",
+            fill="both",
+            expand=True,
+            padx=th.PAGE_PAD,
+            pady=th.PAGE_PAD,
+        )
+
+        card = th.card(main_area, width=560, height=620)
         card.place(relx=0.5, rely=0.5, anchor="center")
         card.grid_propagate(False)
 
@@ -105,18 +132,32 @@ class AttendanceView(ctk.CTkFrame):
 
         row = 0
 
-        # ── Badge ──
+        # ── Avatar del empleado ──
+        avatar_row = ctk.CTkFrame(card, fg_color="transparent")
+        avatar_row.grid(row=row, column=0, sticky="w", padx=28, pady=(28, 16))
+
+        avatar_bg = th.avatar_color(self.employee.id)
+        avatar = ctk.CTkFrame(avatar_row, width=52, height=52, corner_radius=26, fg_color=avatar_bg)
+        avatar.pack(side="left")
+        avatar.pack_propagate(False)
         ctk.CTkLabel(
-            card,
+            avatar,
+            text=self.employee.initials,
+            font=th.bold(18),
+            text_color="#FFFFFF",
+        ).place(relx=0.5, rely=0.5, anchor="center")
+
+        ctk.CTkLabel(
+            avatar_row,
             text="Fichaje de asistencia",
-            font=th.bold(11),
+            font=th.bold(10),
             text_color=th.ACCENT_SOFT,
             fg_color=th.ACCENT_DIM,
             corner_radius=th.R_SM,
-        ).grid(row=row, column=0, sticky="w", padx=28, pady=(28, 16), ipadx=10, ipady=4)
+        ).pack(side="left", padx=(14, 0), ipadx=10, ipady=4)
         row += 1
 
-        # ── Employee name ──
+        # ── Nombre del empleado ──
         ctk.CTkLabel(
             card,
             text=self.employee.full_name,
@@ -131,20 +172,33 @@ class AttendanceView(ctk.CTkFrame):
             text=f"DNI: {self.employee.dni}",
             font=th.f(13),
             text_color=th.T_SECONDARY,
-        ).grid(row=row, column=0, sticky="w", padx=28, pady=(0, 22))
+        ).grid(row=row, column=0, sticky="w", padx=28, pady=(0, 20))
         row += 1
 
-        # ── Attendance status (Fichado / Sin fichar) ──
+        # ── Estado con punto pulsante ──
+        status_row = ctk.CTkFrame(card, fg_color="transparent")
+        status_row.grid(row=row, column=0, sticky="w", padx=28, pady=(0, 8))
+
+        self._status_dot = ctk.CTkFrame(
+            status_row,
+            width=10,
+            height=10,
+            corner_radius=5,
+            fg_color=th.T_DISABLED,
+        )
+        self._status_dot.pack(side="left", padx=(0, 9))
+        self._status_dot.pack_propagate(False)
+
         self._status_label = ctk.CTkLabel(
-            card,
+            status_row,
             text="",
-            font=th.bold(18),
+            font=th.bold(17),
             text_color=th.T_SECONDARY,
         )
-        self._status_label.grid(row=row, column=0, sticky="w", padx=28, pady=(0, 8))
+        self._status_label.pack(side="left")
         row += 1
 
-        # ── Session start time (hidden when clocked out) ──
+        # ── Hora de entrada (oculta cuando no hay sesión) ──
         self._started_label = ctk.CTkLabel(
             card,
             text="",
@@ -154,40 +208,42 @@ class AttendanceView(ctk.CTkFrame):
         self._started_label.grid(row=row, column=0, sticky="w", padx=28, pady=(0, 4))
         row += 1
 
-        # ── Elapsed time section (hidden when clocked out) ──
+        # ── Sección de tiempo transcurrido (oculta cuando no hay sesión) ──
         elapsed_frame = ctk.CTkFrame(card, fg_color="transparent")
-        elapsed_frame.grid(row=row, column=0, sticky="ew", padx=28, pady=(0, 16))
+        elapsed_frame.grid(row=row, column=0, sticky="ew", padx=28, pady=(0, 14))
         elapsed_frame.columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
             elapsed_frame,
             text="Tiempo en turno",
-            font=th.bold(11),
+            font=th.bold(10),
             text_color=th.T_MUTED,
         ).pack(anchor="w")
 
         self._elapsed_label = ctk.CTkLabel(
             elapsed_frame,
             text="00:00:00",
-            font=ctk.CTkFont(family="Segoe UI", size=58, weight="bold"),
+            font=ctk.CTkFont(family="Segoe UI", size=56, weight="bold"),
             text_color=th.T_PRIMARY,
         )
-        self._elapsed_label.pack(anchor="w", pady=(4, 0))
+        self._elapsed_label.pack(anchor="w", pady=(3, 0))
         self._elapsed_frame = elapsed_frame
         row += 1
 
-        # ── Feedback (errors / confirmations) ──
+        # ── Feedback (errores / confirmaciones) ──
         self._feedback_label = ctk.CTkLabel(
             card,
             text="",
-            font=th.f(13),
+            font=th.f(12),
             text_color=th.DANGER_TEXT,
+            fg_color="transparent",
             wraplength=500,
+            corner_radius=th.R_SM,
         )
         self._feedback_label.grid(row=row, column=0, sticky="ew", padx=28, pady=(0, 8))
         row += 1
 
-        # ── Single action button — reconfigured per state ──
+        # ── Botón de acción único — reconfigurado según estado ──
         self._action_button = ctk.CTkButton(
             card,
             text="",
@@ -197,12 +253,13 @@ class AttendanceView(ctk.CTkFrame):
         )
         self._action_button.grid(row=row, column=0, sticky="ew", padx=28, pady=(0, 28))
 
-    # ── State management ──────────────────────────────────────────────────────
+    # ── Gestión de estado ──────────────────────────────────────────────────────
 
     def _apply_state(self) -> None:
-        """Update every UI element to match self.attendance_session."""
+        """Actualiza todos los elementos UI según self.attendance_session."""
         self._cancel_timer()
-        self._feedback_label.configure(text="")
+        self._cancel_pulse()
+        self._feedback_label.configure(text="", fg_color="transparent")
 
         if self.attendance_session and self.attendance_session.is_active:
             self._show_clocked_in()
@@ -212,11 +269,12 @@ class AttendanceView(ctk.CTkFrame):
     def _show_clocked_in(self) -> None:
         self._header_status.configure(text="Fichado", text_color=th.SUCCESS_TEXT)
         self._status_label.configure(text="Fichado", text_color=th.SUCCESS_TEXT)
+        self._status_dot.configure(fg_color=th.SUCCESS)
         self._started_label.configure(
             text=f"Entrada: {format_timestamp(self.attendance_session.clock_in_time)}"
         )
 
-        # Restore rows that were hidden in clocked-out state.
+        # Restaura las filas ocultas en el estado "sin fichar".
         self._started_label.grid()
         self._elapsed_frame.grid()
 
@@ -230,13 +288,15 @@ class AttendanceView(ctk.CTkFrame):
         )
 
         self._tick_elapsed()
+        self._start_pulse()
 
     def _show_clocked_out(self) -> None:
         self._header_status.configure(text="Sin fichar", text_color=th.T_SECONDARY)
         self._status_label.configure(text="Sin fichar", text_color=th.T_SECONDARY)
+        self._status_dot.configure(fg_color=th.T_DISABLED)
         self._started_label.configure(text="")
 
-        # Hide session-specific rows — grid_remove() remembers position for later restore.
+        # Oculta filas de sesión — grid_remove() recuerda la posición para restaurar.
         self._started_label.grid_remove()
         self._elapsed_frame.grid_remove()
 
@@ -249,41 +309,55 @@ class AttendanceView(ctk.CTkFrame):
             command=self._clock_in,
         )
 
-    # ── Actions ───────────────────────────────────────────────────────────────
+    # ── Acciones ──────────────────────────────────────────────────────────────
 
     def _clock_in(self) -> None:
-        self._feedback_label.configure(text="")
+        self._feedback_label.configure(text="", fg_color="transparent")
         self._action_button.configure(state="disabled", text="Registrando...")
         try:
             self.attendance_session = self.on_clock_in()
         except ValueError as exc:
-            self._feedback_label.configure(text=str(exc), text_color=th.DANGER_TEXT)
+            self._feedback_label.configure(
+                text=f"  ✕  {exc}",
+                text_color=th.DANGER_TEXT,
+                fg_color=th.DANGER_DIM,
+            )
             self._action_button.configure(state="normal", text="Fichar")
             return
 
         self._apply_state()
+        if self._sidebar:
+            self._sidebar.refresh()
         self._feedback_label.configure(
-            text="Entrada registrada correctamente.",
+            text="  ✓  Entrada registrada correctamente.",
             text_color=th.SUCCESS_TEXT,
+            fg_color=th.SUCCESS_DIM,
         )
 
     def _clock_out(self) -> None:
-        self._feedback_label.configure(text="")
+        self._feedback_label.configure(text="", fg_color="transparent")
         self._action_button.configure(state="disabled", text="Registrando...")
         try:
             self.attendance_session = self.on_clock_out()
         except ValueError as exc:
-            self._feedback_label.configure(text=str(exc), text_color=th.DANGER_TEXT)
+            self._feedback_label.configure(
+                text=f"  ✕  {exc}",
+                text_color=th.DANGER_TEXT,
+                fg_color=th.DANGER_DIM,
+            )
             self._action_button.configure(state="normal", text="Desfichar")
             return
 
         self._apply_state()
+        if self._sidebar:
+            self._sidebar.refresh()
         self._feedback_label.configure(
-            text="Salida registrada. Puedes volver al inicio o fichar de nuevo.",
+            text="  ✓  Salida registrada. Puedes volver al inicio o fichar de nuevo.",
             text_color=th.SUCCESS_TEXT,
+            fg_color=th.SUCCESS_DIM,
         )
 
-    # ── Timer ─────────────────────────────────────────────────────────────────
+    # ── Temporizador ─────────────────────────────────────────────────────────
 
     def _tick_elapsed(self) -> None:
         if not self.winfo_exists():
@@ -299,8 +373,31 @@ class AttendanceView(ctk.CTkFrame):
             self.after_cancel(self._timer_after_id)
             self._timer_after_id = None
 
+    # ── Animación de pulso del punto de estado ────────────────────────────────
+
+    def _start_pulse(self) -> None:
+        self._cancel_pulse()
+        self._pulse_state = False
+        self._pulse_tick()
+
+    def _pulse_tick(self) -> None:
+        if not self.winfo_exists():
+            return
+        if not self.attendance_session or not self.attendance_session.is_active:
+            return
+        self._pulse_state = not self._pulse_state
+        color = th.SUCCESS if self._pulse_state else "#1A5C35"
+        self._status_dot.configure(fg_color=color)
+        self._pulse_after_id = self.after(900, self._pulse_tick)
+
+    def _cancel_pulse(self) -> None:
+        if self._pulse_after_id:
+            self.after_cancel(self._pulse_after_id)
+            self._pulse_after_id = None
+
     def destroy(self) -> None:
         self._cancel_timer()
+        self._cancel_pulse()
         super().destroy()
 
     # ── Helpers ───────────────────────────────────────────────────────────────

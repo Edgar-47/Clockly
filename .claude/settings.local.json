@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c \"from app.ui.active_employees_sidebar import ActiveEmployeesSidebar; print\\('OK'\\)\")",
+      "Bash(python -c \"from app.ui.attendance_view import AttendanceView; print\\('OK'\\)\")",
+      "Bash(python -c ':*)",
+      "Bash(.venv/Scripts/pip install:*)",
+      "Bash(.venv/Scripts/python -m pytest tests/ -v)"
+    ]
+  }
+}

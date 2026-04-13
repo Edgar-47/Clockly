@@ -4,7 +4,8 @@ from app.models.attendance_session import AttendanceSession
 
 class AttendanceSessionRepository:
     _SELECT_COLUMNS = """
-        id, user_id, clock_in_time, clock_out_time, is_active, total_seconds, notes
+        id, user_id, clock_in_time, clock_out_time, is_active, total_seconds, notes,
+        closed_by_admin, manual_close_reason, closed_by_user_id
     """
 
     def create(
@@ -107,12 +108,37 @@ class AttendanceSessionRepository:
                 (clock_out_time, total_seconds, notes, session_id),
             )
 
+    def admin_clock_out(
+        self,
+        *,
+        session_id: int,
+        clock_out_time: str,
+        total_seconds: int,
+        reason: str,
+        closed_by_user_id: int,
+    ) -> None:
+        with get_connection() as connection:
+            connection.execute(
+                """
+                UPDATE attendance_sessions
+                SET clock_out_time = ?,
+                    is_active = 0,
+                    total_seconds = ?,
+                    closed_by_admin = 1,
+                    manual_close_reason = ?,
+                    closed_by_user_id = ?
+                WHERE id = ? AND is_active = 1
+                """,
+                (clock_out_time, total_seconds, reason, closed_by_user_id, session_id),
+            )
+
     def list_with_user_names(
         self,
         *,
         date_from: str | None = None,
         date_to: str | None = None,
         user_id: int | None = None,
+        is_active: int | None = None,
     ) -> list[dict]:
         clauses: list[str] = []
         params: list = []
@@ -129,6 +155,10 @@ class AttendanceSessionRepository:
             clauses.append("s.user_id = ?")
             params.append(user_id)
 
+        if is_active is not None:
+            clauses.append("s.is_active = ?")
+            params.append(is_active)
+
         where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
 
         query = f"""
@@ -142,7 +172,10 @@ class AttendanceSessionRepository:
                 s.clock_out_time,
                 s.is_active,
                 s.total_seconds,
-                s.notes
+                s.notes,
+                s.closed_by_admin,
+                s.manual_close_reason,
+                s.closed_by_user_id
             FROM attendance_sessions s
             JOIN users u ON u.id = s.user_id
             {where}

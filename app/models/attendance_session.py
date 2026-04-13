@@ -11,17 +11,24 @@ class AttendanceSession:
     is_active: bool
     total_seconds: int | None = None
     notes: str | None = None
+    closed_by_admin: bool = False
+    manual_close_reason: str | None = None
+    closed_by_user_id: int | None = None
 
     @classmethod
     def from_row(cls, row) -> "AttendanceSession":
+        d = dict(row)
         return cls(
-            id=row["id"],
-            user_id=row["user_id"],
-            clock_in_time=row["clock_in_time"],
-            clock_out_time=row["clock_out_time"],
-            is_active=bool(row["is_active"]),
-            total_seconds=row["total_seconds"],
-            notes=row["notes"],
+            id=d["id"],
+            user_id=d["user_id"],
+            clock_in_time=d["clock_in_time"],
+            clock_out_time=d["clock_out_time"],
+            is_active=bool(d["is_active"]),
+            total_seconds=d.get("total_seconds"),
+            notes=d.get("notes"),
+            closed_by_admin=bool(d.get("closed_by_admin", 0)),
+            manual_close_reason=d.get("manual_close_reason"),
+            closed_by_user_id=d.get("closed_by_user_id"),
         )
 
     def elapsed_seconds(self, now: datetime | None = None) -> int:

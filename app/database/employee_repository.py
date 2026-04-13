@@ -3,6 +3,14 @@ from app.models.employee import Employee
 
 
 class EmployeeRepository:
+    """
+    Repository for the canonical `users` table.
+
+    The legacy `employees` table is no longer written to from here.
+    It exists in the schema only for migration of old databases (handled
+    once at startup by schema.initialize_database).
+    """
+
     _SELECT_COLUMNS = """
         id, first_name, last_name, dni, password_hash, role, active, created_at
     """
@@ -115,9 +123,7 @@ class EmployeeRepository:
                     int(active),
                 ),
             )
-            user_id = int(cursor.lastrowid)
-            self._sync_legacy_employee(connection, user_id)
-            return user_id
+            return int(cursor.lastrowid)
 
     def toggle_active(self, employee_id: int) -> bool:
         """Flip the active flag for an employee. Returns the new active state."""
@@ -130,7 +136,6 @@ class EmployeeRepository:
                 "SELECT active FROM users WHERE id = ?",
                 (employee_id,),
             ).fetchone()
-            self._sync_legacy_employee(connection, employee_id)
         return bool(row["active"]) if row else False
 
     def set_active(self, employee_id: int, *, active: bool) -> None:
@@ -139,59 +144,41 @@ class EmployeeRepository:
                 "UPDATE users SET active = ? WHERE id = ?",
                 (int(active), employee_id),
             )
-            self._sync_legacy_employee(connection, employee_id)
 
-    def _sync_legacy_employee(self, connection, user_id: int) -> None:
-        row = connection.execute(
-            """
-            SELECT id, first_name, last_name, dni, password_hash, role, active, created_at
-            FROM users
-            WHERE id = ?
-            """,
-            (user_id,),
-        ).fetchone()
-        if not row:
-            return
+    def update(
+        self,
+        employee_id: int,
+        *,
+        first_name: str,
+        last_name: str,
+        dni: str,
+        role: str,
+        active: bool,
+    ) -> None:
+        with get_connection() as connection:
+            connection.execute(
+                """
+                UPDATE users
+                SET first_name = ?,
+                    last_name = ?,
+                    dni = ?,
+                    role = ?,
+                    active = ?
+                WHERE id = ?
+                """,
+                (first_name, last_name, dni, role, int(active), employee_id),
+            )
 
-        name = f"{row['first_name']} {row['last_name']}".strip()
-        connection.execute(
-            """
-            INSERT OR IGNORE INTO employees
-                (id, first_name, last_name, name, username, password_hash, role, active, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP))
-            """,
-            (
-                row["id"],
-                row["first_name"],
-                row["last_name"],
-                name,
-                row["dni"],
-                row["password_hash"],
-                row["role"],
-                row["active"],
-                row["created_at"],
-            ),
-        )
-        connection.execute(
-            """
-            UPDATE employees
-            SET first_name = ?,
-                last_name = ?,
-                name = ?,
-                username = ?,
-                password_hash = ?,
-                role = ?,
-                active = ?
-            WHERE id = ?
-            """,
-            (
-                row["first_name"],
-                row["last_name"],
-                name,
-                row["dni"],
-                row["password_hash"],
-                row["role"],
-                row["active"],
-                row["id"],
-            ),
-        )
+    def set_password_hash(self, employee_id: int, password_hash: str) -> None:
+        with get_connection() as connection:
+            connection.execute(
+                "UPDATE users SET password_hash = ? WHERE id = ?",
+                (password_hash, employee_id),
+            )
+
+    def count_active_admins(self) -> int:
+        with get_connection() as connection:
+            row = connection.execute(
+                "SELECT COUNT(*) FROM users WHERE role = 'admin' AND active = 1"
+            ).fetchone()
+        return int(row[0]) if row else 0

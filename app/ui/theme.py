@@ -74,6 +74,26 @@ R_XL = 8
 PAGE_PAD = 24
 CARD_PAD = 18
 
+# Slightly elevated surface (between BG_ROOT and BG_CARD)
+SURFACE = "#1C201D"
+
+# Avatar palette — consistent color per employee_id
+AVATAR_PALETTE = [
+    "#2563EB",  # azul
+    "#7C3AED",  # violeta
+    "#DB2777",  # rosa
+    "#D97706",  # ámbar
+    "#059669",  # esmeralda
+    "#0891B2",  # cian
+    "#4F46E5",  # índigo
+    "#B45309",  # ocre
+]
+
+
+def avatar_color(employee_id: int) -> str:
+    """Color de avatar consistente según el ID del empleado."""
+    return AVATAR_PALETTE[employee_id % len(AVATAR_PALETTE)]
+
 
 # ── Font helpers ──────────────────────────────────────────────────────────────
 
@@ -158,3 +178,28 @@ def entry_kwargs() -> dict:
         "text_color": T_PRIMARY,
         "placeholder_text_color": T_MUTED,
     }
+
+
+def stat_card(parent, **kwargs) -> ctk.CTkFrame:
+    """Tarjeta de métrica elevada para paneles de estadísticas."""
+    defaults = {
+        "fg_color": BG_RAISED,
+        "corner_radius": R_LG,
+        "border_width": 1,
+        "border_color": BORDER,
+    }
+    defaults.update(kwargs)
+    return ctk.CTkFrame(parent, **defaults)
+
+
+def pill_label(parent, text: str, fg: str, bg: str, **kwargs) -> ctk.CTkLabel:
+    """Badge pequeño con color de fondo — para estados, roles, etc."""
+    return ctk.CTkLabel(
+        parent,
+        text=text,
+        font=bold(10),
+        text_color=fg,
+        fg_color=bg,
+        corner_radius=R_SM,
+        **kwargs,
+    )

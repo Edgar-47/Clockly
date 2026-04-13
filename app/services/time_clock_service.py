@@ -24,6 +24,9 @@ class TimeClockService:
         self.attendance_session_repository = (
             attendance_session_repository or AttendanceSessionRepository()
         )
+        # Legacy: kept only for get_last_entry(), which is used by admin_view.py
+        # and clock_view.py (inactive views). New code should read from
+        # attendance_session_repository instead.
         self.time_entry_repository = time_entry_repository or TimeEntryRepository()
 
     def register(self, *, employee_id: int, entry_type: str) -> int:
@@ -47,13 +50,6 @@ class TimeClockService:
         session_id = self.attendance_session_repository.create(
             user_id=employee.id,
             clock_in_time=timestamp,
-            notes="Started automatically on login",
-        )
-        self.time_entry_repository.create(
-            employee_id=employee.id,
-            entry_type=self.ENTRY,
-            timestamp=timestamp,
-            notes="Automatic clock-in on login",
         )
         session = self.attendance_session_repository.get_by_id(session_id)
         if session is None:
@@ -72,21 +68,11 @@ class TimeClockService:
             session_id=active.id,
             clock_out_time=timestamp,
             total_seconds=total_seconds,
-            notes="Clocked out by user",
-        )
-        self.time_entry_repository.create(
-            employee_id=employee.id,
-            entry_type=self.EXIT,
-            timestamp=timestamp,
-            notes="Clock-out saved from attendance session",
         )
         session = self.attendance_session_repository.get_by_id(active.id)
         if session is None:
             raise RuntimeError("No se pudo cerrar la sesion de asistencia.")
         return session
-
-    def get_last_entry(self, employee_id: int) -> TimeEntry | None:
-        return self.time_entry_repository.get_last_for_employee(employee_id)
 
     def get_active_session(self, employee_id: int) -> AttendanceSession | None:
         return self.attendance_session_repository.get_active_for_user(employee_id)
@@ -102,16 +88,15 @@ class TimeClockService:
         self,
         employees: list[Employee],
     ) -> list[AttendanceStatus]:
-        latest_by_employee = self.time_entry_repository.get_latest_for_employees(
-            [employee.id for employee in employees]
-        )
+        # Only fetch active sessions — the canonical source of truth.
+        # last_entry (from legacy time_entries) is not populated here because
+        # no active view relies on it; admin_view.py reads it separately.
         active_by_employee = self.attendance_session_repository.get_active_for_users(
             [employee.id for employee in employees]
         )
         return [
             AttendanceStatus(
                 employee=employee,
-                last_entry=latest_by_employee.get(employee.id),
                 active_session=active_by_employee.get(employee.id),
             )
             for employee in employees
@@ -147,14 +132,51 @@ class TimeClockService:
             if not status.is_clocked_in
         ]
 
-    def _validate_sequence(self, last_entry: TimeEntry | None, entry_type: str) -> None:
-        if entry_type == self.ENTRY and last_entry and last_entry.entry_type == self.ENTRY:
-            raise ValueError("Ya tienes una entrada registrada. Ficha salida primero.")
+    def admin_close_session(
+        self,
+        session_id: int,
+        *,
+        reason: str,
+        admin_user_id: int,
+    ) -> AttendanceSession:
+        """
+        Close an active session from the admin panel.
+        Requires a non-empty reason. Records who closed it and why.
+        Raises ValueError if session not found, already closed, or reason missing.
+        """
+        clean_reason = reason.strip()
+        if not clean_reason:
+            raise ValueError("El motivo del cierre es obligatorio.")
 
-        if entry_type == self.EXIT and (
-            last_entry is None or last_entry.entry_type == self.EXIT
-        ):
-            raise ValueError("No puedes fichar salida sin una entrada abierta.")
+        session = self.attendance_session_repository.get_by_id(session_id)
+        if session is None:
+            raise ValueError("Sesión no encontrada.")
+        if not session.is_active:
+            raise ValueError("Esta sesión ya está cerrada.")
+
+        timestamp = self._now_local()
+        total_seconds = self._seconds_between(session.clock_in_time, timestamp)
+        self.attendance_session_repository.admin_clock_out(
+            session_id=session_id,
+            clock_out_time=timestamp,
+            total_seconds=total_seconds,
+            reason=clean_reason,
+            closed_by_user_id=admin_user_id,
+        )
+        updated = self.attendance_session_repository.get_by_id(session_id)
+        if updated is None:
+            raise RuntimeError("Error al cerrar la sesión.")
+        return updated
+
+    # ── Legacy API ────────────────────────────────────────────────────────────
+    # Used by admin_view.py, clock_view.py, clock_kiosk_view.py (inactive views).
+    # New views read directly from attendance_session_repository.
+
+    def get_last_entry(self, employee_id: int) -> TimeEntry | None:
+        """Legacy: returns last time_entry for an employee."""
+        return self.time_entry_repository.get_last_for_employee(employee_id)
+
+    # ── Private helpers ───────────────────────────────────────────────────────
 
     def _require_clockable_employee(self, employee_id: int) -> Employee:
         employee = self.employee_repository.get_by_id(employee_id)
