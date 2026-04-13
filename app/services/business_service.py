@@ -125,6 +125,58 @@ class BusinessService:
             business_id=business.id,
         )
 
+    def update_business(
+        self,
+        *,
+        requester_user_id: int,
+        business_id: str,
+        business_name: str,
+        business_type: str,
+        login_code: str,
+        settings_json: str | dict | None = None,
+    ) -> Business:
+        if not self.business_repository.user_has_access(
+            business_id=business_id,
+            user_id=requester_user_id,
+        ):
+            raise ValueError("No tienes acceso a este negocio.")
+
+        current = self.business_repository.get_by_id(business_id)
+        if current is None:
+            raise ValueError("Negocio no encontrado.")
+
+        clean_name = self._clean_business_name(business_name)
+        clean_type = self._normalize_business_type(business_type)
+        clean_login_code = self._normalize_login_code(login_code)
+        clean_settings = self._normalize_settings_json(
+            settings_json,
+            fallback=current.settings_json,
+        )
+
+        if not clean_name:
+            raise ValueError("El nombre del negocio es obligatorio.")
+        if len(clean_name) < 2:
+            raise ValueError("El nombre del negocio debe tener al menos 2 caracteres.")
+        if not clean_login_code:
+            raise ValueError("El codigo de inicio de sesion es obligatorio.")
+        if len(clean_login_code) < 3:
+            raise ValueError("El codigo de inicio de sesion debe tener al menos 3 caracteres.")
+
+        duplicate = self.business_repository.get_by_login_code(clean_login_code)
+        if duplicate and duplicate.id != business_id:
+            raise ValueError("Ya existe un negocio activo con ese codigo de inicio.")
+
+        try:
+            return self.business_repository.update(
+                business_id=business_id,
+                business_name=clean_name,
+                business_type=clean_type,
+                login_code=clean_login_code,
+                settings_json=clean_settings,
+            )
+        except sqlite3.IntegrityError as exc:
+            raise ValueError("Ya existe un negocio con ese codigo o identificador.") from exc
+
     def _clean_business_name(self, value: str) -> str:
         return re.sub(r"\s+", " ", value).strip()
 
@@ -148,6 +200,26 @@ class BusinessService:
 
     def _generate_business_key(self) -> str:
         return f"BUS-{secrets.token_hex(4).upper()}"
+
+    def _normalize_settings_json(
+        self,
+        value: str | dict | None,
+        *,
+        fallback: str = "{}",
+    ) -> str:
+        if value is None:
+            value = fallback
+        if isinstance(value, dict):
+            parsed = value
+        else:
+            text = value.strip() or "{}"
+            try:
+                parsed = json.loads(text)
+            except json.JSONDecodeError as exc:
+                raise ValueError("La configuracion del negocio debe ser JSON valido.") from exc
+        if not isinstance(parsed, dict):
+            raise ValueError("La configuracion del negocio debe ser un objeto JSON.")
+        return json.dumps(parsed, ensure_ascii=True, separators=(",", ":"))
 
     def _now(self) -> str:
         return datetime.now().replace(microsecond=0).isoformat(sep=" ")

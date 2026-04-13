@@ -88,6 +88,59 @@ def test_login_code_must_be_unique_for_active_businesses(db):
         )
 
 
+def test_update_business_changes_editable_fields(db):
+    svc = BusinessService()
+    admin_id = _admin_id()
+    business = svc.create_business(
+        owner_user_id=admin_id,
+        business_name="Cafe Norte",
+        business_type="cafeteria",
+        login_code="NORTE",
+    )
+
+    updated = svc.update_business(
+        requester_user_id=admin_id,
+        business_id=business.id,
+        business_name="Cafe Sur",
+        business_type="bar",
+        login_code="sur",
+        settings_json={"timezone": "Europe/Madrid"},
+    )
+
+    assert updated.id == business.id
+    assert updated.business_name == "Cafe Sur"
+    assert updated.business_type == "bar"
+    assert updated.login_code == "SUR"
+    assert updated.settings_json == '{"timezone":"Europe/Madrid"}'
+
+
+def test_update_business_rejects_duplicate_login_code(db):
+    svc = BusinessService()
+    admin_id = _admin_id()
+    first = svc.create_business(
+        owner_user_id=admin_id,
+        business_name="Bar Uno",
+        business_type="bar",
+        login_code="UNO",
+    )
+    svc.create_business(
+        owner_user_id=admin_id,
+        business_name="Bar Dos",
+        business_type="bar",
+        login_code="DOS",
+    )
+
+    with pytest.raises(ValueError, match="codigo"):
+        svc.update_business(
+            requester_user_id=admin_id,
+            business_id=first.id,
+            business_name="Bar Uno",
+            business_type="bar",
+            login_code="dos",
+            settings_json="{}",
+        )
+
+
 def test_business_context_scopes_created_employees_and_sessions(db):
     business_svc = BusinessService()
     admin_id = _admin_id()

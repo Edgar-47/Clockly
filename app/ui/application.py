@@ -117,7 +117,7 @@ class TimeClockApplication(ctk.CTk):
                 return
             self._enter_business(default_business)
             return
-        from app.ui.admin_dashboard_view import AdminDashboardView
+        from app.ui.admin_control_center_view import AdminDashboardView
         business_count = len(
             self.business_service.list_businesses_for_user(self.current_employee.id)
         )
@@ -131,9 +131,11 @@ class TimeClockApplication(ctk.CTk):
                 export_service=self.export_service,
                 attendance_report_service=self.attendance_report_service,
                 time_clock_service=self.time_clock_service,
+                business_service=self.business_service,
                 on_logout=self._on_logout,
                 on_change_business=self.show_business_selector,
                 on_create_business=self.show_business_onboarding,
+                on_business_updated=self._handle_business_updated,
             )
         )
 
@@ -294,6 +296,9 @@ class TimeClockApplication(ctk.CTk):
             self.show_admin()
         else:
             self.show_clock()
+
+    def _handle_business_updated(self, business: Business) -> None:
+        self.current_business = business
 
     def _handle_clock_in(self):
         if not self.current_employee:

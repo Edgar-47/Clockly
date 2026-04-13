@@ -141,6 +141,48 @@ class BusinessRepository:
             ).fetchone()
         return Business.from_row(row) if row else None
 
+    def update(
+        self,
+        *,
+        business_id: str,
+        business_name: str,
+        business_type: str,
+        login_code: str,
+        settings_json: str,
+    ) -> Business:
+        with get_connection() as connection:
+            connection.execute(
+                """
+                UPDATE businesses
+                SET business_name = ?,
+                    business_type = ?,
+                    login_code = ?,
+                    settings_json = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                  AND is_active = 1
+                """,
+                (
+                    business_name,
+                    business_type,
+                    login_code,
+                    settings_json,
+                    business_id,
+                ),
+            )
+            row = connection.execute(
+                f"""
+                SELECT {self._SELECT_COLUMNS}
+                FROM businesses
+                WHERE id = ?
+                """,
+                (business_id,),
+            ).fetchone()
+
+        if row is None:
+            raise RuntimeError("No se pudo actualizar el negocio.")
+        return Business.from_row(row)
+
     def list_for_user(self, user_id: int) -> list[Business]:
         with get_connection() as connection:
             rows = connection.execute(
