@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block title %}Mi fichaje{% endblock %}
+
+{% block page_title %}Mi fichaje{% endblock %}
+
+{% block topbar_actions %}
+  <span class="topbar__clock" id="live-clock"></span>
+{% endblock %}
+
+{% block content %}
+
+{% set active = status.is_clocked_in %}
+{% set session = status.active_session %}
+
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-card__icon {{ 'stat-card__icon--green' if active else 'stat-card__icon--gray' }}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/>
+        <polyline points="12 6 12 12 16 14"/>
+      </svg>
+    </div>
+    <div class="stat-card__body">
+      <p class="stat-card__label">Estado actual</p>
+      <p class="stat-card__value">{{ "En turno" if active else "Fuera" }}</p>
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-card__icon stat-card__icon--blue">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+        <circle cx="12" cy="7" r="4"/>
+      </svg>
+    </div>
+    <div class="stat-card__body">
+      <p class="stat-card__label">Empleado</p>
+      <p class="stat-card__value stat-card__value--sm">{{ employee.full_name }}</p>
+    </div>
+  </div>
+</div>
+
+<div class="card card--narrow employee-punch">
+  <div class="card__header">
+    <h2 class="card__title">
+      {% if active %}
+        <span class="badge badge--green">Trabajando</span>
+        Registrar salida
+      {% else %}
+        <span class="badge badge--gray">Sin turno activo</span>
+        Registrar entrada
+      {% endif %}
+    </h2>
+  </div>
+
+  <div class="card__body">
+    {% if active and session %}
+      <p class="text-muted">
+        Entrada registrada a las {{ format_timestamp(session.clock_in_time, "%H:%M") }}.
+      </p>
+      <p class="employee-punch__timer">
+        Tiempo transcurrido:
+        <strong class="duration-live" data-since="{{ session.clock_in_time }}">-</strong>
+      </p>
+    {% else %}
+      <p class="text-muted">
+        No tienes una sesion activa ahora mismo.
+      </p>
+    {% endif %}
+
+    <form method="post" action="/me/punch" class="form">
+      {% if active %}
+        <div class="form__group">
+          <label class="form__label" for="exit_note">Nota de salida (opcional)</label>
+          <textarea class="form__input form__textarea" id="exit_note" name="exit_note"
+                    placeholder="Observaciones sobre el turno..."></textarea>
+        </div>
+
+        <div class="form__group">
+          <label class="form__label" for="incident_type">Tipo de incidencia</label>
+          <select class="form__select" id="incident_type" name="incident_type">
+            <option value="">Sin incidencia</option>
+            <option value="descanso">Descanso</option>
+            <option value="olvido">Olvido de fichaje</option>
+            <option value="correccion_manual">Correccion manual</option>
+            <option value="otro">Otro</option>
+          </select>
+        </div>
+      {% endif %}
+
+      <div class="form__actions">
+        <button type="submit" class="btn {{ 'btn--danger' if active else 'btn--success' }}">
+          {{ "Fichar salida" if active else "Fichar entrada" }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card__header">
+    <h2 class="card__title">Mis ultimas sesiones</h2>
+  </div>
+
+  {% if recent_sessions %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Entrada</th>
+          <th>Salida</th>
+          <th>Duracion</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in recent_sessions %}
+        <tr>
+          <td class="text-muted">{{ format_timestamp(s.clock_in_time, "%d/%m/%Y %H:%M") }}</td>
+          <td class="text-muted">
+            {{ format_timestamp(s.clock_out_time, "%d/%m/%Y %H:%M") if s.clock_out_time else "-" }}
+          </td>
+          <td>
+            {% if s.is_active %}
+              <span class="duration-live" data-since="{{ s.clock_in_time }}">-</span>
+            {% else %}
+              {{ format_duration(s.counted_duration_seconds) }}
+            {% endif %}
+          </td>
+          <td>
+            {% if s.is_active %}
+              <span class="badge badge--green">Activa</span>
+            {% elif s.severity != "none" %}
+              <span class="badge badge--yellow">{{ s.incident_label }}</span>
+            {% else %}
+              <span class="badge badge--gray">Cerrada</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <p>Todavia no tienes sesiones registradas.</p>
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}

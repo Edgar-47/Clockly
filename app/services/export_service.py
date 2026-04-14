@@ -104,9 +104,14 @@ class ExportService:
         *,
         date_from: str | date | None = None,
         date_to: str | date | None = None,
+        employee_id: int | None = None,
         user_id: int | None = None,
+        is_active: int | None = None,
+        incident_filter: str | None = None,
         require_results: bool = False,
     ) -> list[SessionReport]:
+        if employee_id is not None:
+            user_id = employee_id
         clean_date_from, clean_date_to = self.validate_filters(
             date_from=date_from,
             date_to=date_to,
@@ -115,6 +120,8 @@ class ExportService:
             date_from=clean_date_from,
             date_to=clean_date_to,
             user_id=user_id,
+            is_active=is_active,
+            incident_filter=incident_filter,
         )
         if require_results and not reports:
             raise ValueError(
@@ -127,7 +134,10 @@ class ExportService:
         *,
         date_from: str | date | None = None,
         date_to: str | date | None = None,
+        employee_id: int | None = None,
         user_id: int | None = None,
+        is_active: int | None = None,
+        incident_filter: str | None = None,
         employee_name: str | None = None,
         output_path: str | Path | None = None,
     ) -> Path:
@@ -143,7 +153,10 @@ class ExportService:
         reports = self.list_export_sessions(
             date_from=date_from,
             date_to=date_to,
+            employee_id=employee_id,
             user_id=user_id,
+            is_active=is_active,
+            incident_filter=incident_filter,
             require_results=True,
         )
         session_rows = self._build_session_rows(reports)
@@ -259,7 +272,10 @@ class ExportService:
         *,
         date_from: str | date | None = None,
         date_to: str | date | None = None,
+        employee_id: int | None = None,
         user_id: int | None = None,
+        is_active: int | None = None,
+        incident_filter: str | None = None,
         employee_name: str | None = None,
         output_path: str | Path | None = None,
     ) -> Path:
@@ -285,7 +301,10 @@ class ExportService:
         reports = self.list_export_sessions(
             date_from=date_from,
             date_to=date_to,
+            employee_id=employee_id,
             user_id=user_id,
+            is_active=is_active,
+            incident_filter=incident_filter,
             require_results=True,
         )
         session_rows = self._build_session_rows(reports)

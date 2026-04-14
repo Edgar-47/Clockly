@@ -1,3 +1,4 @@
+from app.core.flow_debug import flow_log, mask_identifier
 from app.database.connection import get_connection
 from app.models.employee import Employee
 
@@ -37,6 +38,11 @@ class EmployeeRepository:
                 """,
                 (clean_dni,),
             ).fetchone()
+        flow_log(
+            "repository.employee.by_dni",
+            identifier=mask_identifier(clean_dni),
+            found=bool(row),
+        )
         return Employee.from_row(row) if row else None
 
     def get_by_id(self, employee_id: int) -> Employee | None:
@@ -58,6 +64,12 @@ class EmployeeRepository:
                 """,
                 params,
             ).fetchone()
+        flow_log(
+            "repository.employee.by_id",
+            employee_id=employee_id,
+            business_id=self.business_id,
+            found=bool(row),
+        )
         return Employee.from_row(row) if row else None
 
     def get_by_full_name(self, first_name: str, last_name: str) -> Employee | None:
@@ -86,6 +98,11 @@ class EmployeeRepository:
                 """,
                 params,
             ).fetchall()
+        flow_log(
+            "repository.employee.list_all",
+            business_id=self.business_id,
+            count=len(rows),
+        )
         return [Employee.from_row(row) for row in rows]
 
     def list_active(self) -> list[Employee]:
@@ -101,6 +118,11 @@ class EmployeeRepository:
                 """,
                 params,
             ).fetchall()
+        flow_log(
+            "repository.employee.list_active",
+            business_id=self.business_id,
+            count=len(rows),
+        )
         return [Employee.from_row(row) for row in rows]
 
     def list_active_clockable(self) -> list[Employee]:
@@ -118,6 +140,11 @@ class EmployeeRepository:
                 """,
                 params,
             ).fetchall()
+        flow_log(
+            "repository.employee.list_active_clockable",
+            business_id=self.business_id,
+            count=len(rows),
+        )
         return [Employee.from_row(row) for row in rows]
 
     def create(

@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 
 from app.database.attendance_session_repository import AttendanceSessionRepository
+from app.core.flow_debug import flow_log
 from app.models.attendance_session import AttendanceSession
 from app.services.attendance_policy import (
     exceeded_shift_threshold_hours,
@@ -198,11 +199,22 @@ class AttendanceReportService:
         *,
         date_from: str | None = None,
         date_to: str | None = None,
+        employee_id: int | None = None,
         user_id: int | None = None,
         is_active: int | None = None,
         incident_filter: str | None = None,
         now: datetime | None = None,
     ) -> list[SessionReport]:
+        if employee_id is not None:
+            user_id = employee_id
+        flow_log(
+            "service.sessions.request",
+            date_from=date_from,
+            date_to=date_to,
+            employee_id=user_id,
+            is_active=is_active,
+            incident_filter=incident_filter,
+        )
         rows = self.attendance_session_repository.list_exportable_sessions(
             date_from=date_from,
             date_to=date_to,
@@ -212,11 +224,17 @@ class AttendanceReportService:
         reference_now = now or datetime.now().replace(microsecond=0)
         reports = [self._build_session_report(row, now=reference_now) for row in rows]
         clean_filter = incident_filter or self.INCIDENT_FILTER_ALL
-        return [
+        filtered_reports = [
             report
             for report in reports
             if self._matches_incident_filter(report, clean_filter)
         ]
+        flow_log(
+            "service.sessions.result",
+            repository_rows=len(rows),
+            returned=len(filtered_reports),
+        )
+        return filtered_reports
 
     def _build_session_report(self, row: dict, *, now: datetime) -> SessionReport:
         is_active = bool(row["is_active"])

@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block title %}Fichaje{% endblock %}
+
+{% block page_title %}Kiosk de fichaje{% endblock %}
+
+{% block topbar_actions %}
+  <span class="topbar__clock" id="live-clock"></span>
+{% endblock %}
+
+{% block content %}
+
+<div class="kiosk-grid">
+  {% for status in statuses %}
+  {% set emp = status.employee %}
+  {% set session = status.active_session %}
+  {% set clocked_in = status.is_clocked_in %}
+
+  <div class="kiosk-card {{ 'kiosk-card--in' if clocked_in else 'kiosk-card--out' }}"
+       data-employee-id="{{ emp.id }}">
+    <div class="kiosk-card__header">
+      <span class="avatar avatar--lg {{ 'avatar--active' if clocked_in else '' }}">
+        {{ emp.initials }}
+      </span>
+      <div class="kiosk-card__info">
+        <p class="kiosk-card__name">{{ emp.full_name }}</p>
+        <p class="kiosk-card__status">
+          {% if clocked_in %}
+            <span class="dot dot--green"></span>
+            Trabajando · entrada {{ format_timestamp(session.clock_in_time, "%H:%M") }}
+          {% else %}
+            <span class="dot dot--gray"></span>
+            Fuera del turno
+          {% endif %}
+        </p>
+      </div>
+    </div>
+
+    <button class="btn {{ 'btn--danger' if clocked_in else 'btn--success' }} btn--full kiosk-card__btn"
+            onclick="openPunchModal({{ emp.id }}, {{ emp.full_name | tojson }}, '{{ 'salida' if clocked_in else 'entrada' }}')">
+      {% if clocked_in %}
+        Registrar salida
+      {% else %}
+        Registrar entrada
+      {% endif %}
+    </button>
+  </div>
+  {% else %}
+  <div class="empty-state empty-state--wide">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+      <circle cx="9" cy="7" r="4"/>
+    </svg>
+    <p>No hay empleados activos configurados.</p>
+    <a href="/employees/new" class="btn btn--primary btn--sm">Crear empleado</a>
+  </div>
+  {% endfor %}
+</div>
+
+
+<!-- ── Punch modal ──────────────────────────────────────────────── -->
+<div id="punch-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" hidden>
+  <div class="modal__overlay" onclick="closePunchModal()"></div>
+  <div class="modal__box">
+    <div class="modal__header">
+      <h2 class="modal__title" id="modal-title">Confirmar fichaje</h2>
+      <button class="modal__close" onclick="closePunchModal()" aria-label="Cerrar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+
+    <form id="punch-form" method="post" action="/clock/punch" class="form" novalidate>
+      <input type="hidden" id="modal-employee-id" name="employee_id" value="">
+      <input type="hidden" id="modal-entry-type" name="entry_type" value="">
+
+      <p class="modal__subtitle">
+        <strong id="modal-employee-name"></strong> —
+        <span id="modal-action-label"></span>
+      </p>
+
+      <div class="form__group">
+        <label class="form__label" for="modal-password">Contraseña</label>
+        <input class="form__input" type="password" id="modal-password" name="password"
+               placeholder="Introduce tu contraseña" required autofocus>
+      </div>
+
+      <!-- Extra fields shown only on exit -->
+      <div id="exit-fields" hidden>
+        <div class="form__group">
+          <label class="form__label" for="modal-exit-note">Nota de salida (opcional)</label>
+          <textarea class="form__input form__textarea" id="modal-exit-note" name="exit_note"
+                    placeholder="Observaciones sobre el turno..."></textarea>
+        </div>
+        <div class="form__group">
+          <label class="form__label" for="modal-incident-type">Tipo de incidencia</label>
+          <select class="form__select" id="modal-incident-type" name="incident_type">
+            <option value="">Sin incidencia</option>
+            <option value="descanso">Descanso</option>
+            <option value="olvido">Olvido de fichaje</option>
+            <option value="correccion_manual">Corrección manual</option>
+            <option value="otro">Otro</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form__actions">
+        <button type="button" class="btn btn--ghost" onclick="closePunchModal()">Cancelar</button>
+        <button type="submit" id="modal-submit-btn" class="btn btn--primary">Confirmar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Open the punch modal for a given employee
+function openPunchModal(employeeId, employeeName, entryType) {
+  const modal = document.getElementById('punch-modal');
+  document.getElementById('modal-employee-id').value = employeeId;
+  document.getElementById('modal-entry-type').value = entryType;
+  document.getElementById('modal-employee-name').textContent = employeeName;
+  document.getElementById('modal-action-label').textContent =
+    entryType === 'entrada' ? 'Registrar entrada' : 'Registrar salida';
+
+  const exitFields = document.getElementById('exit-fields');
+  exitFields.hidden = entryType !== 'salida';
+
+  const submitBtn = document.getElementById('modal-submit-btn');
+  submitBtn.textContent = entryType === 'entrada' ? 'Fichar entrada' : 'Fichar salida';
+  submitBtn.className = 'btn ' + (entryType === 'entrada' ? 'btn--success' : 'btn--danger');
+
+  modal.hidden = false;
+  setTimeout(() => document.getElementById('modal-password').focus(), 50);
+}
+
+function closePunchModal() {
+  const modal = document.getElementById('punch-modal');
+  modal.hidden = true;
+  document.getElementById('modal-password').value = '';
+  document.getElementById('modal-exit-note').value = '';
+  document.getElementById('modal-incident-type').value = '';
+}
+
+// Close modal on Escape key
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closePunchModal();
+});
+</script>
+{% endblock %}

@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from app.core.flow_debug import flow_log
 from app.database.attendance_session_repository import AttendanceSessionRepository
 from app.database.employee_repository import EmployeeRepository
 from app.database.time_entry_repository import TimeEntryRepository
@@ -50,17 +51,36 @@ class TimeClockService:
         exit_note: str | None = None,
         incident_type: str | None = None,
     ) -> int:
+        flow_log(
+            "service.clock.register.request",
+            employee_id=employee_id,
+            entry_type=entry_type,
+            has_exit_note=bool(exit_note),
+            incident_type=incident_type,
+        )
         if entry_type not in self.VALID_TYPES:
             raise ValueError("Tipo de fichaje no valido.")
 
         if entry_type == self.ENTRY:
             session = self.start_session_for_employee(employee_id)
+            flow_log(
+                "service.clock.register.result",
+                employee_id=employee_id,
+                entry_type=entry_type,
+                session_id=session.id,
+            )
             return session.id
 
         session = self.clock_out_employee(
             employee_id,
             exit_note=exit_note,
             incident_type=incident_type,
+        )
+        flow_log(
+            "service.clock.register.result",
+            employee_id=employee_id,
+            entry_type=entry_type,
+            session_id=session.id,
         )
         return session.id
 

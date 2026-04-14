@@ -7,7 +7,14 @@
       "Bash(python -m py_compile app/ui/application.py app/ui/login_view.py app/ui/theme.py)",
       "Bash(python -m pytest tests/ -q --tb=short)",
       "Bash(python -m py_compile app/ui/admin_dashboard_view.py)",
-      "Bash(python -c \"from app.ui.admin_dashboard_view import AdminDashboardView; print\\('admin_dashboard_view OK'\\)\")"
+      "Bash(python -c \"from app.ui.admin_dashboard_view import AdminDashboardView; print\\('admin_dashboard_view OK'\\)\")",
+      "Bash(pip install:*)",
+      "Bash(python -c \"from app.main import app; print\\('OK — app loaded successfully'\\)\")",
+      "Read(//c/Users/epedr/.claude/projects/c--Users-epedr-OneDrive-App-Fichaje/memory/**)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\epedr\\OneDrive\\App_Fichaje\\app",
+      "c:\\Users\\epedr\\.claude\\projects\\c--Users-epedr-OneDrive-App-Fichaje\\memory"
     ]
   }
 }

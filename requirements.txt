@@ -1,4 +1,23 @@
-customtkinter==5.2.2
+# ── Web framework ──────────────────────────────────────────────────────────────
+fastapi>=0.111.0
+uvicorn[standard]>=0.29.0
+# Jinja2 is required by FastAPI for HTML templates
+jinja2>=3.1.4
+# python-multipart is required for Form data parsing (login, employee forms)
+python-multipart>=0.0.9
+# itsdangerous is used by Starlette's SessionMiddleware to sign the cookie
+itsdangerous>=2.2.0
+
+# ── Data validation (FastAPI uses Pydantic internally) ──────────────────────
+pydantic>=2.7.0
+
+# ── Exports ────────────────────────────────────────────────────────────────────
 openpyxl==3.1.5
 reportlab>=4.2
+
+# ── Development / testing ──────────────────────────────────────────────────────
 pytest>=8.0
+httpx>=0.27.0          # async test client for FastAPI endpoints
+
+# ── Desktop app (LEGACY — only needed if running the old Tkinter UI) ────────────
+# customtkinter==5.2.2  # Uncomment only if using the old desktop UI

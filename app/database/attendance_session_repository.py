@@ -1,4 +1,5 @@
 from app.database.connection import get_connection
+from app.core.flow_debug import flow_log
 from app.models.attendance_session import AttendanceSession
 
 
@@ -231,10 +232,16 @@ class AttendanceSessionRepository:
             {where}
             ORDER BY s.clock_in_time DESC, s.id DESC
         """
+        flow_log(
+            "repository.sessions.query",
+            clauses=clauses,
+            params=params,
+        )
 
         with get_connection() as connection:
             rows = connection.execute(query, params).fetchall()
 
+        flow_log("repository.sessions.result", count=len(rows))
         return [dict(row) for row in rows]
 
     def list_exportable_sessions(

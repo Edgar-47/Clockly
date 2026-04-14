@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+
+{% block title %}Sesiones{% endblock %}
+
+{% block page_title %}Sesiones de asistencia{% endblock %}
+
+{% block topbar_actions %}
+  <div class="btn-group">
+    <a href="/sessions/export/excel?date_from={{ filters.date_from }}&date_to={{ filters.date_to }}{% if filters.employee_id %}&employee_id={{ filters.employee_id }}{% endif %}{% if filters.is_active is not none %}&is_active={{ filters.is_active }}{% endif %}{% if filters.incident_filter != 'all' %}&incident_filter={{ filters.incident_filter }}{% endif %}"
+       class="btn btn--ghost btn--sm" title="Exportar a Excel">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+      </svg>
+      Excel
+    </a>
+    <a href="/sessions/export/pdf?date_from={{ filters.date_from }}&date_to={{ filters.date_to }}{% if filters.employee_id %}&employee_id={{ filters.employee_id }}{% endif %}{% if filters.is_active is not none %}&is_active={{ filters.is_active }}{% endif %}{% if filters.incident_filter != 'all' %}&incident_filter={{ filters.incident_filter }}{% endif %}"
+       class="btn btn--ghost btn--sm" title="Exportar a PDF">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+      </svg>
+      PDF
+    </a>
+  </div>
+{% endblock %}
+
+{% block content %}
+
+<!-- Filters -->
+<div class="card card--filters">
+  <form method="get" action="/sessions" class="filter-form">
+    <div class="filter-form__row">
+      <div class="form__group">
+        <label class="form__label" for="date_from">Desde</label>
+        <input class="form__input form__input--sm" type="date" id="date_from" name="date_from"
+               value="{{ filters.date_from }}">
+      </div>
+
+      <div class="form__group">
+        <label class="form__label" for="date_to">Hasta</label>
+        <input class="form__input form__input--sm" type="date" id="date_to" name="date_to"
+               value="{{ filters.date_to }}">
+      </div>
+
+      <div class="form__group">
+        <label class="form__label" for="employee_id">Empleado</label>
+        <select class="form__select form__select--sm" id="employee_id" name="employee_id">
+          <option value="">Todos</option>
+          {% for emp in employees %}
+          <option value="{{ emp.id }}" {{ 'selected' if filters.employee_id == emp.id }}>
+            {{ emp.full_name }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form__group">
+        <label class="form__label" for="is_active">Estado</label>
+        <select class="form__select form__select--sm" id="is_active" name="is_active">
+          <option value="">Todos</option>
+          <option value="1" {{ 'selected' if filters.is_active == 1 }}>Activas</option>
+          <option value="0" {{ 'selected' if filters.is_active == 0 }}>Cerradas</option>
+        </select>
+      </div>
+
+      <div class="form__group">
+        <label class="form__label" for="incident_filter">Incidencias</label>
+        <select class="form__select form__select--sm" id="incident_filter" name="incident_filter">
+          <option value="all" {{ 'selected' if filters.incident_filter == 'all' }}>Todas</option>
+          <option value="incidents" {{ 'selected' if filters.incident_filter == 'incidents' }}>Con incidencia</option>
+          <option value="previous_open" {{ 'selected' if filters.incident_filter == 'previous_open' }}>Día anterior abierto</option>
+          <option value="excess_8" {{ 'selected' if filters.incident_filter == 'excess_8' }}>Exceso +8h</option>
+          <option value="excess_10" {{ 'selected' if filters.incident_filter == 'excess_10' }}>Exceso +10h</option>
+          <option value="excess_12" {{ 'selected' if filters.incident_filter == 'excess_12' }}>Exceso +12h</option>
+        </select>
+      </div>
+
+      <div class="form__group form__group--action">
+        <label class="form__label">&nbsp;</label>
+        <button type="submit" class="btn btn--primary btn--sm">Filtrar</button>
+        <a href="/sessions" class="btn btn--ghost btn--sm">Limpiar</a>
+      </div>
+    </div>
+  </form>
+</div>
+
+<!-- Results -->
+<div class="card">
+  <div class="card__header">
+    <h2 class="card__title">
+      {{ sessions | length }} sesión{{ 'es' if sessions | length != 1 }}
+    </h2>
+  </div>
+
+  {% if sessions %}
+  <div class="table-wrap">
+    <table class="table table--sessions">
+      <thead>
+        <tr>
+          <th>Empleado</th>
+          <th>Entrada</th>
+          <th>Salida</th>
+          <th>Duración</th>
+          <th>Estado</th>
+          <th>Incidencias</th>
+          <th class="text-right">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in sessions %}
+        <tr class="{{ 'row--warning' if s.severity == 'warning' else ('row--critical' if s.severity == 'critical') }}">
+          <td>
+            <div class="employee-cell">
+              <span class="avatar avatar--sm">{{ s.employee_name[:2].upper() if s.employee_name else '??' }}</span>
+              <div>
+                <span>{{ s.employee_name }}</span>
+                <span class="text-muted text-xs">{{ s.dni }}</span>
+              </div>
+            </div>
+          </td>
+          <td class="text-muted text-sm">
+            {{ format_timestamp(s.clock_in_time, "%d/%m/%Y") }}<br>
+            <strong>{{ format_timestamp(s.clock_in_time, "%H:%M") }}</strong>
+          </td>
+          <td class="text-muted text-sm">
+            {% if s.clock_out_time %}
+              {{ format_timestamp(s.clock_out_time, "%d/%m/%Y") }}<br>
+              <strong>{{ format_timestamp(s.clock_out_time, "%H:%M") }}</strong>
+            {% else %}
+              <span class="badge badge--green">Activa</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if s.is_active %}
+              <span class="duration-live" data-since="{{ s.clock_in_time }}">—</span>
+            {% else %}
+              {{ format_duration(s.counted_duration_seconds) }}
+            {% endif %}
+          </td>
+          <td>
+            {% if s.closed_by_admin %}
+              <span class="badge badge--yellow">Cierre admin</span>
+            {% elif s.is_active %}
+              <span class="badge badge--green">Activa</span>
+            {% else %}
+              <span class="badge badge--gray">Cerrada</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if s.severity == 'critical' %}
+              <span class="badge badge--red">{{ s.incident_label }}</span>
+            {% elif s.severity == 'warning' %}
+              <span class="badge badge--yellow">{{ s.incident_label }}</span>
+            {% else %}
+              <span class="text-muted text-sm">—</span>
+            {% endif %}
+            {% if s.exit_note %}
+              <span class="text-xs text-muted d-block">{{ s.exit_note[:60] }}{% if s.exit_note|length > 60 %}…{% endif %}</span>
+            {% endif %}
+          </td>
+          <td class="text-right">
+            {% if s.is_active %}
+            <button class="btn btn--ghost btn--xs btn--danger"
+                    onclick="openCloseModal({{ s.id }}, {{ s.employee_name | tojson }})">
+              Cerrar sesión
+            </button>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+      <polyline points="14 2 14 8 20 8"/>
+    </svg>
+    <p>No se encontraron sesiones con los filtros aplicados.</p>
+  </div>
+  {% endif %}
+</div>
+
+
+<!-- ── Admin close session modal ────────────────────────────────── -->
+<div id="close-modal" class="modal" role="dialog" aria-modal="true" hidden>
+  <div class="modal__overlay" onclick="closeCloseModal()"></div>
+  <div class="modal__box">
+    <div class="modal__header">
+      <h2 class="modal__title">Cerrar sesión</h2>
+      <button class="modal__close" onclick="closeCloseModal()" aria-label="Cerrar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+    <p class="modal__subtitle">
+      Cierre administrativo para: <strong id="close-employee-name"></strong>
+    </p>
+    <form id="close-form" method="post" action="" class="form">
+      <div class="form__group">
+        <label class="form__label" for="close-reason">
+          Motivo del cierre <span class="form__required">*</span>
+        </label>
+        <textarea class="form__input form__textarea" id="close-reason" name="reason"
+                  placeholder="Describe el motivo del cierre administrativo..."
+                  required></textarea>
+      </div>
+      <div class="form__actions">
+        <button type="button" class="btn btn--ghost" onclick="closeCloseModal()">Cancelar</button>
+        <button type="submit" class="btn btn--danger">Cerrar sesión</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function openCloseModal(sessionId, employeeName) {
+  const modal = document.getElementById('close-modal');
+  document.getElementById('close-employee-name').textContent = employeeName;
+  const currentQuery = {{ request.url.query | tojson }};
+  document.getElementById('close-form').action =
+    '/sessions/' + sessionId + '/close' + (currentQuery ? '?' + currentQuery : '');
+  document.getElementById('close-reason').value = '';
+  modal.hidden = false;
+  setTimeout(() => document.getElementById('close-reason').focus(), 50);
+}
+
+function closeCloseModal() {
+  document.getElementById('close-modal').hidden = true;
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeCloseModal();
+});
+</script>
+{% endblock %}

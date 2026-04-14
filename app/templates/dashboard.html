@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block page_title %}Dashboard{% endblock %}
+
+{% block topbar_actions %}
+  <a href="/clock/kiosk" class="btn btn--primary btn--sm">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="10"/>
+      <polyline points="12 6 12 12 16 14"/>
+    </svg>
+    Abrir kiosk
+  </a>
+{% endblock %}
+
+{% block content %}
+
+<!-- Summary cards -->
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-card__icon stat-card__icon--blue">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+        <circle cx="9" cy="7" r="4"/>
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+      </svg>
+    </div>
+    <div class="stat-card__body">
+      <p class="stat-card__label">Total empleados activos</p>
+      <p class="stat-card__value">{{ total_employees }}</p>
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-card__icon stat-card__icon--green">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+        <polyline points="22 4 12 14.01 9 11.01"/>
+      </svg>
+    </div>
+    <div class="stat-card__body">
+      <p class="stat-card__label">Trabajando ahora</p>
+      <p class="stat-card__value">{{ total_clocked_in }}</p>
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-card__icon stat-card__icon--gray">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="8" y1="12" x2="16" y2="12"/>
+      </svg>
+    </div>
+    <div class="stat-card__body">
+      <p class="stat-card__label">Fuera del trabajo</p>
+      <p class="stat-card__value">{{ total_clocked_out }}</p>
+    </div>
+  </div>
+</div>
+
+<!-- Currently clocked in -->
+<div class="card">
+  <div class="card__header">
+    <h2 class="card__title">
+      <span class="badge badge--green">En turno</span>
+      Empleados activos ahora
+    </h2>
+  </div>
+
+  {% if clocked_in_statuses %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Empleado</th>
+          <th>Entrada</th>
+          <th>Tiempo transcurrido</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for status in clocked_in_statuses %}
+        <tr>
+          <td>
+            <div class="employee-cell">
+              <span class="avatar">{{ status.employee.initials }}</span>
+              {{ status.employee.full_name }}
+            </div>
+          </td>
+          <td class="text-muted">
+            {{ format_timestamp(status.active_session.clock_in_time, "%H:%M") if status.active_session else "—" }}
+          </td>
+          <td>
+            {% if status.active_session %}
+              <span class="duration-live" data-since="{{ status.active_session.clock_in_time }}">—</span>
+            {% else %}
+              —
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <circle cx="12" cy="12" r="10"/>
+      <line x1="12" y1="8" x2="12" y2="12"/>
+      <line x1="12" y1="16" x2="12.01" y2="16"/>
+    </svg>
+    <p>Ningún empleado está fichado en este momento.</p>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Recent sessions -->
+<div class="card">
+  <div class="card__header">
+    <h2 class="card__title">Últimas sesiones cerradas</h2>
+    <a href="/sessions" class="btn btn--ghost btn--sm">Ver todas →</a>
+  </div>
+
+  {% if recent_sessions %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Empleado</th>
+          <th>Entrada</th>
+          <th>Salida</th>
+          <th>Duración</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for session in recent_sessions %}
+        <tr>
+          <td>{{ session.employee_name }}</td>
+          <td class="text-muted">{{ format_timestamp(session.clock_in_time, "%d/%m %H:%M") }}</td>
+          <td class="text-muted">
+            {{ format_timestamp(session.clock_out_time, "%d/%m %H:%M") if session.clock_out_time else "—" }}
+          </td>
+          <td>{{ format_duration(session.counted_duration_seconds) }}</td>
+          <td>
+            {% if session.severity == "critical" %}
+              <span class="badge badge--red">{{ session.incident_label }}</span>
+            {% elif session.severity == "warning" %}
+              <span class="badge badge--yellow">{{ session.incident_label }}</span>
+            {% else %}
+              <span class="badge badge--green">OK</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <p>No hay sesiones recientes.</p>
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}
