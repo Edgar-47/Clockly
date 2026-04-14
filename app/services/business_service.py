@@ -3,11 +3,11 @@ from __future__ import annotations
 import json
 import re
 import secrets
-import sqlite3
 import unicodedata
 import uuid
 from datetime import datetime
 
+from app.database.connection import DatabaseIntegrityError
 from app.database.business_repository import BusinessRepository
 from app.database.employee_repository import EmployeeRepository
 from app.models.business import Business
@@ -117,7 +117,7 @@ class BusinessService:
                 mark_default=True,
                 include_legacy_records=include_legacy_records,
             )
-        except sqlite3.IntegrityError as exc:
+        except DatabaseIntegrityError as exc:
             raise ValueError("Ya existe un negocio con ese codigo o identificador.") from exc
 
         return self.activate_business_for_user(
@@ -174,7 +174,7 @@ class BusinessService:
                 login_code=clean_login_code,
                 settings_json=clean_settings,
             )
-        except sqlite3.IntegrityError as exc:
+        except DatabaseIntegrityError as exc:
             raise ValueError("Ya existe un negocio con ese codigo o identificador.") from exc
 
     def _clean_business_name(self, value: str) -> str:

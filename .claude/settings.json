@@ -10,11 +10,24 @@
       "Bash(python -c \"from app.ui.admin_dashboard_view import AdminDashboardView; print\\('admin_dashboard_view OK'\\)\")",
       "Bash(pip install:*)",
       "Bash(python -c \"from app.main import app; print\\('OK — app loaded successfully'\\)\")",
-      "Read(//c/Users/epedr/.claude/projects/c--Users-epedr-OneDrive-App-Fichaje/memory/**)"
+      "Read(//c/Users/epedr/.claude/projects/c--Users-epedr-OneDrive-App-Fichaje/memory/**)",
+      "Bash(python -m py_compile app/main.py app/api/routes/auth.py app/api/routes/employees.py)",
+      "Bash(python -m py_compile app/api/dependencies.py app/core/security.py app/api/routes/kiosk.py app/main.py)",
+      "Bash(timeout 120 python main.py)",
+      "Bash(python test_kiosk_flow.py)",
+      "Bash(timeout 300 python main.py)",
+      "Bash(python main.py)",
+      "Bash(pkill -f \"python main.py\")",
+      "Bash(python -m pytest tests/test_web_flows.py -v)",
+      "Bash(python -m py_compile app/api/routes/kiosk.py app/api/dependencies.py app/core/security.py)",
+      "Bash(pip --version)",
+      "Bash(docker --version)",
+      "Bash(pip show:*)"
     ],
     "additionalDirectories": [
       "c:\\Users\\epedr\\OneDrive\\App_Fichaje\\app",
-      "c:\\Users\\epedr\\.claude\\projects\\c--Users-epedr-OneDrive-App-Fichaje\\memory"
+      "c:\\Users\\epedr\\.claude\\projects\\c--Users-epedr-OneDrive-App-Fichaje\\memory",
+      "c:\\Users\\epedr\\OneDrive\\App_Fichaje"
     ]
   }
 }

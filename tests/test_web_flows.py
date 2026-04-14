@@ -39,11 +39,12 @@ def _insert_session(
             """
             INSERT INTO attendance_sessions
                 (user_id, clock_in_time, clock_out_time, is_active, total_seconds)
-            VALUES (?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s)
+            RETURNING id
             """,
-            (employee_id, clock_in, clock_out, int(is_active), total_seconds),
+            (employee_id, clock_in, clock_out, is_active, total_seconds),
         )
-        return int(cursor.lastrowid)
+        return int(cursor.fetchone()["id"])
 
 
 def test_admin_login_reaches_dashboard(db):
@@ -83,12 +84,12 @@ def test_employee_login_reaches_own_flow_and_can_punch(db):
     with get_connection() as connection:
         active = connection.execute(
             """
-            SELECT COUNT(*)
+            SELECT COUNT(*) AS count
             FROM attendance_sessions
-            WHERE user_id = ? AND is_active = 1
+            WHERE user_id = %s AND is_active IS TRUE
             """,
             (employee_id,),
-        ).fetchone()[0]
+        ).fetchone()["count"]
 
     assert active == 1
 

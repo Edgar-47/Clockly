@@ -1,42 +1,50 @@
 import os
-import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
 
-from app.config import DATABASE_PATH, ensure_runtime_directories
+import psycopg
+from psycopg import IntegrityError as DatabaseIntegrityError
+from psycopg.rows import dict_row
 
-# ── OneDrive / network-drive notice ──────────────────────────────────────────
-# SQLite is unreliable on paths synced by OneDrive, Dropbox, or any network
-# drive because those services hold advisory locks on the file during sync,
-# which causes "disk I/O error" or "database is locked" failures.
-#
-# Recommended solution: store the database outside the synced folder.
-# Set the environment variable FICHAJE_DATABASE_PATH to a local path, e.g.
-#   $Env:FICHAJE_DATABASE_PATH = "C:\Users\<user>\AppData\Local\Clockly\fichaje.sqlite3"
-# and Clockly will use that location on every startup.
-#
-# WAL journal mode + a generous busy_timeout reduce (but do not eliminate)
-# lock contention when the path cannot be moved.
-# ─────────────────────────────────────────────────────────────────────────────
+from app.config import DATABASE_URL
 
-_CONNECT_TIMEOUT = 15        # seconds SQLite waits for the file to be openable
-_BUSY_TIMEOUT_MS = 8_000     # ms SQLite retries on SQLITE_BUSY before raising
-_JOURNAL_MODE = os.getenv("FICHAJE_SQLITE_JOURNAL_MODE", "WAL").strip().upper()
-if _JOURNAL_MODE not in {"WAL", "DELETE", "TRUNCATE", "PERSIST", "MEMORY", "OFF"}:
-    _JOURNAL_MODE = "WAL"
+
+class DatabaseConfigurationError(RuntimeError):
+    """Raised when PostgreSQL connection settings are missing or invalid."""
+
+
+_CONNECT_TIMEOUT = int(os.getenv("CLOCKLY_DB_CONNECT_TIMEOUT", "15"))
+
+
+def normalize_database_url(url: str) -> str:
+    clean_url = (url or "").strip()
+    if clean_url.startswith("postgres://"):
+        return "postgresql://" + clean_url.removeprefix("postgres://")
+    return clean_url
+
+
+def get_database_url() -> str:
+    raw_url = os.getenv("DATABASE_URL", DATABASE_URL)
+    database_url = normalize_database_url(raw_url)
+    if not database_url:
+        raise DatabaseConfigurationError(
+            "DATABASE_URL is required. Set it to your PostgreSQL connection URL."
+        )
+    return database_url
 
 
 @contextmanager
-def get_connection() -> Iterator[sqlite3.Connection]:
-    ensure_runtime_directories()
-    connection = sqlite3.connect(DATABASE_PATH, timeout=_CONNECT_TIMEOUT)
-    connection.row_factory = sqlite3.Row
-    # WAL mode: readers never block writers and writers rarely block readers.
-    # Also reduces the window during which OneDrive can steal the lock.
-    connection.execute(f"PRAGMA journal_mode = {_JOURNAL_MODE}")
-    connection.execute("PRAGMA synchronous = NORMAL")   # safe with WAL
-    connection.execute(f"PRAGMA busy_timeout = {_BUSY_TIMEOUT_MS}")
-    connection.execute("PRAGMA foreign_keys = ON")
+def get_connection() -> Iterator[psycopg.Connection]:
+    try:
+        connection = psycopg.connect(
+            get_database_url(),
+            connect_timeout=_CONNECT_TIMEOUT,
+            row_factory=dict_row,
+        )
+    except psycopg.Error as exc:
+        raise DatabaseConfigurationError(
+            "Could not connect to PostgreSQL using DATABASE_URL."
+        ) from exc
     try:
         yield connection
         connection.commit()

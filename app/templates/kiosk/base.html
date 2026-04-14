@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Kiosko - Clockly{% endblock %}</title>
+    <link rel="stylesheet" href="/static/css/main.css">
+    <style>
+        /* Kiosk-specific overrides: full-width, no sidebar */
+        body {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            margin: 0;
+            background: var(--color-bg);
+        }
+
+        .kiosk-header {
+            background: var(--color-surface);
+            border-bottom: 1px solid var(--color-border);
+            padding: var(--space-4);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .kiosk-title {
+            font-size: var(--text-xl);
+            font-weight: 600;
+            color: var(--color-text);
+            margin: 0;
+        }
+
+        .kiosk-clock {
+            font-family: var(--font-mono);
+            font-size: 28px;
+            font-weight: 600;
+            color: var(--color-primary);
+            text-align: center;
+        }
+
+        .kiosk-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: var(--space-6);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .kiosk-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        /* Flash messages */
+        .flash-message {
+            padding: var(--space-4);
+            border-radius: var(--radius);
+            margin-bottom: var(--space-4);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: var(--text-sm);
+        }
+
+        .flash--success {
+            background: var(--color-success-bg);
+            border: 1px solid var(--color-success-border);
+            color: var(--color-success);
+        }
+
+        .flash--error {
+            background: var(--color-danger-bg);
+            border: 1px solid var(--color-danger-border);
+            color: var(--color-danger);
+        }
+
+        .flash--warning {
+            background: var(--color-warning-bg);
+            border: 1px solid var(--color-warning-border);
+            color: var(--color-warning);
+        }
+
+        .flash--info {
+            background: var(--color-info-bg);
+            border: 1px solid var(--color-info-border);
+            color: var(--color-info);
+        }
+
+        .flash-close {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 18px;
+            color: inherit;
+            opacity: 0.6;
+            transition: opacity 0.2s;
+        }
+
+        .flash-close:hover {
+            opacity: 1;
+        }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <header class="kiosk-header">
+        <h1 class="kiosk-title">{% block header_title %}Clockly{% endblock %}</h1>
+        <div id="live-clock" class="kiosk-clock">00:00:00</div>
+    </header>
+
+    <main class="kiosk-content">
+        {% if flash_messages %}
+        <div class="flash-container" style="margin-bottom: var(--space-4);">
+            {% for msg in flash_messages %}
+            <div class="flash-message flash--{{ msg.category }}">
+                <span>{{ msg.message }}</span>
+                <button class="flash-close" onclick="this.parentElement.remove();">×</button>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="kiosk-container">
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <script src="/static/js/main.js"></script>
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

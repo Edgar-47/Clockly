@@ -55,12 +55,12 @@ def test_create_business_generates_id_and_membership(db):
             """
             SELECT member_role
             FROM business_members
-            WHERE business_id = ? AND user_id = ?
+            WHERE business_id = %s AND user_id = %s
             """,
             (business.id, admin_id),
         ).fetchone()
         user = connection.execute(
-            "SELECT last_business_id FROM users WHERE id = ?",
+            "SELECT last_business_id FROM users WHERE id = %s",
             (admin_id,),
         ).fetchone()
 

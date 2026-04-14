@@ -1,0 +1,515 @@
+{% extends "base.html" %}
+
+{% block title %}Analíticas{% endblock %}
+{% block page_title %}Analíticas de Equipo{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block topbar_actions %}
+<a href="/schedules" class="btn btn--ghost btn--sm">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+    <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+    <line x1="3" y1="10" x2="21" y2="10"/>
+  </svg>
+  Horarios
+</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- ── Period filter ─────────────────────────────────────────────────── -->
+<div class="analytics-filter-bar">
+  <div class="analytics-filter-bar__periods">
+    <a href="/analytics?period=today{% if employee_id %}&employee_id={{ employee_id }}{% endif %}"
+       class="analytics-period-btn {% if period == 'today' %}analytics-period-btn--active{% endif %}">Hoy</a>
+    <a href="/analytics?period=week{% if employee_id %}&employee_id={{ employee_id }}{% endif %}"
+       class="analytics-period-btn {% if period == 'week' %}analytics-period-btn--active{% endif %}">Esta semana</a>
+    <a href="/analytics?period=month{% if employee_id %}&employee_id={{ employee_id }}{% endif %}"
+       class="analytics-period-btn {% if period == 'month' %}analytics-period-btn--active{% endif %}">Este mes</a>
+    <span class="analytics-filter-sep">|</span>
+    <form method="get" action="/analytics" class="analytics-custom-range">
+      <input type="hidden" name="period" value="custom">
+      {% if employee_id %}<input type="hidden" name="employee_id" value="{{ employee_id }}">{% endif %}
+      <input type="date" name="date_from" value="{{ date_from }}" class="input input--sm">
+      <span class="analytics-filter-sep">—</span>
+      <input type="date" name="date_to" value="{{ date_to }}" class="input input--sm">
+      <button type="submit" class="btn btn--primary btn--sm">Aplicar</button>
+    </form>
+  </div>
+
+  <div class="analytics-filter-bar__employee">
+    <form method="get" action="/analytics" class="analytics-employee-filter">
+      <input type="hidden" name="period" value="{{ period }}">
+      {% if period == 'custom' %}
+      <input type="hidden" name="date_from" value="{{ date_from }}">
+      <input type="hidden" name="date_to" value="{{ date_to }}">
+      {% endif %}
+      <select name="employee_id" class="input input--sm" onchange="this.form.submit()">
+        <option value="">Todos los empleados</option>
+        {% for emp in all_employees %}
+        <option value="{{ emp.id }}" {% if employee_id == emp.id %}selected{% endif %}>
+          {{ emp.full_name }}
+        </option>
+        {% endfor %}
+      </select>
+    </form>
+  </div>
+</div>
+
+<!-- ── Period label ───────────────────────────────────────────────────── -->
+<div class="analytics-period-label">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/>
+    <line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/>
+  </svg>
+  {{ period_label }}{% if filtered_employee %} · {{ filtered_employee.full_name }}{% endif %}
+</div>
+
+<!-- ── KPI Summary cards ─────────────────────────────────────────────── -->
+<div class="analytics-kpi-grid">
+  <div class="analytics-kpi-card">
+    <p class="analytics-kpi-card__label">Horas totales</p>
+    <p class="analytics-kpi-card__value">{{ total_hours_label }}</p>
+    <p class="analytics-kpi-card__sub">{{ total_shifts }} turnos registrados</p>
+  </div>
+  <div class="analytics-kpi-card analytics-kpi-card--warning">
+    <p class="analytics-kpi-card__label">Horas extra</p>
+    <p class="analytics-kpi-card__value">{{ total_overtime_label }}</p>
+    <p class="analytics-kpi-card__sub">Por encima de 8h/turno</p>
+  </div>
+  <div class="analytics-kpi-card analytics-kpi-card--blue">
+    <p class="analytics-kpi-card__label">Media por turno</p>
+    <p class="analytics-kpi-card__value">{{ avg_shift_label }}</p>
+    <p class="analytics-kpi-card__sub">Duración media de jornada</p>
+  </div>
+  <div class="analytics-kpi-card analytics-kpi-card--green">
+    <p class="analytics-kpi-card__label">Hora pico del periodo</p>
+    <p class="analytics-kpi-card__value">{{ busiest_hour_label }}</p>
+    <p class="analytics-kpi-card__sub">Máximo {{ max_concurrent }} trabajador{{ 'es' if max_concurrent != 1 else '' }} a la vez</p>
+  </div>
+</div>
+
+<!-- ── Row 1: Top workers + Overtime trend ───────────────────────────── -->
+<div class="analytics-row">
+
+  <!-- Top workers chart -->
+  <div class="card analytics-chart-card">
+    <div class="card__header">
+      <h2 class="card__title">Top trabajadores — horas</h2>
+      <span class="badge badge--blue">{{ period_label }}</span>
+    </div>
+    {% if rankings %}
+    <div class="analytics-chart-wrap">
+      <canvas id="chart-top-workers" height="280"></canvas>
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+        <circle cx="9" cy="7" r="4"/>
+      </svg>
+      <p>Sin datos para el período seleccionado.</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Overtime trend -->
+  <div class="card analytics-chart-card">
+    <div class="card__header">
+      <h2 class="card__title">Tendencia de horas extra</h2>
+      <span class="badge badge--gray">Últimos 12 meses</span>
+    </div>
+    <div class="analytics-chart-wrap">
+      <canvas id="chart-overtime-trend" height="280"></canvas>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Ranking table ─────────────────────────────────────────────────── -->
+<div class="card">
+  <div class="card__header">
+    <h2 class="card__title">Ranking de empleados</h2>
+    <span class="text-muted" style="font-size:var(--text-sm)">{{ period_label }}</span>
+  </div>
+  {% if rankings %}
+  <div class="table-wrap">
+    <table class="table ranking-table">
+      <thead>
+        <tr>
+          <th style="width:40px">#</th>
+          <th>Empleado</th>
+          <th class="text-right">Horas totales</th>
+          <th class="text-right">Horas extra</th>
+          <th class="text-right">Turnos</th>
+          <th class="text-right">Media turno</th>
+          <th class="text-right">% Extra</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rankings %}
+        <tr>
+          <td>
+            <span class="ranking-badge {% if loop.index <= 3 %}ranking-badge--top{% endif %}">
+              {{ loop.index }}
+            </span>
+          </td>
+          <td>
+            <div class="employee-cell">
+              <span class="avatar">{{ r.employee_name[:2].upper() if r.employee_name else '??' }}</span>
+              {{ r.employee_name }}
+            </div>
+          </td>
+          <td class="text-right font-mono">{{ r.total_hours_label }}</td>
+          <td class="text-right">
+            {% if r.overtime_seconds > 0 %}
+              <span class="badge badge--yellow">{{ r.overtime_hours_label }}</span>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td class="text-right text-muted">{{ r.shift_count }}</td>
+          <td class="text-right text-muted">{{ r.avg_shift_label }}</td>
+          <td class="text-right">
+            {% if r.overtime_pct > 0 %}
+              <span class="overtime-pct {% if r.overtime_pct > 20 %}overtime-pct--high{% elif r.overtime_pct > 10 %}overtime-pct--med{% endif %}">
+                {{ r.overtime_pct }}%
+              </span>
+            {% else %}
+              <span class="text-muted">0%</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <p>No hay registros de asistencia para el período seleccionado.</p>
+  </div>
+  {% endif %}
+</div>
+
+<!-- ── Peak staffing heatmap ─────────────────────────────────────────── -->
+<div class="card">
+  <div class="card__header">
+    <h2 class="card__title">Distribución de presencia por hora</h2>
+    <span class="badge badge--blue">Promedio de trabajadores simultáneos</span>
+  </div>
+  {% if max_peak > 0 %}
+  <div class="heatmap-wrap">
+    <div class="heatmap-grid" id="heatmap-grid">
+      <!-- Hour labels row -->
+      <div class="heatmap-cell heatmap-cell--label"></div>
+      {% for h in range_24 %}
+      <div class="heatmap-cell heatmap-cell--hour-label">{{ "%02d"|format(h) }}</div>
+      {% endfor %}
+
+      <!-- Data rows (one per day of week) -->
+      {% for dow in range_7 %}
+      <div class="heatmap-cell heatmap-cell--day-label">{{ day_labels_short[dow] }}</div>
+      {% for h in range_24 %}
+      {% set val = peak_matrix.get(dow, {}).get(h, 0) %}
+      {% set intensity = (val / max_peak * 100) | int if max_peak > 0 else 0 %}
+      <div class="heatmap-cell heatmap-cell--data"
+           data-value="{{ val }}"
+           data-intensity="{{ intensity }}"
+           style="--heat-intensity: {{ intensity }}%"
+           title="{{ day_labels_short[dow] }} {{ "%02d:00"|format(h) }} — {{ "%.1f"|format(val) }} trabajadores">
+        {% if val > 0 %}<span>{{ "%.1f"|format(val) }}</span>{% endif %}
+      </div>
+      {% endfor %}
+      {% endfor %}
+    </div>
+    <p class="heatmap-legend-label">
+      <span class="heatmap-legend-scale"></span>
+      <span>Menor presencia</span>
+      <span style="margin-left:auto">Mayor presencia</span>
+    </p>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/>
+      <line x1="12" y1="16" x2="12.01" y2="16"/>
+    </svg>
+    <p>Sin datos de presencia para el período seleccionado.</p>
+  </div>
+  {% endif %}
+</div>
+
+<!-- ── Monthly overtime breakdown ───────────────────────────────────── -->
+<div class="card">
+  <div class="card__header">
+    <h2 class="card__title">Horas extra por mes</h2>
+    <span class="badge badge--gray">Año {{ date_from[:4] if date_from else '' }}</span>
+  </div>
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Mes</th>
+          <th class="text-right">Total horas extra</th>
+          <th class="text-right">Turnos afectados</th>
+          <th class="text-right">Empleados</th>
+          <th>Distribución</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% set max_ot = monthly_stats | map(attribute='total_overtime_seconds') | max %}
+        {% for stat in monthly_stats %}
+        <tr {% if stat.total_overtime_seconds == 0 %}class="text-muted"{% endif %}>
+          <td>{{ stat.label }}</td>
+          <td class="text-right font-mono">
+            {% if stat.total_overtime_seconds > 0 %}
+              <span class="badge badge--yellow">{{ stat.total_overtime_hours_label }}</span>
+            {% else %}—{% endif %}
+          </td>
+          <td class="text-right text-muted">{{ stat.sessions_with_overtime or '—' }}</td>
+          <td class="text-right text-muted">{{ stat.affected_users or '—' }}</td>
+          <td>
+            {% if stat.total_overtime_seconds > 0 and max_ot > 0 %}
+            <div class="overtime-bar-wrap">
+              <div class="overtime-bar" style="width: {{ (stat.total_overtime_seconds / max_ot * 100) | int }}%"></div>
+            </div>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── Planned vs actual (shown only if schedules exist) ─────────────── -->
+{% if has_schedules %}
+<div class="card">
+  <div class="card__header">
+    <h2 class="card__title">Planificado vs Real</h2>
+    <span class="badge badge--blue">{{ period_label }}</span>
+  </div>
+  {% if planned_vs_actual %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Empleado</th>
+          <th class="text-right">Planificado</th>
+          <th class="text-right">Real</th>
+          <th class="text-right">Variación</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for pva in planned_vs_actual %}
+        <tr>
+          <td>
+            <div class="employee-cell">
+              <span class="avatar">{{ pva.employee_name[:2].upper() if pva.employee_name else '??' }}</span>
+              {{ pva.employee_name }}
+            </div>
+          </td>
+          <td class="text-right text-muted">{{ fmt_hours(pva.planned_seconds) }}</td>
+          <td class="text-right font-mono">{{ fmt_hours(pva.actual_seconds) }}</td>
+          <td class="text-right">
+            {% if pva.variance_seconds > 3600 %}
+              <span class="badge badge--yellow">{{ pva.variance_label }}</span>
+            {% elif pva.variance_seconds < -3600 %}
+              <span class="badge badge--red">{{ pva.variance_label }}</span>
+            {% else %}
+              <span class="badge badge--green">{{ pva.variance_label }}</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if pva.status == 'overtime' %}
+              <span class="badge badge--yellow">Horas extra</span>
+            {% elif pva.status == 'under' %}
+              <span class="badge badge--red">Por debajo</span>
+            {% else %}
+              <span class="badge badge--green">En línea</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <p>Sin datos de comparación para este período.</p>
+    <a href="/schedules" class="btn btn--ghost btn--sm">Gestionar horarios →</a>
+  </div>
+  {% endif %}
+</div>
+{% else %}
+<div class="card analytics-cta-card">
+  <div class="analytics-cta">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/>
+      <line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/>
+    </svg>
+    <div>
+      <p class="analytics-cta__title">Activa la comparativa planificado vs real</p>
+      <p class="analytics-cta__sub">Crea horarios predefinidos y asígnalos a empleados para ver desviaciones automáticamente.</p>
+    </div>
+    <a href="/schedules/new" class="btn btn--primary btn--sm">Crear primer horario</a>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(() => {
+  "use strict";
+  const rankingData = {{ ranking_json | safe }};
+  const trendData = {{ overtime_trend_json | safe }};
+
+  const palette = {
+    primary:   "rgba(10,132,255,0.85)",
+    primaryBg: "rgba(10,132,255,0.14)",
+    warning:   "rgba(245,158,11,0.85)",
+    warningBg: "rgba(245,158,11,0.14)",
+    success:   "rgba(34,197,94,0.75)",
+    gray:      "rgba(102,112,133,0.5)",
+  };
+
+  const commonDefaults = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: "rgba(15,23,42,0.92)",
+        padding: 10,
+        titleFont: { family: "'SF Pro Text', system-ui, sans-serif", size: 12 },
+        bodyFont:  { family: "'SF Pro Text', system-ui, sans-serif", size: 12 },
+        cornerRadius: 8,
+      },
+    },
+    scales: {
+      x: {
+        grid: { color: "rgba(15,23,42,0.05)" },
+        ticks: { color: "#667085", font: { size: 11 } },
+      },
+      y: {
+        grid: { color: "rgba(15,23,42,0.05)" },
+        ticks: { color: "#667085", font: { size: 11 } },
+        beginAtZero: true,
+      },
+    },
+  };
+
+  /* ── Top workers bar chart ──────────────────────────────── */
+  const topWorkersEl = document.getElementById("chart-top-workers");
+  if (topWorkersEl && rankingData.labels && rankingData.labels.length) {
+    new Chart(topWorkersEl, {
+      type: "bar",
+      data: {
+        labels: rankingData.labels,
+        datasets: [
+          {
+            label: "Horas normales",
+            data: rankingData.total_hours.map((t, i) =>
+              Math.max(t - rankingData.overtime_hours[i], 0)
+            ),
+            backgroundColor: palette.primary,
+            borderRadius: 6,
+            stack: "hours",
+          },
+          {
+            label: "Horas extra",
+            data: rankingData.overtime_hours,
+            backgroundColor: palette.warning,
+            borderRadius: 6,
+            stack: "hours",
+          },
+        ],
+      },
+      options: {
+        ...commonDefaults,
+        plugins: {
+          ...commonDefaults.plugins,
+          legend: { display: true, position: "bottom",
+            labels: { color: "#667085", font: { size: 11 }, boxWidth: 12 } },
+          tooltip: {
+            ...commonDefaults.plugins.tooltip,
+            callbacks: {
+              label: ctx => ` ${ctx.dataset.label}: ${ctx.raw}h`,
+            },
+          },
+        },
+        scales: {
+          ...commonDefaults.scales,
+          y: { ...commonDefaults.scales.y, title: { display: true, text: "Horas", color: "#98A2B3" } },
+        },
+      },
+    });
+  }
+
+  /* ── Overtime trend stacked area chart ─────────────────── */
+  const trendEl = document.getElementById("chart-overtime-trend");
+  if (trendEl && trendData.labels && trendData.labels.length) {
+    new Chart(trendEl, {
+      type: "bar",
+      data: {
+        labels: trendData.labels,
+        datasets: [
+          {
+            label: "Horas regulares",
+            data: trendData.regular_hours,
+            backgroundColor: palette.primaryBg,
+            borderColor: palette.primary,
+            borderWidth: 1.5,
+            borderRadius: 4,
+            stack: "trend",
+          },
+          {
+            label: "Horas extra",
+            data: trendData.overtime_hours,
+            backgroundColor: palette.warningBg,
+            borderColor: palette.warning,
+            borderWidth: 1.5,
+            borderRadius: 4,
+            stack: "trend",
+          },
+        ],
+      },
+      options: {
+        ...commonDefaults,
+        plugins: {
+          ...commonDefaults.plugins,
+          legend: { display: true, position: "bottom",
+            labels: { color: "#667085", font: { size: 11 }, boxWidth: 12 } },
+          tooltip: {
+            ...commonDefaults.plugins.tooltip,
+            callbacks: {
+              label: ctx => ` ${ctx.dataset.label}: ${ctx.raw}h`,
+            },
+          },
+        },
+        scales: {
+          ...commonDefaults.scales,
+          y: { ...commonDefaults.scales.y, title: { display: true, text: "Horas", color: "#98A2B3" } },
+        },
+      },
+    });
+  }
+
+  /* ── Heatmap intensity ──────────────────────────────────── */
+  const heatCells = document.querySelectorAll(".heatmap-cell--data");
+  heatCells.forEach(cell => {
+    const intensity = parseInt(cell.dataset.intensity || "0", 10);
+    if (intensity === 0) return;
+    const alpha = 0.08 + (intensity / 100) * 0.75;
+    cell.style.backgroundColor = `rgba(10,132,255,${alpha.toFixed(2)})`;
+    if (intensity > 60) cell.style.color = "rgba(255,255,255,0.9)";
+  });
+})();
+</script>
+{% endblock %}

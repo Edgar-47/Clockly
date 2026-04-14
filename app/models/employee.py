@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+from app.database.sql import normalize_datetime
+
 
 @dataclass(frozen=True)
 class Employee:
@@ -56,6 +58,6 @@ class Employee:
             password_hash=row["password_hash"],
             role=row["role"],
             active=bool(row["active"]),
-            created_at=row["created_at"] if "created_at" in keys else None,
+            created_at=normalize_datetime(row["created_at"]) if "created_at" in keys else None,
             last_business_id=row["last_business_id"] if "last_business_id" in keys else None,
         )

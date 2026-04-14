@@ -58,7 +58,7 @@ def test_clock_in_only_one_active_session_per_user(db):
     with pytest.raises(Exception):
         with get_connection() as conn:
             conn.execute(
-                "INSERT INTO attendance_sessions (user_id, clock_in_time, is_active) VALUES (?, ?, 1)",
+                "INSERT INTO attendance_sessions (user_id, clock_in_time, is_active) VALUES (%s, %s, TRUE)",
                 (emp_id, "2025-01-01 10:00:00"),
             )
     # Existing session unchanged.

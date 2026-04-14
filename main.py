@@ -6,22 +6,26 @@ Usage:
   python main.py --port 9000  → custom port
 
 Production:
-  uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
+  uvicorn app.main:app --host 0.0.0.0 --port $PORT
 
 Notes:
   - The old desktop (Tkinter) entry point has been replaced by FastAPI.
-  - Set CLOCKLY_SECRET_KEY in your environment before running in production.
-  - Set FICHAJE_DATABASE_PATH to a path outside OneDrive to avoid SQLite lock issues.
+  - Set DATABASE_URL, CLOCKLY_SECRET_KEY, and CLOCKLY_DEFAULT_ADMIN_PASSWORD in production.
 """
 
 import argparse
+import os
 import uvicorn
 
 
 def main() -> None:
+    railway_port = os.getenv("PORT")
+    default_host = "0.0.0.0" if railway_port else "127.0.0.1"
+    default_port = int(railway_port or "8000")
+
     parser = argparse.ArgumentParser(description="Clockly web server")
-    parser.add_argument("--host", default="127.0.0.1", help="Bind host (default: 127.0.0.1)")
-    parser.add_argument("--port", type=int, default=8000, help="Bind port (default: 8000)")
+    parser.add_argument("--host", default=default_host, help=f"Bind host (default: {default_host})")
+    parser.add_argument("--port", type=int, default=default_port, help=f"Bind port (default: {default_port})")
     parser.add_argument("--reload", action="store_true", help="Enable auto-reload (dev only)")
     args = parser.parse_args()
 

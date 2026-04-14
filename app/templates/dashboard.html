@@ -5,6 +5,13 @@
 {% block page_title %}Dashboard{% endblock %}
 
 {% block topbar_actions %}
+  <a href="/analytics" class="btn btn--ghost btn--sm">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/>
+      <line x1="6" y1="20" x2="6" y2="14"/>
+    </svg>
+    Analíticas
+  </a>
   <a href="/clock/kiosk" class="btn btn--primary btn--sm">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <circle cx="12" cy="12" r="10"/>
@@ -59,6 +66,84 @@
     </div>
   </div>
 </div>
+
+<!-- Workforce KPI row (analytics quick-view) -->
+{% if kpis %}
+<div class="stats-grid stats-grid--analytics">
+  <div class="stat-card stat-card--compact">
+    <div class="stat-card__icon stat-card__icon--blue">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+      </svg>
+    </div>
+    <div class="stat-card__body">
+      <p class="stat-card__label">Horas hoy</p>
+      <p class="stat-card__value stat-card__value--md">{{ fmt_hours(kpis.total_hours_today) }}</p>
+    </div>
+  </div>
+  <div class="stat-card stat-card--compact">
+    <div class="stat-card__icon stat-card__icon--green">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+        <circle cx="9" cy="7" r="4"/>
+      </svg>
+    </div>
+    <div class="stat-card__body">
+      <p class="stat-card__label">Horas esta semana</p>
+      <p class="stat-card__value stat-card__value--md">{{ fmt_hours(kpis.total_hours_week) }}</p>
+    </div>
+  </div>
+  <div class="stat-card stat-card--compact">
+    <div class="stat-card__icon stat-card__icon--gray">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/>
+        <line x1="6" y1="20" x2="6" y2="14"/>
+      </svg>
+    </div>
+    <div class="stat-card__body">
+      <p class="stat-card__label">Horas este mes</p>
+      <p class="stat-card__value stat-card__value--md">{{ fmt_hours(kpis.total_hours_month) }}</p>
+    </div>
+  </div>
+  <div class="stat-card stat-card--compact {% if kpis.month_overtime_seconds > 0 %}stat-card--warning{% endif %}">
+    <div class="stat-card__icon stat-card__icon--yellow">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+        <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+      </svg>
+    </div>
+    <div class="stat-card__body">
+      <p class="stat-card__label">H. extra este mes</p>
+      <p class="stat-card__value stat-card__value--md">{{ fmt_hours(kpis.month_overtime_seconds) }}</p>
+    </div>
+  </div>
+</div>
+
+{% if kpis.top_worker_this_week or kpis.busiest_hour_today is not none %}
+<div class="dashboard-insights">
+  {% if kpis.top_worker_this_week %}
+  <div class="insight-pill">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+    </svg>
+    Top esta semana: <strong>{{ kpis.top_worker_this_week }}</strong>
+  </div>
+  {% endif %}
+  {% if kpis.busiest_hour_today is not none %}
+  <div class="insight-pill">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+      <circle cx="9" cy="7" r="4"/>
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+    </svg>
+    Hora pico hoy: <strong>{{ "%02d:00"|format(kpis.busiest_hour_today) }}–{{ "%02d:00"|format(kpis.busiest_hour_today + 1) }}</strong>
+    ({{ kpis.busiest_concurrent_today }} trabajador{{ 'es' if kpis.busiest_concurrent_today != 1 else '' }})
+  </div>
+  {% endif %}
+  <a href="/analytics" class="insight-pill insight-pill--link">Ver analíticas completas →</a>
+</div>
+{% endif %}
+{% endif %}
 
 <!-- Currently clocked in -->
 <div class="card">

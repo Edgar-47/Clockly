@@ -36,7 +36,7 @@ class BusinessRepository:
                         id, owner_user_id, business_name, business_type,
                         login_code, slug, business_key, settings_json
                     )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 """,
                 (
                     business_id,
@@ -51,14 +51,15 @@ class BusinessRepository:
             )
             connection.execute(
                 """
-                INSERT OR IGNORE INTO business_members
+                INSERT INTO business_members
                     (business_id, user_id, member_role, is_default)
-                VALUES (?, ?, 'owner', ?)
+                VALUES (%s, %s, 'owner', %s)
+                ON CONFLICT DO NOTHING
                 """,
-                (business_id, owner_user_id, int(mark_default)),
+                (business_id, owner_user_id, mark_default),
             )
             connection.execute(
-                "UPDATE users SET last_business_id = ? WHERE id = ?",
+                "UPDATE users SET last_business_id = %s WHERE id = %s",
                 (business_id, owner_user_id),
             )
 
@@ -69,7 +70,7 @@ class BusinessRepository:
                 f"""
                 SELECT {self._SELECT_COLUMNS}
                 FROM businesses
-                WHERE id = ?
+                WHERE id = %s
                 """,
                 (business_id,),
             ).fetchone()
@@ -89,31 +90,32 @@ class BusinessRepository:
         with get_connection() as connection:
             connection.execute(
                 """
-                INSERT OR IGNORE INTO business_members
+                INSERT INTO business_members
                     (business_id, user_id, member_role, is_default)
-                VALUES (?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s)
+                ON CONFLICT DO NOTHING
                 """,
-                (business_id, user_id, member_role, int(is_default)),
+                (business_id, user_id, member_role, is_default),
             )
 
     def count_all(self) -> int:
         with get_connection() as connection:
-            row = connection.execute("SELECT COUNT(*) FROM businesses").fetchone()
-        return int(row[0]) if row else 0
+            row = connection.execute("SELECT COUNT(*) AS count FROM businesses").fetchone()
+        return int(row["count"]) if row else 0
 
     def count_for_user(self, user_id: int) -> int:
         with get_connection() as connection:
             row = connection.execute(
                 """
-                SELECT COUNT(*)
+                SELECT COUNT(*) AS count
                 FROM businesses b
                 JOIN business_members bm ON bm.business_id = b.id
-                WHERE bm.user_id = ?
-                  AND b.is_active = 1
+                WHERE bm.user_id = %s
+                  AND b.is_active IS TRUE
                 """,
                 (user_id,),
             ).fetchone()
-        return int(row[0]) if row else 0
+        return int(row["count"]) if row else 0
 
     def get_by_id(self, business_id: str) -> Business | None:
         with get_connection() as connection:
@@ -121,7 +123,7 @@ class BusinessRepository:
                 f"""
                 SELECT {self._SELECT_COLUMNS}
                 FROM businesses
-                WHERE id = ?
+                WHERE id = %s
                 """,
                 (business_id,),
             ).fetchone()
@@ -133,8 +135,8 @@ class BusinessRepository:
                 f"""
                 SELECT {self._SELECT_COLUMNS}
                 FROM businesses
-                WHERE LOWER(login_code) = LOWER(?)
-                  AND is_active = 1
+                WHERE LOWER(login_code) = LOWER(%s)
+                  AND is_active IS TRUE
                 LIMIT 1
                 """,
                 (login_code,),
@@ -154,13 +156,13 @@ class BusinessRepository:
             connection.execute(
                 """
                 UPDATE businesses
-                SET business_name = ?,
-                    business_type = ?,
-                    login_code = ?,
-                    settings_json = ?,
+                SET business_name = %s,
+                    business_type = %s,
+                    login_code = %s,
+                    settings_json = %s,
                     updated_at = CURRENT_TIMESTAMP
-                WHERE id = ?
-                  AND is_active = 1
+                WHERE id = %s
+                  AND is_active IS TRUE
                 """,
                 (
                     business_name,
@@ -174,7 +176,7 @@ class BusinessRepository:
                 f"""
                 SELECT {self._SELECT_COLUMNS}
                 FROM businesses
-                WHERE id = ?
+                WHERE id = %s
                 """,
                 (business_id,),
             ).fetchone()
@@ -190,15 +192,15 @@ class BusinessRepository:
                 SELECT {self._QUALIFIED_SELECT_COLUMNS}
                 FROM businesses b
                 JOIN business_members bm ON bm.business_id = b.id
-                WHERE bm.user_id = ?
-                  AND b.is_active = 1
+                WHERE bm.user_id = %s
+                  AND b.is_active IS TRUE
                 ORDER BY
                     CASE WHEN b.id = (
-                        SELECT last_business_id FROM users WHERE id = ?
+                        SELECT last_business_id FROM users WHERE id = %s
                     ) THEN 0 ELSE 1 END,
                     bm.is_default DESC,
                     COALESCE(bm.last_accessed_at, b.last_accessed_at, b.created_at) DESC,
-                    b.business_name COLLATE NOCASE
+                    LOWER(b.business_name)
                 """,
                 (user_id, user_id),
             ).fetchall()
@@ -209,22 +211,22 @@ class BusinessRepository:
             connection.execute(
                 """
                 UPDATE businesses
-                SET last_accessed_at = ?,
+                SET last_accessed_at = %s,
                     updated_at = CURRENT_TIMESTAMP
-                WHERE id = ?
+                WHERE id = %s
                 """,
                 (accessed_at, business_id),
             )
             connection.execute(
                 """
                 UPDATE business_members
-                SET last_accessed_at = ?
-                WHERE business_id = ? AND user_id = ?
+                SET last_accessed_at = %s
+                WHERE business_id = %s AND user_id = %s
                 """,
                 (accessed_at, business_id, user_id),
             )
             connection.execute(
-                "UPDATE users SET last_business_id = ? WHERE id = ?",
+                "UPDATE users SET last_business_id = %s WHERE id = %s",
                 (business_id, user_id),
             )
 
@@ -235,9 +237,9 @@ class BusinessRepository:
                 SELECT 1
                 FROM business_members bm
                 JOIN businesses b ON b.id = bm.business_id
-                WHERE bm.business_id = ?
-                  AND bm.user_id = ?
-                  AND b.is_active = 1
+                WHERE bm.business_id = %s
+                  AND bm.user_id = %s
+                  AND b.is_active IS TRUE
                 LIMIT 1
                 """,
                 (business_id, user_id),
@@ -250,9 +252,10 @@ class BusinessRepository:
             member_role = "admin" if row["role"] == "admin" else "employee"
             connection.execute(
                 """
-                INSERT OR IGNORE INTO business_members
+                INSERT INTO business_members
                     (business_id, user_id, member_role, is_default)
-                VALUES (?, ?, ?, 1)
+                VALUES (%s, %s, %s, TRUE)
+                ON CONFLICT DO NOTHING
                 """,
                 (business_id, row["id"], member_role),
             )
@@ -260,7 +263,7 @@ class BusinessRepository:
         connection.execute(
             """
             UPDATE attendance_sessions
-            SET business_id = ?
+            SET business_id = %s
             WHERE business_id IS NULL
             """,
             (business_id,),
@@ -268,7 +271,7 @@ class BusinessRepository:
         connection.execute(
             """
             UPDATE time_entries
-            SET business_id = ?
+            SET business_id = %s
             WHERE business_id IS NULL
             """,
             (business_id,),

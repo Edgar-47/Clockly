@@ -34,7 +34,7 @@ class EmployeeRepository:
                 f"""
                 SELECT {self._SELECT_COLUMNS}
                 FROM users
-                WHERE LOWER(dni) = LOWER(?)
+                WHERE LOWER(dni) = LOWER(%s)
                 """,
                 (clean_dni,),
             ).fetchone()
@@ -47,11 +47,11 @@ class EmployeeRepository:
 
     def get_by_id(self, employee_id: int) -> Employee | None:
         join = ""
-        clauses = ["u.id = ?"]
+        clauses = ["u.id = %s"]
         params: list = [employee_id]
         if self.business_id:
             join = "JOIN business_members bm ON bm.user_id = u.id"
-            clauses.append("bm.business_id = ?")
+            clauses.append("bm.business_id = %s")
             params.append(self.business_id)
 
         with get_connection() as connection:
@@ -78,8 +78,8 @@ class EmployeeRepository:
                 f"""
                 SELECT {self._SELECT_COLUMNS}
                 FROM users
-                WHERE LOWER(TRIM(first_name)) = LOWER(TRIM(?))
-                  AND LOWER(TRIM(last_name)) = LOWER(TRIM(?))
+                WHERE LOWER(TRIM(first_name)) = LOWER(TRIM(%s))
+                  AND LOWER(TRIM(last_name)) = LOWER(TRIM(%s))
                 """,
                 (first_name, last_name),
             ).fetchone()
@@ -94,7 +94,7 @@ class EmployeeRepository:
                 FROM users u
                 {join}
                 {where}
-                ORDER BY u.active DESC, u.first_name COLLATE NOCASE, u.last_name COLLATE NOCASE
+                ORDER BY u.active DESC, LOWER(u.first_name), LOWER(u.last_name)
                 """,
                 params,
             ).fetchall()
@@ -106,7 +106,9 @@ class EmployeeRepository:
         return [Employee.from_row(row) for row in rows]
 
     def list_active(self) -> list[Employee]:
-        join, where, params = self._business_scope_sql(extra_clauses=["u.active = 1"])
+        join, where, params = self._business_scope_sql(
+            extra_clauses=["u.active IS TRUE"]
+        )
         with get_connection() as connection:
             rows = connection.execute(
                 f"""
@@ -114,7 +116,7 @@ class EmployeeRepository:
                 FROM users u
                 {join}
                 {where}
-                ORDER BY u.first_name COLLATE NOCASE, u.last_name COLLATE NOCASE
+                ORDER BY LOWER(u.first_name), LOWER(u.last_name)
                 """,
                 params,
             ).fetchall()
@@ -127,7 +129,7 @@ class EmployeeRepository:
 
     def list_active_clockable(self) -> list[Employee]:
         join, where, params = self._business_scope_sql(
-            extra_clauses=["u.active = 1", "u.role = 'employee'"]
+            extra_clauses=["u.active IS TRUE", "u.role = 'employee'"]
         )
         with get_connection() as connection:
             rows = connection.execute(
@@ -136,7 +138,7 @@ class EmployeeRepository:
                 FROM users u
                 {join}
                 {where}
-                ORDER BY u.first_name COLLATE NOCASE, u.last_name COLLATE NOCASE
+                ORDER BY LOWER(u.first_name), LOWER(u.last_name)
                 """,
                 params,
             ).fetchall()
@@ -166,7 +168,8 @@ class EmployeeRepository:
                 """
                 INSERT INTO users
                     (first_name, last_name, dni, password_hash, role, active)
-                VALUES (?, ?, ?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                RETURNING id
                 """,
                 (
                     first_name,
@@ -174,17 +177,18 @@ class EmployeeRepository:
                     clean_dni,
                     password_hash,
                     role,
-                    int(active),
+                    active,
                 ),
             )
-            user_id = int(cursor.lastrowid)
+            user_id = int(cursor.fetchone()["id"])
             if member_business_id:
                 member_role = "admin" if role == "admin" else "employee"
                 connection.execute(
                     """
-                    INSERT OR IGNORE INTO business_members
+                    INSERT INTO business_members
                         (business_id, user_id, member_role)
-                    VALUES (?, ?, ?)
+                    VALUES (%s, %s, %s)
+                    ON CONFLICT DO NOTHING
                     """,
                     (member_business_id, user_id, member_role),
                 )
@@ -194,11 +198,11 @@ class EmployeeRepository:
         """Flip the active flag for an employee. Returns the new active state."""
         with get_connection() as connection:
             connection.execute(
-                "UPDATE users SET active = 1 - active WHERE id = ?",
+                "UPDATE users SET active = NOT active WHERE id = %s",
                 (employee_id,),
             )
             row = connection.execute(
-                "SELECT active FROM users WHERE id = ?",
+                "SELECT active FROM users WHERE id = %s",
                 (employee_id,),
             ).fetchone()
         return bool(row["active"]) if row else False
@@ -206,8 +210,8 @@ class EmployeeRepository:
     def set_active(self, employee_id: int, *, active: bool) -> None:
         with get_connection() as connection:
             connection.execute(
-                "UPDATE users SET active = ? WHERE id = ?",
-                (int(active), employee_id),
+                "UPDATE users SET active = %s WHERE id = %s",
+                (active, employee_id),
             )
 
     def update(
@@ -224,29 +228,29 @@ class EmployeeRepository:
             connection.execute(
                 """
                 UPDATE users
-                SET first_name = ?,
-                    last_name = ?,
-                    dni = ?,
-                    role = ?,
-                    active = ?
-                WHERE id = ?
+                SET first_name = %s,
+                    last_name = %s,
+                    dni = %s,
+                    role = %s,
+                    active = %s
+                WHERE id = %s
                 """,
-                (first_name, last_name, dni, role, int(active), employee_id),
+                (first_name, last_name, dni, role, active, employee_id),
             )
 
     def set_password_hash(self, employee_id: int, password_hash: str) -> None:
         with get_connection() as connection:
             connection.execute(
-                "UPDATE users SET password_hash = ? WHERE id = ?",
+                "UPDATE users SET password_hash = %s WHERE id = %s",
                 (password_hash, employee_id),
             )
 
     def count_active_admins(self) -> int:
         with get_connection() as connection:
             row = connection.execute(
-                "SELECT COUNT(*) FROM users WHERE role = 'admin' AND active = 1"
+                "SELECT COUNT(*) AS count FROM users WHERE role = 'admin' AND active IS TRUE"
             ).fetchone()
-        return int(row[0]) if row else 0
+        return int(row["count"]) if row else 0
 
     def _business_scope_sql(
         self,
@@ -258,7 +262,7 @@ class EmployeeRepository:
         params: list = []
         if self.business_id:
             join = "JOIN business_members bm ON bm.user_id = u.id"
-            clauses.append("bm.business_id = ?")
+            clauses.append("bm.business_id = %s")
             params.append(self.business_id)
         where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
         return join, where, params

@@ -20,9 +20,8 @@ Architecture overview:
 Auth strategy: cookie-based sessions (SessionMiddleware).
   Extend with JWT (app/core/jwt.py) when adding a public REST API.
 
-Database: SQLite via app/database/connection.py.
-  Swap to PostgreSQL by updating DATABASE_PATH and connection.py to use
-  SQLAlchemy or asyncpg — no other layer needs to change.
+Database: PostgreSQL via app/database/connection.py.
+  Railway provides DATABASE_URL; local development can load it from .env.
 """
 
 from contextlib import asynccontextmanager
@@ -32,11 +31,17 @@ from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
+from app.config import DOCS_ENABLED, SECURE_COOKIES, validate_runtime_config
 from app.core.flow_debug import configure_flow_logging, flow_log
 from app.core.security import SECRET_KEY, SESSION_MAX_AGE, home_path_for_role
 from app.core.templates import templates  # noqa: F401 — imported to register Jinja2 globals
-from app.api.dependencies import RequiresAdminException, RequiresLoginException
-from app.api.routes import auth, clock, dashboard, employees, me, sessions
+from app.api.dependencies import (
+    RequiresAdminException,
+    RequiresLoginException,
+    RequiresKioskException,
+)
+from app.api.routes import auth, clock, dashboard, employees, kiosk, me, sessions
+from app.api.routes import analytics, schedules
 from app.database.schema import initialize_database
 
 
@@ -46,12 +51,12 @@ from app.database.schema import initialize_database
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Initialize SQLite schema and run all pending migrations on startup.
+    validate_runtime_config()
+    # Initialize PostgreSQL schema and run all pending migrations on startup.
     # Safe to call every time — all migrations are idempotent.
     configure_flow_logging()
     initialize_database()
     yield
-    # Shutdown: nothing to clean up for SQLite.
 
 
 # ---------------------------------------------------------------------------
@@ -64,8 +69,8 @@ app = FastAPI(
     version="2.0.0",
     # Disable auto-generated docs in production; enable for development.
     # Set CLOCKLY_DOCS_ENABLED=1 to turn them back on.
-    docs_url="/docs",
-    redoc_url="/redoc",
+    docs_url="/docs" if DOCS_ENABLED else None,
+    redoc_url="/redoc" if DOCS_ENABLED else None,
     lifespan=lifespan,
 )
 
@@ -79,7 +84,7 @@ app.add_middleware(
     secret_key=SECRET_KEY,
     max_age=SESSION_MAX_AGE,
     same_site="lax",        # CSRF protection for same-origin forms
-    https_only=False,       # Set to True in production (HTTPS)
+    https_only=SECURE_COOKIES,
 )
 
 
@@ -96,7 +101,10 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 @app.exception_handler(RequiresLoginException)
 async def requires_login_handler(request: Request, exc: RequiresLoginException):
-    """Redirect to login when a protected route is accessed without a session."""
+    """Redirect to login when a protected route is accessed without a session.
+    Special case: kiosk routes redirect to /kiosk/enter instead of /login."""
+    if request.url.path.startswith("/kiosk"):
+        return RedirectResponse("/kiosk/enter", status_code=302)
     return RedirectResponse("/login", status_code=302)
 
 
@@ -118,16 +126,26 @@ async def requires_admin_handler(request: Request, exc: RequiresAdminException):
     return RedirectResponse(target, status_code=302)
 
 
+@app.exception_handler(RequiresKioskException)
+async def requires_kiosk_handler(request: Request, exc: RequiresKioskException):
+    """Redirect to kiosk entry when kiosk mode is required but not active."""
+    flow_log("kiosk.not_active_redirect", path=request.url.path)
+    return RedirectResponse("/kiosk/enter", status_code=302)
+
+
 # ---------------------------------------------------------------------------
 # Routers
 # ---------------------------------------------------------------------------
 
 app.include_router(auth.router)
+app.include_router(kiosk.router)
 app.include_router(dashboard.router)
 app.include_router(employees.router)
 app.include_router(clock.router)
 app.include_router(sessions.router)
 app.include_router(me.router)
+app.include_router(analytics.router)
+app.include_router(schedules.router)
 
 
 # ---------------------------------------------------------------------------

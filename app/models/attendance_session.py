@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from datetime import datetime
 
+from app.database.sql import normalize_datetime
+
 
 @dataclass(frozen=True)
 class AttendanceSession:
@@ -24,8 +26,8 @@ class AttendanceSession:
         return cls(
             id=d["id"],
             user_id=d["user_id"],
-            clock_in_time=d["clock_in_time"],
-            clock_out_time=d["clock_out_time"],
+            clock_in_time=normalize_datetime(d["clock_in_time"]),
+            clock_out_time=normalize_datetime(d["clock_out_time"]),
             is_active=bool(d["is_active"]),
             business_id=d.get("business_id"),
             total_seconds=d.get("total_seconds"),

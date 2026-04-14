@@ -34,6 +34,10 @@ class RequiresAdminException(Exception):
     """Raised when an admin-only route is accessed by a non-admin user."""
 
 
+class RequiresKioskException(Exception):
+    """Raised when a kiosk route is accessed without kiosk_business_id in session."""
+
+
 # ---------------------------------------------------------------------------
 # Core session helpers
 # ---------------------------------------------------------------------------
@@ -133,3 +137,45 @@ def template_context(request: Request) -> dict:
         "current_user_name": request.session.get("user_name"),
         "current_user_role": request.session.get("user_role"),
     }
+
+
+# ---------------------------------------------------------------------------
+# Kiosk-specific dependencies
+# ---------------------------------------------------------------------------
+
+def _get_kiosk_business_id(request: Request) -> str | None:
+    """Extract kiosk_business_id from session, or None if not in kiosk mode."""
+    return request.session.get("kiosk_business_id")
+
+
+def require_kiosk_active(request: Request) -> str:
+    """
+    Dependency: ensure kiosk mode is active (business_id in session).
+    Returns: business_id (str)
+    Raises RequiresKioskException → redirected to /kiosk/enter by exception handler.
+    """
+    business_id = _get_kiosk_business_id(request)
+    flow_log("kiosk.check_active", path=request.url.path, has_business_id=bool(business_id))
+    if not business_id:
+        raise RequiresKioskException()
+    return business_id
+
+
+def require_kiosk_employee(request: Request) -> tuple[Employee, str]:
+    """
+    Dependency: ensure kiosk is active AND an employee is logged in (not admin).
+    Returns: (Employee, business_id)
+    Raises RequiresKioskException if kiosk not active.
+    Raises RequiresLoginException if no employee logged in.
+    Raises RequiresAdminException if employee is admin (admin cannot use kiosk).
+    """
+    business_id = require_kiosk_active(request)
+    employee = require_user(request)
+    if employee.role == "admin":
+        flow_log(
+            "kiosk.admin_not_allowed",
+            path=request.url.path,
+            user_id=employee.id,
+        )
+        raise RequiresAdminException()
+    return employee, business_id

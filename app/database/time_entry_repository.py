@@ -1,4 +1,5 @@
 from app.database.connection import get_connection
+from app.database.sql import normalize_row, placeholders
 from app.models.time_entry import TimeEntry
 
 
@@ -19,17 +20,18 @@ class TimeEntryRepository:
                 """
                 INSERT INTO time_entries
                     (business_id, employee_id, entry_type, timestamp, notes)
-                VALUES (?, ?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s, %s)
+                RETURNING id
                 """,
                 (self.business_id, employee_id, entry_type, timestamp, notes),
             )
-            return int(cursor.lastrowid)
+            return int(cursor.fetchone()["id"])
 
     def get_last_for_employee(self, employee_id: int) -> TimeEntry | None:
-        clauses = ["employee_id = ?"]
+        clauses = ["employee_id = %s"]
         params: list = [employee_id]
         if self.business_id:
-            clauses.append("business_id = ?")
+            clauses.append("business_id = %s")
             params.append(self.business_id)
 
         with get_connection() as connection:
@@ -52,23 +54,30 @@ class TimeEntryRepository:
         if not employee_ids:
             return {}
 
-        placeholders = ",".join("?" for _ in employee_ids)
-        where_clauses = [f"employee_id IN ({placeholders})"]
+        employee_placeholders = placeholders(len(employee_ids))
+        where_clauses = [f"employee_id IN ({employee_placeholders})"]
         params: list = list(employee_ids)
         if self.business_id:
-            where_clauses.append("business_id = ?")
+            where_clauses.append("business_id = %s")
             params.append(self.business_id)
         query = f"""
-            SELECT te.id, te.business_id, te.employee_id, te.entry_type, te.timestamp, te.notes
-            FROM time_entries te
-            JOIN (
-                SELECT employee_id, MAX(timestamp || printf('%012d', id)) AS sort_key
-                FROM time_entries
+            SELECT id, business_id, employee_id, entry_type, timestamp, notes
+            FROM (
+                SELECT
+                    te.id,
+                    te.business_id,
+                    te.employee_id,
+                    te.entry_type,
+                    te.timestamp,
+                    te.notes,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY te.employee_id
+                        ORDER BY te.timestamp DESC, te.id DESC
+                    ) AS row_number
+                FROM time_entries te
                 WHERE {" AND ".join(where_clauses)}
-                GROUP BY employee_id
             ) latest
-              ON latest.employee_id = te.employee_id
-             AND latest.sort_key = te.timestamp || printf('%012d', te.id)
+            WHERE row_number = 1
         """
 
         with get_connection() as connection:
@@ -91,19 +100,19 @@ class TimeEntryRepository:
         params: list = []
 
         if date_from:
-            clauses.append("te.timestamp >= ?")
+            clauses.append("te.timestamp >= %s")
             params.append(date_from + " 00:00:00")
 
         if date_to:
-            clauses.append("te.timestamp <= ?")
+            clauses.append("te.timestamp <= %s")
             params.append(date_to + " 23:59:59")
 
         if employee_id is not None:
-            clauses.append("te.employee_id = ?")
+            clauses.append("te.employee_id = %s")
             params.append(employee_id)
 
         if self.business_id:
-            clauses.append("te.business_id = ?")
+            clauses.append("te.business_id = %s")
             params.append(self.business_id)
 
         where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
@@ -128,4 +137,4 @@ class TimeEntryRepository:
         with get_connection() as connection:
             rows = connection.execute(query, params).fetchall()
 
-        return [dict(row) for row in rows]
+        return [normalize_row(row) for row in rows]

@@ -15,18 +15,10 @@ Session payload keys:
   user_role (str)   — "admin" | "employee"
 """
 
-import os
+from app.config import SECRET_KEY, SESSION_MAX_AGE
 
-# Secret key used to sign the session cookie.
-# In production, set the SECRET_KEY environment variable to a long random string.
-# In development, a hard-coded fallback is used so the app starts without config.
-SECRET_KEY: str = os.getenv(
-    "CLOCKLY_SECRET_KEY",
-    "dev-insecure-key-change-in-production-please-use-a-real-secret",
-)
-
-# How long the session cookie is valid (seconds). Default: 8 hours.
-SESSION_MAX_AGE: int = int(os.getenv("CLOCKLY_SESSION_MAX_AGE", str(8 * 60 * 60)))
+# SECRET_KEY and SESSION_MAX_AGE are loaded from app.config so .env, local CLI,
+# and Railway runtime settings all use the same source of truth.
 
 
 def build_session_payload(employee) -> dict:
@@ -45,3 +37,23 @@ def build_session_payload(employee) -> dict:
 def home_path_for_role(role: str | None) -> str:
     """Return the first safe page for an authenticated role."""
     return "/dashboard" if role == "admin" else "/me"
+
+
+def build_kiosk_session_payload(business_id: str) -> dict:
+    """
+    Build the dict to store in the session when entering kiosk mode.
+    Stores only the business ID to identify the active kiosk business.
+    """
+    return {"kiosk_business_id": business_id}
+
+
+def build_kiosk_employee_payload(employee) -> dict:
+    """
+    Build the dict to add to the session when an employee logs in within kiosk.
+    Reuses the same keys as admin login to minimize session complexity.
+    """
+    return {
+        "user_id": employee.id,
+        "user_name": employee.full_name,
+        "user_role": employee.role,
+    }

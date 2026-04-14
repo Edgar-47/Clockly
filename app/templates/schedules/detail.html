@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block title %}{{ swd.schedule.name }}{% endblock %}
+{% block page_title %}{{ swd.schedule.name }}{% endblock %}
+
+{% block topbar_actions %}
+<a href="/schedules/{{ swd.schedule.id }}/edit" class="btn btn--ghost btn--sm">Editar horario</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- ── Schedule overview card ───────────────────────────────────────── -->
+<div class="card">
+  <div class="card__header">
+    <h2 class="card__title">Definición del horario</h2>
+    <div>
+      {% if swd.schedule.is_active %}
+        <span class="badge badge--green">Activo</span>
+      {% else %}
+        <span class="badge badge--gray">Inactivo</span>
+      {% endif %}
+      <span class="badge badge--blue" style="margin-left:4px">{{ swd.weekly_planned_hours_label }}</span>
+    </div>
+  </div>
+
+  {% if swd.schedule.description %}
+  <p class="text-muted" style="padding: 0 var(--space-6) var(--space-4)">{{ swd.schedule.description }}</p>
+  {% endif %}
+
+  {% if swd.days %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Día</th>
+          <th>Entrada</th>
+          <th>Salida</th>
+          <th>Descanso</th>
+          <th>Horas netas</th>
+          <th>Tol. llegada</th>
+          <th>Tol. salida</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for day in swd.days %}
+        <tr>
+          <td><strong>{{ day.day_name }}</strong></td>
+          <td class="font-mono">{{ day.start_time_display }}</td>
+          <td class="font-mono">{{ day.end_time_display }}</td>
+          <td class="text-muted">{% if day.break_minutes %}{{ day.break_minutes }}m{% else %}—{% endif %}</td>
+          <td><span class="badge badge--blue">{{ day.net_hours_label }}</span></td>
+          <td class="text-muted">{% if day.late_tolerance_minutes %}±{{ day.late_tolerance_minutes }}m{% else %}—{% endif %}</td>
+          <td class="text-muted">{% if day.early_leave_tolerance_minutes %}±{{ day.early_leave_tolerance_minutes }}m{% else %}—{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <p>Sin días definidos. <a href="/schedules/{{ swd.schedule.id }}/edit">Editar horario</a></p>
+  </div>
+  {% endif %}
+</div>
+
+<!-- ── Assigned employees ────────────────────────────────────────────── -->
+<div class="card">
+  <div class="card__header">
+    <h2 class="card__title">Empleados asignados</h2>
+    <span class="badge badge--blue">{{ assignments | length }} activos</span>
+  </div>
+
+  {% if assignments %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Empleado</th>
+          <th>Desde</th>
+          <th>Hasta</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in assignments %}
+        <tr>
+          <td>
+            <div class="employee-cell">
+              <span class="avatar">{{ a.employee_name[:2].upper() if a.employee_name else '??' }}</span>
+              {{ a.employee_name or '—' }}
+            </div>
+          </td>
+          <td class="text-muted">{{ a.effective_from }}</td>
+          <td class="text-muted">{{ a.effective_to or 'Sin fecha de fin' }}</td>
+          <td>
+            <form method="post" action="/schedules/assignments/{{ a.id }}/remove"
+                  data-confirm="¿Eliminar esta asignación?">
+              <input type="hidden" name="schedule_id" value="{{ swd.schedule.id }}">
+              <button type="submit" class="btn btn--ghost btn--sm" style="color:var(--color-danger)">
+                Eliminar
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <p>Ningún empleado asignado a este horario aún.</p>
+  </div>
+  {% endif %}
+</div>
+
+<!-- ── Assign new employee ───────────────────────────────────────────── -->
+{% if swd.schedule.is_active and clockable_employees %}
+<div class="card">
+  <div class="card__header">
+    <h2 class="card__title">Asignar empleado a este horario</h2>
+  </div>
+
+  <form method="post" action="/schedules/{{ swd.schedule.id }}/assign" class="assign-form">
+    <div class="form-row">
+      <div class="form-group">
+        <label class="label" for="user_id">Empleado</label>
+        <select name="user_id" id="user_id" class="input" required>
+          <option value="">— Selecciona un empleado —</option>
+          {% for emp in clockable_employees %}
+          <option value="{{ emp.id }}">{{ emp.full_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="label" for="effective_from">Fecha de inicio</label>
+        <input type="date" name="effective_from" id="effective_from" class="input"
+               value="{{ today }}" required>
+      </div>
+      <div class="form-group">
+        <label class="label" for="effective_to">Fecha de fin (opcional)</label>
+        <input type="date" name="effective_to" id="effective_to" class="input">
+      </div>
+    </div>
+    <div class="form-actions" style="padding-top: 0">
+      <button type="submit" class="btn btn--primary btn--sm">Asignar horario</button>
+    </div>
+  </form>
+</div>
+{% endif %}
+
+{% endblock %}

@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+from app.database.sql import normalize_datetime
+
 
 @dataclass(frozen=True)
 class TimeEntry:
@@ -16,7 +18,7 @@ class TimeEntry:
             id=row["id"],
             employee_id=row["employee_id"],
             entry_type=row["entry_type"],
-            timestamp=row["timestamp"],
+            timestamp=normalize_datetime(row["timestamp"]),
             notes=row["notes"],
             business_id=row["business_id"] if "business_id" in row.keys() else None,
         )

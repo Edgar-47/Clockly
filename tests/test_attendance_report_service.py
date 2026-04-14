@@ -38,19 +38,20 @@ def _insert_session(
                     incident_type,
                     exit_note
                 )
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
             """,
             (
                 employee_id,
                 clock_in,
                 clock_out,
-                int(is_active),
+                is_active,
                 total_seconds,
                 incident_type,
                 exit_note,
             ),
         )
-        return int(cursor.lastrowid)
+        return int(cursor.fetchone()["id"])
 
 
 def test_current_period_summaries_use_only_closed_sessions(db):

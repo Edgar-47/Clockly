@@ -1,8 +1,8 @@
 # ClockLy
 
-Aplicación de escritorio para **gestionar el fichaje de entrada y salida de empleados** en restaurantes, bares y cafeterías.
+Aplicacion web para **gestionar el fichaje de entrada y salida de empleados** en restaurantes, bares y cafeterias.
 
-El objetivo del proyecto es ofrecer una solución **local, simple y segura** para registrar horas de trabajo sin necesidad de servidores externos ni sistemas complejos.
+El objetivo del proyecto es ofrecer una solucion **simple y segura** para registrar horas de trabajo con PostgreSQL y despliegue en Railway.
 
 La aplicación permite gestionar empleados, registrar fichajes y exportar los datos a Excel para su análisis o control administrativo.
 
@@ -13,8 +13,8 @@ La aplicación permite gestionar empleados, registrar fichajes y exportar los da
 | Tecnología | Uso |
 |---|---|
 | Python 3.11+ | Lenguaje principal |
-| CustomTkinter | Interfaz gráfica moderna |
-| SQLite | Base de datos local |
+| FastAPI | Aplicacion web y rutas HTTP |
+| PostgreSQL | Base de datos principal |
 | PBKDF2-SHA256 | Seguridad de contraseñas |
 | OpenPyXL | Exportación a Excel |
 
@@ -24,7 +24,7 @@ La aplicación permite gestionar empleados, registrar fichajes y exportar los da
 
 - Interfaz moderna en **modo oscuro** diseñada para uso rápido en restaurantes  
 - **Botones grandes** pensados para fichaje rápido  
-- **Base de datos local SQLite** (no requiere servidor)  
+- **Base de datos PostgreSQL** preparada para Railway
 - **Contraseñas protegidas con hash seguro**  
 - **Gestión de empleados desde panel administrador**  
 - **Exportación de fichajes a Excel (.xlsx)**  
@@ -46,7 +46,7 @@ App_Fichaje/
 │   ├── config.py                  # Rutas y constantes globales
 │
 │   ├── database/
-│   │   ├── connection.py          # Conexión SQLite (context manager)
+│   │   ├── connection.py          # Conexion PostgreSQL (context manager)
 │   │   ├── schema.py              # Inicialización y esquema SQL
 │   │   ├── employee_repository.py
 │   │   └── time_entry_repository.py
@@ -72,7 +72,7 @@ App_Fichaje/
 │       └── helpers.py
 │
 ├── app/data/
-│   └── fichaje.sqlite3            # Base de datos (creación automática)
+│   └── .gitkeep                   # Directorio legacy, no almacena la DB activa
 │
 └── exports/
     └── fichajes_YYYYMMDD_HHMMSS.xlsx
@@ -95,6 +95,37 @@ pip install -r requirements.txt
 python main.py
 ```
 
+## Configuracion PostgreSQL / Railway
+
+ClockLy usa PostgreSQL mediante `DATABASE_URL`. Para desarrollo local:
+
+```powershell
+copy .env.example .env
+# Edita DATABASE_URL para apuntar a tu base PostgreSQL local
+python main.py
+```
+
+Variables importantes:
+
+| Variable | Uso |
+|---|---|
+| `DATABASE_URL` | URL PostgreSQL de la aplicacion |
+| `TEST_DATABASE_URL` | URL PostgreSQL de tests; el nombre debe contener `test` |
+| `CLOCKLY_ENV` | `development` o `production` |
+| `CLOCKLY_SECRET_KEY` | Secreto de sesiones; obligatorio en produccion |
+| `CLOCKLY_DEFAULT_ADMIN_USERNAME` | Usuario admin inicial |
+| `CLOCKLY_DEFAULT_ADMIN_PASSWORD` | Password admin inicial; obligatorio en produccion |
+| `CLOCKLY_SECURE_COOKIES` | Cookies HTTPS; por defecto activo en produccion |
+| `CLOCKLY_DOCS_ENABLED` | Habilita `/docs` y `/redoc` |
+
+Despliegue en Railway:
+
+1. Crea un servicio PostgreSQL en Railway.
+2. Conecta la app al servicio para que Railway inyecte `DATABASE_URL`.
+3. Define `CLOCKLY_ENV=production`, `CLOCKLY_SECRET_KEY` y `CLOCKLY_DEFAULT_ADMIN_PASSWORD`.
+4. Railway ejecutara el `Procfile`: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`.
+5. En el primer arranque se crean las tablas y el administrador inicial.
+
 Para arrancar la aplicacion mas rapido en Windows, tambien puedes hacer doble clic en:
 
 ```bat
@@ -110,7 +141,7 @@ En el primer arranque, si la base de datos está vacía, se crea automáticament
 | Campo | Valor |
 |---|---|
 | Usuario | admin |
-| Contraseña | admin123 |
+| Contraseña | `CLOCKLY_DEFAULT_ADMIN_PASSWORD` (`Admin123` en desarrollo) |
 
 ⚠️ Se recomienda **cambiar esta contraseña antes de usar la aplicación en producción**.
 
@@ -164,10 +195,10 @@ El sistema aplica varias validaciones para evitar errores de fichaje:
 
 | Tipo de dato | Ubicación |
 |---|---|
-| Base de datos | `app/data/fichaje.sqlite3` |
+| Base de datos | PostgreSQL via `DATABASE_URL` |
 | Exportaciones Excel | `exports/` |
 
-SQLite es la **fuente principal de datos**.  
+PostgreSQL es la **fuente principal de datos**.
 Los archivos Excel son únicamente exportaciones para consulta.
 
 ---
@@ -188,7 +219,7 @@ El proyecto está diseñado para poder ampliarse fácilmente. Algunas mejoras po
 
 # Uso previsto
 
-Esta aplicación está pensada para **negocios pequeños o medianos** que necesitan un sistema simple de control horario sin depender de servicios en la nube.
+Esta aplicación está pensada para **negocios pequeños o medianos** que necesitan un sistema simple de control horario desplegable en Railway.
 
 Ejemplos:
 

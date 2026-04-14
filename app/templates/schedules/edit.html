@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block title %}Editar Horario{% endblock %}
+{% block page_title %}Editar Horario{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width:760px">
+  <div class="card__header">
+    <h2 class="card__title">Editar: {{ swd.schedule.name }}</h2>
+  </div>
+
+  <form method="post" action="/schedules/{{ swd.schedule.id }}/edit" id="schedule-form">
+
+    <div class="form-section">
+      <div class="form-group">
+        <label class="label" for="name">Nombre del horario</label>
+        <input type="text" id="name" name="name" class="input"
+               value="{{ swd.schedule.name }}" required maxlength="100">
+      </div>
+      <div class="form-group">
+        <label class="label" for="description">Descripción (opcional)</label>
+        <input type="text" id="description" name="description" class="input"
+               value="{{ swd.schedule.description or '' }}">
+      </div>
+      <div class="form-row">
+        <div class="form-group" style="max-width:200px">
+          <label class="label" for="weekly_hours_target">Horas semanales objetivo</label>
+          <input type="number" id="weekly_hours_target" name="weekly_hours_target"
+                 class="input" step="0.5" min="1" max="80"
+                 value="{{ swd.schedule.weekly_hours_target or '' }}">
+        </div>
+        <div class="form-group">
+          <label class="label">Estado</label>
+          <div class="toggle-group">
+            <input type="radio" name="is_active" id="active_yes" value="1"
+                   {% if swd.schedule.is_active %}checked{% endif %}>
+            <label for="active_yes" class="toggle-option">Activo</label>
+            <input type="radio" name="is_active" id="active_no" value="0"
+                   {% if not swd.schedule.is_active %}checked{% endif %}>
+            <label for="active_no" class="toggle-option">Inactivo</label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section__header">
+        <h3 class="form-section__title">Días de trabajo</h3>
+        <button type="button" class="btn btn--ghost btn--sm" id="add-day-btn">+ Añadir día</button>
+      </div>
+
+      <div id="days-container">
+        {% for day in swd.days %}
+        <div class="schedule-day-form-row">
+          <div class="schedule-day-form-row__dow">
+            <label class="label">Día</label>
+            <select name="day_dow" class="input input--sm" required>
+              {% for i in range(7) %}
+              <option value="{{ i }}" {% if day.day_of_week == i %}selected{% endif %}>
+                {{ dow_names[i] }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="schedule-day-form-row__time">
+            <label class="label">Entrada</label>
+            <input type="time" name="day_start" class="input input--sm"
+                   value="{{ day.start_time_display }}" required>
+          </div>
+          <div class="schedule-day-form-row__time">
+            <label class="label">Salida</label>
+            <input type="time" name="day_end" class="input input--sm"
+                   value="{{ day.end_time_display }}" required>
+          </div>
+          <div class="schedule-day-form-row__small">
+            <label class="label">Descanso (min)</label>
+            <input type="number" name="day_break" class="input input--sm"
+                   value="{{ day.break_minutes }}" min="0" max="480">
+          </div>
+          <div class="schedule-day-form-row__small">
+            <label class="label">Tol. llegada (min)</label>
+            <input type="number" name="day_late_tol" class="input input--sm"
+                   value="{{ day.late_tolerance_minutes }}" min="0" max="60">
+          </div>
+          <div class="schedule-day-form-row__small">
+            <label class="label">Tol. salida (min)</label>
+            <input type="number" name="day_early_tol" class="input input--sm"
+                   value="{{ day.early_leave_tolerance_minutes }}" min="0" max="60">
+          </div>
+          <div class="schedule-day-form-row__remove">
+            <label class="label">&nbsp;</label>
+            <button type="button" class="btn btn--ghost btn--sm remove-day-btn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6l-1 14H6L5 6"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <template id="day-row-template">
+        <div class="schedule-day-form-row">
+          <div class="schedule-day-form-row__dow">
+            <label class="label">Día</label>
+            <select name="day_dow" class="input input--sm" required>
+              {% for i in range(7) %}<option value="{{ i }}">{{ dow_names[i] }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="schedule-day-form-row__time">
+            <label class="label">Entrada</label>
+            <input type="time" name="day_start" class="input input--sm" value="09:00" required>
+          </div>
+          <div class="schedule-day-form-row__time">
+            <label class="label">Salida</label>
+            <input type="time" name="day_end" class="input input--sm" value="17:00" required>
+          </div>
+          <div class="schedule-day-form-row__small">
+            <label class="label">Descanso (min)</label>
+            <input type="number" name="day_break" class="input input--sm" value="0" min="0" max="480">
+          </div>
+          <div class="schedule-day-form-row__small">
+            <label class="label">Tol. llegada (min)</label>
+            <input type="number" name="day_late_tol" class="input input--sm" value="0" min="0" max="60">
+          </div>
+          <div class="schedule-day-form-row__small">
+            <label class="label">Tol. salida (min)</label>
+            <input type="number" name="day_early_tol" class="input input--sm" value="0" min="0" max="60">
+          </div>
+          <div class="schedule-day-form-row__remove">
+            <label class="label">&nbsp;</label>
+            <button type="button" class="btn btn--ghost btn--sm remove-day-btn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </template>
+    </div>
+
+    <div class="form-actions">
+      <a href="/schedules/{{ swd.schedule.id }}" class="btn btn--ghost">Cancelar</a>
+      <form method="post" action="/schedules/{{ swd.schedule.id }}/delete" style="display:inline"
+            data-confirm="¿Desactivar este horario? Se eliminarán las asignaciones activas.">
+        <button type="submit" class="btn btn--ghost" style="color:var(--color-danger)">Desactivar</button>
+      </form>
+      <button type="submit" class="btn btn--primary">Guardar cambios</button>
+    </div>
+
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(() => {
+  const container = document.getElementById("days-container");
+  const template = document.getElementById("day-row-template");
+  document.getElementById("add-day-btn").addEventListener("click", () => {
+    const row = template.content.cloneNode(true);
+    row.querySelector(".remove-day-btn").addEventListener("click", e => {
+      e.target.closest(".schedule-day-form-row").remove();
+    });
+    container.appendChild(row);
+  });
+  container.querySelectorAll(".remove-day-btn").forEach(btn => {
+    btn.addEventListener("click", e => {
+      e.target.closest(".schedule-day-form-row").remove();
+    });
+  });
+})();
+</script>
+{% endblock %}

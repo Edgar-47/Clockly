@@ -1,6 +1,14 @@
 import os
 from pathlib import Path
 
+try:
+    from dotenv import load_dotenv
+except ImportError:  # pragma: no cover - dependency may not be installed yet
+    load_dotenv = None
+
+if load_dotenv is not None:
+    load_dotenv()
+
 
 APP_TITLE = "Fichaje Restaurante"
 
@@ -9,21 +17,78 @@ APP_TITLE = "Fichaje Restaurante"
 # launch the application directly into tablet kiosk mode, bypassing the
 # individual login screen.  Admins can still reach the admin panel via the
 # "Acceso admin" button inside the kiosk UI.
-_kiosk_env: str = os.getenv("CLOCKLY_KIOSK_MODE", "").strip().lower()
-KIOSK_MODE: bool = _kiosk_env in ("1", "true", "yes")
+_TRUTHY = {"1", "true", "yes", "on"}
+
+
+def _env_bool(name: str, *, default: bool = False) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in _TRUTHY
+
+
+KIOSK_MODE = _env_bool("CLOCKLY_KIOSK_MODE")
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "app" / "data"
 
 _exports_dir = os.getenv("FICHAJE_EXPORTS_DIR")
 EXPORTS_DIR = Path(_exports_dir) if _exports_dir else BASE_DIR / "exports"
 
-_database_path = os.getenv("FICHAJE_DATABASE_PATH")
-DATABASE_PATH = Path(_database_path) if _database_path else DATA_DIR / "fichaje.sqlite3"
+CLOCKLY_ENV = os.getenv("CLOCKLY_ENV", "development").strip().lower() or "development"
+IS_PRODUCTION = CLOCKLY_ENV == "production"
 
-DEFAULT_ADMIN_USERNAME = "admin"
-DEFAULT_ADMIN_PASSWORD = "Admin123"
+DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
+
+DEFAULT_ADMIN_USERNAME = os.getenv("CLOCKLY_DEFAULT_ADMIN_USERNAME", "admin").strip()
+DEFAULT_ADMIN_PASSWORD = os.getenv(
+    "CLOCKLY_DEFAULT_ADMIN_PASSWORD",
+    "" if IS_PRODUCTION else "Admin123",
+)
+
+SECRET_KEY = os.getenv(
+    "CLOCKLY_SECRET_KEY",
+    "" if IS_PRODUCTION else "dev-insecure-key-change-in-production-please-use-a-real-secret",
+)
+SESSION_MAX_AGE = int(os.getenv("CLOCKLY_SESSION_MAX_AGE", str(8 * 60 * 60)))
+SECURE_COOKIES = _env_bool("CLOCKLY_SECURE_COOKIES", default=IS_PRODUCTION)
+DOCS_ENABLED = _env_bool("CLOCKLY_DOCS_ENABLED", default=not IS_PRODUCTION)
+PORT = int(os.getenv("PORT", "8000"))
 
 
 def ensure_runtime_directories() -> None:
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
     EXPORTS_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def validate_runtime_config() -> None:
+    database_url = os.getenv("DATABASE_URL", DATABASE_URL).strip()
+    admin_username = os.getenv(
+        "CLOCKLY_DEFAULT_ADMIN_USERNAME",
+        DEFAULT_ADMIN_USERNAME,
+    ).strip()
+    clockly_env = os.getenv("CLOCKLY_ENV", CLOCKLY_ENV).strip().lower()
+    admin_password = os.getenv(
+        "CLOCKLY_DEFAULT_ADMIN_PASSWORD",
+        "" if clockly_env == "production" else DEFAULT_ADMIN_PASSWORD,
+    )
+    secret_key = os.getenv(
+        "CLOCKLY_SECRET_KEY",
+        "" if clockly_env == "production" else SECRET_KEY,
+    )
+
+    missing: list[str] = []
+    if not database_url:
+        missing.append("DATABASE_URL")
+    if not admin_username:
+        missing.append("CLOCKLY_DEFAULT_ADMIN_USERNAME")
+    if not admin_password:
+        missing.append("CLOCKLY_DEFAULT_ADMIN_PASSWORD")
+    if not secret_key:
+        missing.append("CLOCKLY_SECRET_KEY")
+
+    if missing:
+        raise RuntimeError(
+            "Missing required environment variables: " + ", ".join(sorted(missing))
+        )
+
+    if clockly_env == "production" and secret_key.startswith("dev-insecure-key"):
+        raise RuntimeError("CLOCKLY_SECRET_KEY must be changed in production.")

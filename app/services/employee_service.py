@@ -1,8 +1,8 @@
 import re
 import secrets
-import sqlite3
 import string
 
+from app.database.connection import DatabaseIntegrityError
 from app.database.employee_repository import EmployeeRepository
 from app.models.employee import Employee
 from app.utils.security import hash_password
@@ -71,7 +71,7 @@ class EmployeeService:
                 role=clean_role,
                 business_id=self.business_id,
             )
-        except sqlite3.IntegrityError as exc:
+        except DatabaseIntegrityError as exc:
             raise ValueError("Ya existe un empleado con ese DNI.") from exc
 
     def toggle_active(self, employee_id: int) -> bool:

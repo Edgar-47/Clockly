@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+from app.database.sql import normalize_datetime
+
 
 @dataclass(frozen=True)
 class Business:
@@ -32,8 +34,8 @@ class Business:
             slug=d["slug"],
             business_key=d["business_key"],
             settings_json=d.get("settings_json") or "{}",
-            last_accessed_at=d.get("last_accessed_at"),
+            last_accessed_at=normalize_datetime(d.get("last_accessed_at")),
             is_active=bool(d.get("is_active", 1)),
-            created_at=d.get("created_at"),
-            updated_at=d.get("updated_at"),
+            created_at=normalize_datetime(d.get("created_at")),
+            updated_at=normalize_datetime(d.get("updated_at")),
         )
