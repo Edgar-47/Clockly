@@ -7,15 +7,39 @@ This keeps the employee flow independent from the admin dashboard.
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from app.api.dependencies import flash, require_user, template_context
+from app.api.dependencies import (
+    flash,
+    get_active_business_id,
+    require_user,
+    set_active_business_id,
+    template_context,
+)
 from app.core.flow_debug import flow_log, form_keys
 from app.core.templates import templates
+from app.database.business_repository import BusinessRepository
 from app.models.employee import Employee
 from app.services.attendance_report_service import AttendanceReportService
+from app.services.business_service import BusinessService
 from app.services.time_clock_service import TimeClockService
 
 
 router = APIRouter(prefix="/me", tags=["employee"])
+
+
+def _resolve_employee_business_id(request: Request, current_user: Employee) -> str | None:
+    business_id = get_active_business_id(request)
+    if business_id and BusinessRepository().user_has_access(
+        business_id=business_id,
+        user_id=current_user.id,
+    ):
+        return business_id
+
+    request.session.pop("active_business_id", None)
+    business = BusinessService().choose_default_business(current_user.id)
+    if business:
+        set_active_business_id(request, business.id)
+        return business.id
+    return None
 
 
 @router.get("", response_class=HTMLResponse)
@@ -26,8 +50,9 @@ async def employee_portal(
     if current_user.role == "admin":
         return RedirectResponse("/dashboard", status_code=302)
 
-    clock_service = TimeClockService()
-    report_service = AttendanceReportService()
+    business_id = _resolve_employee_business_id(request, current_user)
+    clock_service = TimeClockService(business_id=business_id)
+    report_service = AttendanceReportService(business_id=business_id)
 
     status = clock_service.get_attendance_statuses([current_user])[0]
     recent_sessions = report_service.list_session_reports(user_id=current_user.id)[:10]
@@ -60,7 +85,8 @@ async def employee_punch(
         return RedirectResponse("/dashboard", status_code=303)
 
     form_data = await request.form()
-    clock_service = TimeClockService()
+    business_id = _resolve_employee_business_id(request, current_user)
+    clock_service = TimeClockService(business_id=business_id)
     active_session = clock_service.get_active_session(current_user.id)
     entry_type = TimeClockService.EXIT if active_session else TimeClockService.ENTRY
 

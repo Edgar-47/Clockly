@@ -34,7 +34,7 @@ async def list_schedules(
 ):
     service = WorkScheduleService(business_id=business_id)
     schedules_with_days = service.list_schedules()
-    repo = WorkScheduleRepository()
+    repo = WorkScheduleRepository(business_id=business_id)
     # Attach assigned employee count per schedule
     assignment_counts = {
         swd.schedule.id: len(repo.list_assignments_for_schedule(swd.schedule.id))
@@ -76,7 +76,19 @@ async def create_schedule(
     name = str(form.get("name", "")).strip()
     description = str(form.get("description", "")).strip() or None
     weekly_target_raw = str(form.get("weekly_hours_target", "")).strip()
-    weekly_target = float(weekly_target_raw) if weekly_target_raw else None
+    try:
+        weekly_target = float(weekly_target_raw) if weekly_target_raw else None
+    except ValueError:
+        flash(request, "El objetivo semanal debe ser un numero.", "error")
+        ctx = template_context(request)
+        ctx.update({
+            "dow_names": _DOW_NAMES,
+            "schedule": None,
+            "days": [],
+            "form_name": name,
+            "form_description": description or "",
+        })
+        return templates.TemplateResponse(request, "schedules/create.html", ctx, status_code=400)
     schedule_type = str(form.get("schedule_type", "flexible")).strip()
 
     days = _parse_days_from_form(form)
@@ -123,7 +135,7 @@ async def schedule_detail(
         flash(request, "Horario no encontrado.", "error")
         return RedirectResponse("/schedules", status_code=303)
 
-    repo = WorkScheduleRepository()
+    repo = WorkScheduleRepository(business_id=business_id)
     assignments = repo.list_assignments_for_schedule(schedule_id)
     all_employees = EmployeeService(business_id=business_id).list_employees()
     clockable = [e for e in all_employees if e.active and e.role == "employee"]
@@ -175,7 +187,17 @@ async def update_schedule(
     name = str(form.get("name", "")).strip()
     description = str(form.get("description", "")).strip() or None
     weekly_target_raw = str(form.get("weekly_hours_target", "")).strip()
-    weekly_target = float(weekly_target_raw) if weekly_target_raw else None
+    try:
+        weekly_target = float(weekly_target_raw) if weekly_target_raw else None
+    except ValueError:
+        flash(request, "El objetivo semanal debe ser un numero.", "error")
+        swd = WorkScheduleService(business_id=business_id).get_schedule(schedule_id)
+        ctx = template_context(request)
+        ctx.update({
+            "swd": swd,
+            "dow_names": _DOW_NAMES,
+        })
+        return templates.TemplateResponse(request, "schedules/edit.html", ctx, status_code=400)
     schedule_type = str(form.get("schedule_type", "flexible")).strip()
     is_active = form.get("is_active") == "1"
     days = _parse_days_from_form(form)

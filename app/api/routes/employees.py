@@ -17,7 +17,6 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.api.dependencies import flash, require_active_business, require_admin, template_context
 from app.core.templates import templates
-from app.database.business_repository import BusinessRepository
 from app.database.employee_profile_repository import EmployeeProfileRepository
 from app.models.employee import Employee
 from app.models.employee_profile import CONTRACT_TYPE_CHOICES
@@ -41,9 +40,21 @@ def _load_schedule_context(business_id: str | None = None) -> dict:
 
 
 def _parse_profile_fields(form_data) -> dict:
+    hire_date = str(form_data.get("hire_date", "")).strip() or None
+    if hire_date:
+        try:
+            date.fromisoformat(hire_date)
+        except ValueError as exc:
+            raise ValueError("La fecha de alta debe tener formato AAAA-MM-DD.") from exc
+
+    contract_type = str(form_data.get("contract_type", "")).strip() or None
+    valid_contract_types = {value for value, _label in CONTRACT_TYPE_CHOICES}
+    if contract_type and contract_type not in valid_contract_types:
+        raise ValueError("Tipo de contrato no valido.")
+
     return {
-        "hire_date": str(form_data.get("hire_date", "")).strip() or None,
-        "contract_type": str(form_data.get("contract_type", "")).strip() or None,
+        "hire_date": hire_date,
+        "contract_type": contract_type,
         "department": str(form_data.get("department", "")).strip() or None,
         "job_title": str(form_data.get("job_title", "")).strip() or None,
         "phone": str(form_data.get("phone", "")).strip() or None,
@@ -62,6 +73,8 @@ def _save_profile(user_id: int, fields: dict) -> None:
 def _maybe_assign_schedule(
     user_id: int,
     form_data,
+    *,
+    business_id: str,
 ) -> None:
     """If a schedule_id is provided in form_data, create an assignment."""
     raw = str(form_data.get("schedule_id", "")).strip()
@@ -74,7 +87,7 @@ def _maybe_assign_schedule(
     except (ValueError, TypeError):
         effective_from = date.today()
 
-    svc = WorkScheduleService()
+    svc = WorkScheduleService(business_id=business_id)
     svc.assign_schedule(
         user_id=user_id,
         schedule_id=schedule_id,
@@ -146,34 +159,23 @@ async def employee_create(
         "password": str(form_data.get("password", "")),
         "role": str(form_data.get("role", "employee")),
     }
-    profile_fields = _parse_profile_fields(form_data)
+    profile_fields: dict = {}
 
     try:
+        profile_fields = _parse_profile_fields(form_data)
         emp_service = EmployeeService(business_id=business_id)
         user_id = emp_service.create_employee(**data)
 
-        # Add the new employee to this business automatically
-        try:
-            BusinessRepository().add_member(
-                business_id=business_id,
-                user_id=user_id,
-                member_role="employee",
-                is_default=True,
-            )
-        except Exception:
-            pass
-
-        # Save HR profile (non-blocking — silently skip on error)
+        # Profile/schedule are secondary to account creation, but failures are surfaced.
         try:
             _save_profile(user_id, profile_fields)
-        except Exception:
-            pass
+        except Exception as exc:
+            flash(request, f"Empleado creado, pero no se pudo guardar el perfil: {exc}", "warning")
 
-        # Assign schedule if provided
         try:
-            _maybe_assign_schedule(user_id, form_data)
-        except ValueError:
-            pass
+            _maybe_assign_schedule(user_id, form_data, business_id=business_id)
+        except ValueError as exc:
+            flash(request, f"Empleado creado, pero el horario no se asigno: {exc}", "warning")
 
         flash(request, "Empleado creado correctamente.", "success")
         return RedirectResponse("/employees", status_code=303)
@@ -196,8 +198,8 @@ async def employee_edit_form(
     current_user: Employee = Depends(require_admin),
     business_id: str = Depends(require_active_business),
 ):
-    emp_service = EmployeeService()
-    sched_service = WorkScheduleService()
+    emp_service = EmployeeService(business_id=business_id)
+    sched_service = WorkScheduleService(business_id=business_id)
     profile_repo = EmployeeProfileRepository()
 
     employee = emp_service.employee_repository.get_by_id(employee_id)
@@ -219,7 +221,7 @@ async def employee_edit_form(
     ctx["current_assignment"] = current_assignment
     ctx["current_schedule"] = current_schedule
     ctx["assignment_history"] = assignment_history
-    ctx.update(_load_schedule_context())
+    ctx.update(_load_schedule_context(business_id))
     return templates.TemplateResponse(request, "employees/edit.html", ctx)
 
 
@@ -238,19 +240,20 @@ async def employee_update(
         "role": str(form_data.get("role", "employee")),
         "active": form_data.get("active") is not None,
     }
-    profile_fields = _parse_profile_fields(form_data)
+    profile_fields: dict = {}
 
     try:
-        emp_service = EmployeeService()
+        profile_fields = _parse_profile_fields(form_data)
+        emp_service = EmployeeService(business_id=business_id)
         emp_service.update_employee(employee_id, **data)
 
         try:
             _save_profile(employee_id, profile_fields)
-        except Exception:
-            pass
+        except Exception as exc:
+            flash(request, f"Datos guardados, pero no se pudo guardar el perfil: {exc}", "warning")
 
         try:
-            _maybe_assign_schedule(employee_id, form_data)
+            _maybe_assign_schedule(employee_id, form_data, business_id=business_id)
         except ValueError as schedule_exc:
             flash(request, f"Datos de empleado guardados, pero horario: {schedule_exc}", "warning")
             return RedirectResponse(f"/employees/{employee_id}/edit", status_code=303)
@@ -258,8 +261,8 @@ async def employee_update(
         flash(request, "Empleado actualizado.", "success")
         return RedirectResponse("/employees", status_code=303)
     except ValueError as exc:
-        emp_service = EmployeeService()
-        sched_service = WorkScheduleService()
+        emp_service = EmployeeService(business_id=business_id)
+        sched_service = WorkScheduleService(business_id=business_id)
         profile_repo = EmployeeProfileRepository()
 
         employee = emp_service.employee_repository.get_by_id(employee_id)
@@ -279,7 +282,7 @@ async def employee_update(
         ctx["current_schedule"] = current_schedule
         ctx["assignment_history"] = assignment_history
         ctx["form"] = {**data, **profile_fields}
-        ctx.update(_load_schedule_context())
+        ctx.update(_load_schedule_context(business_id))
         return templates.TemplateResponse(request, "employees/edit.html", ctx, status_code=400)
 
 
@@ -295,7 +298,7 @@ async def employee_toggle(
     business_id: str = Depends(require_active_business),
 ):
     try:
-        service = EmployeeService()
+        service = EmployeeService(business_id=business_id)
         new_state = service.toggle_active(employee_id)
         label = "activado" if new_state else "desactivado"
         flash(request, f"Empleado {label}.", "success")
@@ -316,7 +319,7 @@ async def employee_reset_password(
     business_id: str = Depends(require_active_business),
 ):
     try:
-        service = EmployeeService()
+        service = EmployeeService(business_id=business_id)
         temp_password = service.reset_password(employee_id)
         flash(
             request,
@@ -342,7 +345,7 @@ async def employee_set_password(
     form_data = await request.form()
     new_password = str(form_data.get("new_password", ""))
     try:
-        service = EmployeeService()
+        service = EmployeeService(business_id=business_id)
         service.set_password(employee_id, new_password)
         flash(request, "Contraseña actualizada.", "success")
     except ValueError as exc:
@@ -363,7 +366,7 @@ async def employee_remove_schedule(
     business_id: str = Depends(require_active_business),
 ):
     try:
-        svc = WorkScheduleService()
+        svc = WorkScheduleService(business_id=business_id)
         svc.deactivate_assignment(assignment_id)
         flash(request, "Asignación de horario eliminada.", "success")
     except Exception as exc:

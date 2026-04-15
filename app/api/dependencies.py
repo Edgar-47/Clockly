@@ -179,12 +179,32 @@ def require_active_business(request: Request) -> str:
 
     business_id = get_active_business_id(request)
     if business_id:
-        return business_id
+        from app.database.business_repository import BusinessRepository
+        if BusinessRepository().user_has_access(
+            business_id=business_id,
+            user_id=employee.id,
+        ):
+            return business_id
+        request.session.pop("active_business_id", None)
+        flow_log(
+            "business.session_invalid",
+            user_id=employee.id,
+            business_id=business_id,
+        )
 
     # Lazy default: pick the most recently accessed business
     from app.services.business_service import BusinessService
     svc = BusinessService()
     if svc.requires_onboarding(employee.id):
+        legacy_business = svc.ensure_legacy_business_for_user(employee.id)
+        if legacy_business is not None:
+            set_active_business_id(request, legacy_business.id)
+            flow_log(
+                "business.legacy_default_selected",
+                user_id=employee.id,
+                business_id=legacy_business.id,
+            )
+            return legacy_business.id
         flow_log("business.onboarding_required", user_id=employee.id)
         raise RequiresOnboardingException()
 
@@ -220,6 +240,15 @@ def require_kiosk_active(request: Request) -> str:
     business_id = _get_kiosk_business_id(request)
     flow_log("kiosk.check_active", path=request.url.path, has_business_id=bool(business_id))
     if not business_id:
+        raise RequiresKioskException()
+    from app.database.business_repository import BusinessRepository
+    business = BusinessRepository().get_by_id(business_id)
+    if business is None or not business.is_active:
+        request.session.pop("kiosk_business_id", None)
+        request.session.pop("user_id", None)
+        request.session.pop("user_name", None)
+        request.session.pop("user_role", None)
+        flow_log("kiosk.invalid_business", path=request.url.path, business_id=business_id)
         raise RequiresKioskException()
     return business_id
 

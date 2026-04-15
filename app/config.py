@@ -6,7 +6,9 @@ try:
 except ImportError:  # pragma: no cover - dependency may not be installed yet
     load_dotenv = None
 
-if load_dotenv is not None:
+_RAW_CLOCKLY_ENV = os.getenv("CLOCKLY_ENV", "development").strip().lower()
+
+if load_dotenv is not None and _RAW_CLOCKLY_ENV != "production":
     load_dotenv()
 
 
@@ -92,3 +94,5 @@ def validate_runtime_config() -> None:
 
     if clockly_env == "production" and secret_key.startswith("dev-insecure-key"):
         raise RuntimeError("CLOCKLY_SECRET_KEY must be changed in production.")
+    if clockly_env == "production" and admin_password == "Admin123":
+        raise RuntimeError("CLOCKLY_DEFAULT_ADMIN_PASSWORD must be changed in production.")

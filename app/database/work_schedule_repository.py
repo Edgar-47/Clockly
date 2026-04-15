@@ -19,10 +19,15 @@ class WorkScheduleRepository:
     # ------------------------------------------------------------------
 
     def get_by_id(self, schedule_id: int) -> WorkSchedule | None:
+        clauses = ["id = %s"]
+        params: list = [schedule_id]
+        if self.business_id is not None:
+            clauses.append("(business_id = %s OR business_id IS NULL)")
+            params.append(self.business_id)
         with get_connection() as conn:
             row = conn.execute(
-                "SELECT * FROM work_schedules WHERE id = %s",
-                (schedule_id,),
+                f"SELECT * FROM work_schedules WHERE {' AND '.join(clauses)}",
+                params,
             ).fetchone()
         return WorkSchedule.from_row(row) if row else None
 
@@ -97,16 +102,32 @@ class WorkScheduleRepository:
                     is_active = %s,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = %s
+                  AND (%s IS NULL OR business_id = %s OR business_id IS NULL)
                 """,
-                (name.strip(), description, weekly_hours_target, schedule_type, is_active, schedule_id),
+                (
+                    name.strip(),
+                    description,
+                    weekly_hours_target,
+                    schedule_type,
+                    is_active,
+                    schedule_id,
+                    self.business_id,
+                    self.business_id,
+                ),
             )
 
     def delete_schedule(self, schedule_id: int) -> None:
         """Soft-delete: mark as inactive instead of hard delete."""
         with get_connection() as conn:
             conn.execute(
-                "UPDATE work_schedules SET is_active = FALSE, updated_at = CURRENT_TIMESTAMP WHERE id = %s",
-                (schedule_id,),
+                """
+                UPDATE work_schedules
+                SET is_active = FALSE,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = %s
+                  AND (%s IS NULL OR business_id = %s OR business_id IS NULL)
+                """,
+                (schedule_id, self.business_id, self.business_id),
             )
 
     # ------------------------------------------------------------------
@@ -193,36 +214,46 @@ class WorkScheduleRepository:
         return EmployeeSchedule.from_row(normalize_row(row)) if row else None
 
     def list_assignments_for_user(self, user_id: int) -> list[EmployeeSchedule]:
+        clauses = ["es.user_id = %s"]
+        params: list = [user_id]
+        if self.business_id is not None:
+            clauses.append("(es.business_id = %s OR es.business_id IS NULL)")
+            params.append(self.business_id)
         with get_connection() as conn:
             rows = conn.execute(
-                """
+                f"""
                 SELECT es.*,
                        ws.name AS schedule_name,
                        TRIM(COALESCE(u.first_name,'') || ' ' || COALESCE(u.last_name,'')) AS employee_name
                 FROM employee_schedules es
                 JOIN work_schedules ws ON ws.id = es.schedule_id
                 JOIN users u ON u.id = es.user_id
-                WHERE es.user_id = %s
+                WHERE {' AND '.join(clauses)}
                 ORDER BY es.effective_from DESC
                 """,
-                (user_id,),
+                params,
             ).fetchall()
         return [EmployeeSchedule.from_row(normalize_row(r)) for r in rows]
 
     def list_assignments_for_schedule(self, schedule_id: int) -> list[EmployeeSchedule]:
+        clauses = ["es.schedule_id = %s", "es.is_active IS TRUE"]
+        params: list = [schedule_id]
+        if self.business_id is not None:
+            clauses.append("(es.business_id = %s OR es.business_id IS NULL)")
+            params.append(self.business_id)
         with get_connection() as conn:
             rows = conn.execute(
-                """
+                f"""
                 SELECT es.*,
                        ws.name AS schedule_name,
                        TRIM(COALESCE(u.first_name,'') || ' ' || COALESCE(u.last_name,'')) AS employee_name
                 FROM employee_schedules es
                 JOIN work_schedules ws ON ws.id = es.schedule_id
                 JOIN users u ON u.id = es.user_id
-                WHERE es.schedule_id = %s AND es.is_active IS TRUE
+                WHERE {' AND '.join(clauses)}
                 ORDER BY employee_name
                 """,
-                (schedule_id,),
+                params,
             ).fetchall()
         return [EmployeeSchedule.from_row(normalize_row(r)) for r in rows]
 
@@ -238,19 +269,32 @@ class WorkScheduleRepository:
         Deactivate any existing open assignment for this user before creating new one.
         """
         with get_connection() as conn:
-            # Close previous open assignments
-            conn.execute(
-                """
-                UPDATE employee_schedules
-                SET is_active = FALSE,
-                    effective_to = %s
-                WHERE user_id = %s
-                  AND is_active IS TRUE
-                  AND (effective_to IS NULL OR effective_to > %s)
-                  AND (business_id = %s OR (%s IS NULL AND business_id IS NULL))
-                """,
-                (effective_from, user_id, effective_from, self.business_id, self.business_id),
-            )
+            if self.business_id is None:
+                conn.execute(
+                    """
+                    UPDATE employee_schedules
+                    SET is_active = FALSE,
+                        effective_to = %s
+                    WHERE user_id = %s
+                      AND is_active IS TRUE
+                      AND (effective_to IS NULL OR effective_to > %s)
+                      AND business_id IS NULL
+                    """,
+                    (effective_from, user_id, effective_from),
+                )
+            else:
+                conn.execute(
+                    """
+                    UPDATE employee_schedules
+                    SET is_active = FALSE,
+                        effective_to = %s
+                    WHERE user_id = %s
+                      AND is_active IS TRUE
+                      AND (effective_to IS NULL OR effective_to > %s)
+                      AND business_id = %s
+                    """,
+                    (effective_from, user_id, effective_from, self.business_id),
+                )
             cursor = conn.execute(
                 """
                 INSERT INTO employee_schedules
@@ -265,8 +309,13 @@ class WorkScheduleRepository:
     def deactivate_assignment(self, assignment_id: int) -> None:
         with get_connection() as conn:
             conn.execute(
-                "UPDATE employee_schedules SET is_active = FALSE WHERE id = %s",
-                (assignment_id,),
+                """
+                UPDATE employee_schedules
+                SET is_active = FALSE
+                WHERE id = %s
+                  AND (%s IS NULL OR business_id = %s OR business_id IS NULL)
+                """,
+                (assignment_id, self.business_id, self.business_id),
             )
 
     def list_all_active_assignments(self) -> list[EmployeeSchedule]:

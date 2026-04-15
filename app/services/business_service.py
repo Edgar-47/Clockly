@@ -48,6 +48,27 @@ class BusinessService:
         businesses = self.list_businesses_for_user(user_id)
         return businesses[0] if businesses else None
 
+    def ensure_legacy_business_for_user(self, user_id: int) -> Business | None:
+        """
+        Create a default workspace for older single-business databases.
+
+        Fresh installs still go through onboarding. This only runs when legacy
+        employees or attendance records already exist without business_id.
+        """
+        if self.business_repository.count_for_user(user_id) > 0:
+            return self.choose_default_business(user_id)
+        if self.business_repository.count_all() > 0:
+            return None
+        if not self.business_repository.has_unscoped_legacy_data():
+            return None
+
+        return self.create_business(
+            owner_user_id=user_id,
+            business_name="Negocio principal",
+            business_type="otro",
+            login_code="CLOCKLY",
+        )
+
     def activate_business_for_user(self, *, user_id: int, business_id: str) -> Business:
         if not self.business_repository.user_has_access(
             business_id=business_id,
@@ -82,21 +103,27 @@ class BusinessService:
 
         clean_name = self._clean_business_name(business_name)
         clean_type = self._normalize_business_type(business_type)
-        clean_login_code = self._normalize_login_code(login_code)
+        raw_login_code = (login_code or "").strip()
+        clean_login_code = self._normalize_login_code(raw_login_code)
+        login_code_generated = False
 
         if not clean_name:
             raise ValueError("El nombre del negocio es obligatorio.")
         if len(clean_name) < 2:
             raise ValueError("El nombre del negocio debe tener al menos 2 caracteres.")
+        if raw_login_code and not clean_login_code:
+            raise ValueError(
+                "El codigo de inicio solo puede contener letras, numeros, guiones y guiones bajos."
+            )
         if not clean_login_code:
-            raise ValueError("El codigo de inicio de sesion es obligatorio.")
+            clean_login_code = self._generate_unique_login_code(clean_name)
+            login_code_generated = True
         if len(clean_login_code) < 3:
             raise ValueError("El codigo de inicio de sesion debe tener al menos 3 caracteres.")
 
         if self.business_repository.get_by_login_code(clean_login_code):
             raise ValueError("Ya existe un negocio activo con ese codigo de inicio.")
 
-        business_id = str(uuid.uuid4())
         include_legacy_records = self.business_repository.count_all() == 0
         settings_json = json.dumps(
             {"onboarding_version": 1},
@@ -104,21 +131,30 @@ class BusinessService:
             separators=(",", ":"),
         )
 
-        try:
-            business = self.business_repository.create(
-                business_id=business_id,
-                owner_user_id=owner_user_id,
-                business_name=clean_name,
-                business_type=clean_type,
-                login_code=clean_login_code,
-                slug=self._build_slug(clean_name, business_id),
-                business_key=self._generate_business_key(),
-                settings_json=settings_json,
-                mark_default=True,
-                include_legacy_records=include_legacy_records,
-            )
-        except DatabaseIntegrityError as exc:
-            raise ValueError("Ya existe un negocio con ese codigo o identificador.") from exc
+        business: Business | None = None
+        for attempt in range(5):
+            business_id = str(uuid.uuid4())
+            try:
+                business = self.business_repository.create(
+                    business_id=business_id,
+                    owner_user_id=owner_user_id,
+                    business_name=clean_name,
+                    business_type=clean_type,
+                    login_code=clean_login_code,
+                    slug=self._build_slug(clean_name, business_id),
+                    business_key=self._generate_business_key(),
+                    settings_json=settings_json,
+                    mark_default=True,
+                    include_legacy_records=include_legacy_records,
+                )
+                break
+            except DatabaseIntegrityError as exc:
+                if login_code_generated and attempt < 4:
+                    clean_login_code = self._generate_unique_login_code(clean_name)
+                    continue
+                raise ValueError("Ya existe un negocio con ese codigo o identificador.") from exc
+        if business is None:
+            raise RuntimeError("No se pudo crear el negocio.")
 
         return self.activate_business_for_user(
             user_id=owner_user_id,
@@ -200,6 +236,15 @@ class BusinessService:
 
     def _generate_business_key(self) -> str:
         return f"BUS-{secrets.token_hex(4).upper()}"
+
+    def _generate_unique_login_code(self, business_name: str) -> str:
+        prefix = re.sub(r"[^A-Z0-9]", "", self._ascii_key(business_name).upper())
+        prefix = (prefix[:6] or "BIZ").strip("-_")
+        for _ in range(20):
+            candidate = f"{prefix}-{secrets.token_hex(3).upper()}"
+            if not self.business_repository.get_by_login_code(candidate):
+                return candidate
+        raise ValueError("No se pudo generar un codigo de inicio unico.")
 
     def _normalize_settings_json(
         self,

@@ -101,7 +101,6 @@ class EmployeeProfileRepository:
                     notes or None,
                 ),
             )
-            conn.commit()
 
         saved = self.get_by_user_id(user_id)
         if saved is None:

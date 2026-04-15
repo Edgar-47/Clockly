@@ -8,6 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, timedelta
 
+from app.database.employee_repository import EmployeeRepository
 from app.database.work_schedule_repository import WorkScheduleRepository
 from app.models.employee_schedule import EmployeeSchedule
 from app.models.schedule_day import ScheduleDay
@@ -71,6 +72,7 @@ class WorkScheduleService:
         *,
         business_id: str | None = None,
     ) -> None:
+        self.business_id = business_id
         self.repo = (
             work_schedule_repository or WorkScheduleRepository(business_id=business_id)
         )
@@ -184,6 +186,12 @@ class WorkScheduleService:
     ) -> int:
         if effective_to and effective_to < effective_from:
             raise ValueError("La fecha de fin debe ser posterior a la fecha de inicio.")
+        if self.repo.get_by_id(schedule_id) is None:
+            raise ValueError("Horario no encontrado para este negocio.")
+        if self.business_id is not None:
+            employee = EmployeeRepository(business_id=self.business_id).get_by_id(user_id)
+            if employee is None or not employee.active:
+                raise ValueError("Empleado no encontrado en este negocio.")
         return self.repo.create_assignment(
             user_id=user_id,
             schedule_id=schedule_id,

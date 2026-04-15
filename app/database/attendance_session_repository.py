@@ -110,6 +110,40 @@ class AttendanceSessionRepository:
             ).fetchone()
         return AttendanceSession.from_row(row) if row else None
 
+    def get_latest_for_users(
+        self,
+        user_ids: list[int],
+    ) -> dict[int, AttendanceSession]:
+        if not user_ids:
+            return {}
+
+        user_placeholders = placeholders(len(user_ids))
+        clauses = [f"user_id IN ({user_placeholders})"]
+        params: list = list(user_ids)
+        if self.business_id:
+            clauses.append("business_id = %s")
+            params.append(self.business_id)
+
+        query = f"""
+            SELECT {self._SELECT_COLUMNS}
+            FROM (
+                SELECT
+                    s.*,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY s.user_id
+                        ORDER BY s.clock_in_time DESC, s.id DESC
+                    ) AS row_number
+                FROM attendance_sessions s
+                WHERE {" AND ".join(clauses)}
+            ) latest
+            WHERE row_number = 1
+        """
+
+        with get_connection() as connection:
+            rows = connection.execute(query, params).fetchall()
+
+        return {row["user_id"]: AttendanceSession.from_row(row) for row in rows}
+
     def clock_out(
         self,
         *,

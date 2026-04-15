@@ -146,6 +146,9 @@ class EmployeeService:
 
     def set_password(self, employee_id: int, new_password: str) -> None:
         """Set a new password for an employee. Raises ValueError if too short."""
+        employee = self.employee_repository.get_by_id(employee_id)
+        if not employee:
+            raise ValueError("Empleado no encontrado.")
         if len(new_password) < 6:
             raise ValueError("La contraseña debe tener al menos 6 caracteres.")
         self.employee_repository.set_password_hash(employee_id, hash_password(new_password))

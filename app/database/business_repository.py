@@ -51,6 +51,14 @@ class BusinessRepository:
             )
             connection.execute(
                 """
+                UPDATE business_members
+                SET is_default = FALSE
+                WHERE user_id = %s
+                """,
+                (owner_user_id,),
+            )
+            connection.execute(
+                """
                 INSERT INTO business_members
                     (business_id, user_id, member_role, is_default)
                 VALUES (%s, %s, 'owner', %s)
@@ -88,12 +96,23 @@ class BusinessRepository:
         is_default: bool = False,
     ) -> None:
         with get_connection() as connection:
+            if is_default:
+                connection.execute(
+                    """
+                    UPDATE business_members
+                    SET is_default = FALSE
+                    WHERE user_id = %s
+                    """,
+                    (user_id,),
+                )
             connection.execute(
                 """
                 INSERT INTO business_members
                     (business_id, user_id, member_role, is_default)
                 VALUES (%s, %s, %s, %s)
-                ON CONFLICT DO NOTHING
+                ON CONFLICT (business_id, user_id) DO UPDATE
+                SET member_role = EXCLUDED.member_role,
+                    is_default = EXCLUDED.is_default
                 """,
                 (business_id, user_id, member_role, is_default),
             )
@@ -116,6 +135,34 @@ class BusinessRepository:
                 (user_id,),
             ).fetchone()
         return int(row["count"]) if row else 0
+
+    def has_unscoped_legacy_data(self) -> bool:
+        """Return True when old single-business data exists without a business."""
+        with get_connection() as connection:
+            row = connection.execute(
+                """
+                SELECT
+                    EXISTS (
+                        SELECT 1
+                        FROM users
+                        WHERE role = 'employee'
+                        LIMIT 1
+                    )
+                    OR EXISTS (
+                        SELECT 1
+                        FROM attendance_sessions
+                        WHERE business_id IS NULL
+                        LIMIT 1
+                    )
+                    OR EXISTS (
+                        SELECT 1
+                        FROM time_entries
+                        WHERE business_id IS NULL
+                        LIMIT 1
+                    ) AS has_data
+                """
+            ).fetchone()
+        return bool(row and row["has_data"])
 
     def get_by_id(self, business_id: str) -> Business | None:
         with get_connection() as connection:
@@ -237,7 +284,16 @@ class BusinessRepository:
             connection.execute(
                 """
                 UPDATE business_members
-                SET last_accessed_at = %s
+                SET is_default = FALSE
+                WHERE user_id = %s
+                """,
+                (user_id,),
+            )
+            connection.execute(
+                """
+                UPDATE business_members
+                SET last_accessed_at = %s,
+                    is_default = TRUE
                 WHERE business_id = %s AND user_id = %s
                 """,
                 (accessed_at, business_id, user_id),

@@ -153,7 +153,6 @@ async def business_create(
 
     business_name = str(form_data.get("business_name", "")).strip()
     business_type = str(form_data.get("business_type", "otro")).strip()
-    # Auto-generate the login_code from the name if the field is left blank
     raw_code = str(form_data.get("login_code", "")).strip()
 
     flow_log(
@@ -163,12 +162,6 @@ async def business_create(
         business_name=business_name,
         business_type=business_type,
     )
-
-    # Fall back to an auto-generated code if the admin left it blank
-    if not raw_code:
-        import secrets
-        prefix = _name_to_code_prefix(business_name)
-        raw_code = f"{prefix}-{secrets.token_hex(3).upper()}"
 
     svc = BusinessService()
     is_onboarding = svc.requires_onboarding(current_user.id)
@@ -207,11 +200,15 @@ async def business_create(
     if is_onboarding:
         flash(
             request,
-            f"¡Bienvenido! Tu negocio «{business.business_name}» está listo.",
+            f"¡Bienvenido! Tu negocio «{business.business_name}» está listo. Código kiosk: {business.login_code}.",
             "success",
         )
     else:
-        flash(request, f"Negocio «{business.business_name}» creado correctamente.", "success")
+        flash(
+            request,
+            f"Negocio «{business.business_name}» creado correctamente. Código kiosk: {business.login_code}.",
+            "success",
+        )
 
     return RedirectResponse("/dashboard", status_code=303)
 
@@ -302,15 +299,3 @@ async def business_settings_update(
 
     return RedirectResponse(f"/businesses/{business_id}/settings", status_code=303)
 
-
-# ---------------------------------------------------------------------------
-# Utilities
-# ---------------------------------------------------------------------------
-
-def _name_to_code_prefix(name: str) -> str:
-    """Turn a business name into an uppercase alphabetic prefix (max 6 chars)."""
-    import re
-    import unicodedata
-    normalized = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode()
-    clean = re.sub(r"[^A-Za-z0-9]", "", normalized).upper()
-    return clean[:6] or "BIZ"

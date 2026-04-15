@@ -10,6 +10,7 @@ class AttendanceStatus:
     employee: Employee
     last_entry: TimeEntry | None = None
     active_session: AttendanceSession | None = None
+    latest_session: AttendanceSession | None = None
 
     @property
     def is_clocked_in(self) -> bool:
@@ -23,6 +24,8 @@ class AttendanceStatus:
     def last_action_label(self) -> str:
         if self.is_clocked_in:
             return "Clock In"
+        if self.latest_session:
+            return "Clock Out" if self.latest_session.clock_out_time else "Clock In"
         if not self.last_entry:
             return "No records"
         return "Clock In" if self.last_entry.entry_type == "entrada" else "Clock Out"
@@ -31,4 +34,6 @@ class AttendanceStatus:
     def last_timestamp(self) -> str | None:
         if self.is_clocked_in and self.active_session:
             return self.active_session.clock_in_time
+        if self.latest_session:
+            return self.latest_session.clock_out_time or self.latest_session.clock_in_time
         return self.last_entry.timestamp if self.last_entry else None

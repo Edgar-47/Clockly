@@ -1,10 +1,11 @@
 """
 app/api/routes/auth.py
 
-Authentication routes: admin login page, login POST, logout.
+Authentication routes: login page, login POST, logout.
 
 Design decisions:
-  - /login is admin-only. Employees authenticate via the kiosk (/kiosk/login).
+  - /login accepts admins and employees, then redirects each role to its own home.
+  - Employees can also authenticate via the kiosk (/kiosk/login).
   - Logout preserves kiosk context: if kiosk_business_id is in the session
     the browser returns to the kiosk view instead of the entry screen.
 """
@@ -24,7 +25,7 @@ router = APIRouter(tags=["auth"])
 
 @router.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
-    """Render the admin login form. Redirect to dashboard if already authenticated."""
+    """Render the login form. Redirect to the role home if already authenticated."""
     if request.session.get("user_id"):
         return RedirectResponse(
             home_path_for_role(request.session.get("user_role")),
@@ -37,9 +38,8 @@ async def login_page(request: Request):
 @router.post("/login")
 async def login_post(request: Request):
     """
-    Process admin login form.
-    Only accepts users with the 'admin' role — employees must use /kiosk/login.
-    On success: set session → redirect to /dashboard.
+    Process login form and route each role to its own first screen.
+    Admins go to /dashboard; employees go to /me.
     On failure: re-render login with a clear error message.
     """
     form_data = await request.form()
@@ -56,37 +56,23 @@ async def login_post(request: Request):
         auth_service = AuthService()
         employee = auth_service.login(identifier, password)
 
-        # This endpoint is admin-only; employees use the kiosk flow.
-        if employee.role != "admin":
-            flow_log(
-                "endpoint.login.employee_rejected_at_admin_page",
-                user_id=employee.id,
-                role=employee.role,
-            )
-            ctx = template_context(request)
-            ctx["error"] = (
-                "Este acceso es exclusivo para administradores. "
-                "Para fichar, utiliza el kiosk de empleados."
-            )
-            ctx["identifier"] = identifier
-            return templates.TemplateResponse(request, "login.html", ctx, status_code=403)
-
         request.session.update(build_session_payload(employee))
 
-        # Eagerly pick the admin's default business so the dashboard loads
-        # immediately without an extra redirect through onboarding.
+        # Eagerly pick the user's default business so scoped screens and
+        # employee self-service do not create unscoped attendance sessions.
         default_business = BusinessService().choose_default_business(employee.id)
         if default_business:
             set_active_business_id(request, default_business.id)
 
+        target = home_path_for_role(employee.role)
         flow_log(
             "endpoint.login.success",
             user_id=employee.id,
             role=employee.role,
-            target="/dashboard",
+            target=target,
             business_id=default_business.id if default_business else None,
         )
-        return RedirectResponse("/dashboard", status_code=303)
+        return RedirectResponse(target, status_code=303)
 
     except ValueError as exc:
         flow_log(

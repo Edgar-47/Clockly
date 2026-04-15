@@ -34,8 +34,12 @@ class ScheduleValidationService:
     def __init__(
         self,
         work_schedule_repository: WorkScheduleRepository | None = None,
+        *,
+        business_id: str | None = None,
     ) -> None:
-        self._repo = work_schedule_repository or WorkScheduleRepository()
+        self._repo = work_schedule_repository or WorkScheduleRepository(
+            business_id=business_id
+        )
 
     # ------------------------------------------------------------------
     # Public API

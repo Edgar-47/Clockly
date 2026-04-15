@@ -3,7 +3,6 @@ from datetime import datetime
 from app.core.flow_debug import flow_log
 from app.database.attendance_session_repository import AttendanceSessionRepository
 from app.database.employee_repository import EmployeeRepository
-from app.database.time_entry_repository import TimeEntryRepository
 from app.models.attendance_session import AttendanceSession
 from app.models.attendance_status import AttendanceStatus
 from app.models.employee import Employee
@@ -24,7 +23,7 @@ class TimeClockService:
         self,
         employee_repository: EmployeeRepository | None = None,
         attendance_session_repository: AttendanceSessionRepository | None = None,
-        time_entry_repository: TimeEntryRepository | None = None,
+        time_entry_repository: object | None = None,
         schedule_validation_service: ScheduleValidationService | None = None,
         *,
         business_id: str | None = None,
@@ -38,13 +37,9 @@ class TimeClockService:
                 business_id=business_id
             )
         )
-        # Legacy: kept only for get_last_entry(), which is used by admin_view.py
-        # and clock_view.py (inactive views). New code should read from
-        # attendance_session_repository instead.
-        self.time_entry_repository = time_entry_repository or TimeEntryRepository(
+        self._schedule_validator = schedule_validation_service or ScheduleValidationService(
             business_id=business_id
         )
-        self._schedule_validator = schedule_validation_service or ScheduleValidationService()
 
     def register(
         self,
@@ -141,26 +136,35 @@ class TimeClockService:
         return self.attendance_session_repository.get_active_for_user(employee_id)
 
     def get_attendance_status(self, employee: Employee) -> AttendanceStatus:
+        active_session = self.get_active_session(employee.id)
+        latest_session = active_session or self.attendance_session_repository.get_latest_for_user(
+            employee.id
+        )
         return AttendanceStatus(
             employee=employee,
-            last_entry=self.get_last_entry(employee.id),
-            active_session=self.get_active_session(employee.id),
+            active_session=active_session,
+            latest_session=latest_session,
         )
 
     def get_attendance_statuses(
         self,
         employees: list[Employee],
     ) -> list[AttendanceStatus]:
-        # Only fetch active sessions — the canonical source of truth.
-        # last_entry (from legacy time_entries) is not populated here because
-        # no active view relies on it; admin_view.py reads it separately.
+        employee_ids = [employee.id for employee in employees]
         active_by_employee = self.attendance_session_repository.get_active_for_users(
-            [employee.id for employee in employees]
+            employee_ids
+        )
+        latest_by_employee = self.attendance_session_repository.get_latest_for_users(
+            employee_ids
         )
         return [
             AttendanceStatus(
                 employee=employee,
                 active_session=active_by_employee.get(employee.id),
+                latest_session=(
+                    active_by_employee.get(employee.id)
+                    or latest_by_employee.get(employee.id)
+                ),
             )
             for employee in employees
         ]
@@ -235,12 +239,12 @@ class TimeClockService:
         return updated
 
     # ── Legacy API ────────────────────────────────────────────────────────────
-    # Used by admin_view.py, clock_view.py, clock_kiosk_view.py (inactive views).
-    # New views read directly from attendance_session_repository.
+    # Kept for older callers, but backed by attendance_sessions.
 
     def get_last_entry(self, employee_id: int) -> TimeEntry | None:
-        """Legacy: returns last time_entry for an employee."""
-        return self.time_entry_repository.get_last_for_employee(employee_id)
+        """Compatibility adapter backed by the canonical attendance session."""
+        session = self.attendance_session_repository.get_latest_for_user(employee_id)
+        return self._session_to_time_entry(session) if session else None
 
     # ── Private helpers ───────────────────────────────────────────────────────
 
@@ -262,3 +266,15 @@ class TimeClockService:
         except (TypeError, ValueError):
             return 0
         return max(int((ended - started).total_seconds()), 0)
+
+    def _session_to_time_entry(self, session: AttendanceSession) -> TimeEntry:
+        entry_type = self.EXIT if session.clock_out_time else self.ENTRY
+        timestamp = session.clock_out_time or session.clock_in_time
+        return TimeEntry(
+            id=session.id,
+            employee_id=session.user_id,
+            entry_type=entry_type,
+            timestamp=timestamp,
+            notes=session.exit_note or session.notes,
+            business_id=session.business_id,
+        )

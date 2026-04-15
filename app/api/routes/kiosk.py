@@ -89,7 +89,7 @@ async def kiosk_enter_submit(request: Request):
     request.session.update(build_kiosk_session_payload(business.id))
     flow_log("kiosk.enter.success", business_id=business.id, business_name=business.business_name)
 
-    return RedirectResponse("/kiosk", status_code=302)
+    return RedirectResponse("/kiosk", status_code=303)
 
 
 # ---------------------------------------------------------------------------
@@ -185,6 +185,22 @@ async def kiosk_login_submit(
 
     # Verify employee belongs to this business
     business_repo = BusinessRepository()
+    if employee.role != "employee":
+        flow_log(
+            "kiosk.login.admin_rejected",
+            user_id=employee.id,
+            business_id=business_id,
+        )
+        ctx = template_context(request)
+        ctx["error"] = "El kiosk es solo para empleados."
+        ctx["identifier"] = identifier
+
+        business = business_repo.get_by_id(business_id)
+        if business:
+            ctx["business"] = business
+
+        return templates.TemplateResponse(request, "kiosk/login.html", ctx, status_code=403)
+
     if not business_repo.user_has_access(business_id=business_id, user_id=employee.id):
         flow_log(
             "kiosk.login.not_in_business",
@@ -209,7 +225,7 @@ async def kiosk_login_submit(
         business_id=business_id,
     )
 
-    return RedirectResponse("/kiosk/me", status_code=302)
+    return RedirectResponse("/kiosk/me", status_code=303)
 
 
 # ---------------------------------------------------------------------------
