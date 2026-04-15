@@ -153,11 +153,27 @@
   gap: 12px;
   align-items: center;
   margin-top: 8px;
+  flex-wrap: wrap;
 }
 
 .btn--lg {
   padding: 12px 24px;
   font-size: 15px;
+}
+
+@media (max-width: 520px) {
+  .onboarding-wrap {
+    padding: 8px 0 32px;
+  }
+
+  .onboarding-hero {
+    padding: 20px 14px 18px;
+  }
+
+  .form-actions,
+  .form-actions .btn {
+    width: 100%;
+  }
 }
 </style>
 {% endblock %}

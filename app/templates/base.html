@@ -148,7 +148,21 @@
         </svg>
       </button>
       <h1 class="topbar__title">{% block page_title %}{% endblock %}</h1>
-      <div class="topbar__actions">{% block topbar_actions %}{% endblock %}</div>
+      <button type="button"
+              class="topbar-actions-toggle"
+              id="topbar-actions-toggle"
+              aria-label="Mostrar acciones"
+              aria-expanded="false"
+              aria-controls="topbar-actions"
+              hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="1"/>
+          <circle cx="19" cy="12" r="1"/>
+          <circle cx="5" cy="12" r="1"/>
+        </svg>
+        <span>Acciones</span>
+      </button>
+      <div class="topbar__actions" id="topbar-actions">{% block topbar_actions %}{% endblock %}</div>
     </header>
 
     <!-- Flash messages -->

@@ -4,7 +4,7 @@
 {% block page_title %}Nuevo Horario{% endblock %}
 
 {% block content %}
-<div class="card" style="max-width:760px">
+<div class="card card--form-shell">
   <div class="card__header">
     <h2 class="card__title">Crear horario predefinido</h2>
   </div>
@@ -24,7 +24,7 @@
         <input type="text" id="description" name="description" class="input"
                value="{{ form_description or '' }}" placeholder="Notas adicionales…">
       </div>
-      <div class="form-group" style="max-width:200px">
+      <div class="form-group form-group--compact">
         <label class="label" for="weekly_hours_target">Horas semanales objetivo (opcional)</label>
         <input type="number" id="weekly_hours_target" name="weekly_hours_target"
                class="input" step="0.5" min="1" max="80"

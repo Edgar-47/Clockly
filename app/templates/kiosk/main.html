@@ -70,7 +70,7 @@
     /* ── Employee grid ── */
     .kiosk-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(min(150px, 100%), 1fr));
         gap: var(--space-4);
     }
 
@@ -235,6 +235,26 @@
     .kiosk-empty__text {
         font-size: var(--text-base);
         margin: 0;
+    }
+
+    @media (max-width: 560px) {
+        .kiosk-summary-bar,
+        .kiosk-summary-bar__stats,
+        .kiosk-cta {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .kiosk-stat-pill,
+        .kiosk-cta__btn {
+            width: 100%;
+            min-width: 0;
+            min-height: 48px;
+        }
+
+        .employee-card {
+            min-height: 148px;
+        }
     }
 </style>
 

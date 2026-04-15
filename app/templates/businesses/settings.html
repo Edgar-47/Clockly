@@ -125,6 +125,7 @@
   gap: 12px;
   align-items: center;
   margin-top: 8px;
+  flex-wrap: wrap;
 }
 
 .settings-info-card {
@@ -167,6 +168,23 @@
   color: var(--color-text-muted);
   margin: 0;
   text-align: center;
+}
+
+@media (max-width: 520px) {
+  .settings-wrap {
+    max-width: none;
+    gap: 16px;
+  }
+
+  .form-actions,
+  .form-actions .btn {
+    width: 100%;
+  }
+
+  .settings-info-card__code {
+    font-size: 18px;
+    overflow-wrap: anywhere;
+  }
 }
 </style>
 

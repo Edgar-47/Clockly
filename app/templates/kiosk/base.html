@@ -10,7 +10,7 @@
         body {
             display: flex;
             flex-direction: column;
-            height: 100vh;
+            min-height: 100dvh;
             margin: 0;
             background: var(--color-bg);
         }
@@ -169,6 +169,45 @@
         }
 
         .flash-close:hover { opacity: 1; }
+
+        @media (max-width: 640px) {
+            .kiosk-header {
+                height: auto;
+                min-height: 64px;
+                grid-template-columns: 1fr auto;
+                padding: var(--space-3) var(--space-4);
+            }
+
+            .kiosk-clock {
+                grid-column: 1 / -1;
+                text-align: left;
+                font-size: var(--text-sm);
+                order: 3;
+            }
+
+            .kiosk-content {
+                padding: var(--space-4);
+            }
+
+            .kiosk-admin-link {
+                min-height: 40px;
+                padding: 0 12px;
+            }
+        }
+
+        @media (max-width: 420px) {
+            .kiosk-title {
+                font-size: var(--text-base);
+            }
+
+            .kiosk-clock {
+                display: none;
+            }
+
+            .kiosk-admin-link {
+                padding: 0 10px;
+            }
+        }
     </style>
     {% block extra_head %}{% endblock %}
 </head>

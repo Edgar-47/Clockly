@@ -21,6 +21,11 @@
 {% block content %}
 
 <!-- ── Period filter ─────────────────────────────────────────────────── -->
+<details class="responsive-disclosure analytics-filter-disclosure"
+         data-mobile-collapsed
+         data-has-filters="{{ 'true' if period != 'today' or employee_id else 'false' }}"
+         open>
+<summary class="responsive-disclosure__summary">Periodo y empleado</summary>
 <div class="analytics-filter-bar">
   <div class="analytics-filter-bar__periods">
     <a href="/analytics?period=today{% if employee_id %}&employee_id={{ employee_id }}{% endif %}"
@@ -58,6 +63,7 @@
     </form>
   </div>
 </div>
+</details>
 
 <!-- ── Period label ───────────────────────────────────────────────────── -->
 <div class="analytics-period-label">
@@ -136,7 +142,7 @@
     <span class="text-muted" style="font-size:var(--text-sm)">{{ period_label }}</span>
   </div>
   {% if rankings %}
-  <div class="table-wrap">
+  <div class="table-wrap" data-mobile-cards>
     <table class="table ranking-table">
       <thead>
         <tr>
@@ -152,28 +158,28 @@
       <tbody>
         {% for r in rankings %}
         <tr>
-          <td>
+          <td data-label="#">
             <span class="ranking-badge {% if loop.index <= 3 %}ranking-badge--top{% endif %}">
               {{ loop.index }}
             </span>
           </td>
-          <td>
+          <td data-label="Empleado">
             <div class="employee-cell">
               <span class="avatar">{{ r.employee_name[:2].upper() if r.employee_name else '??' }}</span>
               {{ r.employee_name }}
             </div>
           </td>
-          <td class="text-right font-mono">{{ r.total_hours_label }}</td>
-          <td class="text-right">
+          <td class="text-right font-mono" data-label="Horas totales">{{ r.total_hours_label }}</td>
+          <td class="text-right" data-label="Horas extra">
             {% if r.overtime_seconds > 0 %}
               <span class="badge badge--yellow">{{ r.overtime_hours_label }}</span>
             {% else %}
               <span class="text-muted">—</span>
             {% endif %}
           </td>
-          <td class="text-right text-muted">{{ r.shift_count }}</td>
-          <td class="text-right text-muted">{{ r.avg_shift_label }}</td>
-          <td class="text-right">
+          <td class="text-right text-muted" data-label="Turnos">{{ r.shift_count }}</td>
+          <td class="text-right text-muted" data-label="Media turno">{{ r.avg_shift_label }}</td>
+          <td class="text-right" data-label="% Extra">
             {% if r.overtime_pct > 0 %}
               <span class="overtime-pct {% if r.overtime_pct > 20 %}overtime-pct--high{% elif r.overtime_pct > 10 %}overtime-pct--med{% endif %}">
                 {{ r.overtime_pct }}%
@@ -248,7 +254,7 @@
     <h2 class="card__title">Horas extra por mes</h2>
     <span class="badge badge--gray">Año {{ date_from[:4] if date_from else '' }}</span>
   </div>
-  <div class="table-wrap">
+  <div class="table-wrap" data-mobile-cards>
     <table class="table">
       <thead>
         <tr>
@@ -263,15 +269,15 @@
         {% set max_ot = monthly_stats | map(attribute='total_overtime_seconds') | max %}
         {% for stat in monthly_stats %}
         <tr {% if stat.total_overtime_seconds == 0 %}class="text-muted"{% endif %}>
-          <td>{{ stat.label }}</td>
-          <td class="text-right font-mono">
+          <td data-label="Mes">{{ stat.label }}</td>
+          <td class="text-right font-mono" data-label="Horas extra">
             {% if stat.total_overtime_seconds > 0 %}
               <span class="badge badge--yellow">{{ stat.total_overtime_hours_label }}</span>
             {% else %}—{% endif %}
           </td>
-          <td class="text-right text-muted">{{ stat.sessions_with_overtime or '—' }}</td>
-          <td class="text-right text-muted">{{ stat.affected_users or '—' }}</td>
-          <td>
+          <td class="text-right text-muted" data-label="Turnos">{{ stat.sessions_with_overtime or '—' }}</td>
+          <td class="text-right text-muted" data-label="Empleados">{{ stat.affected_users or '—' }}</td>
+          <td data-label="Distribucion">
             {% if stat.total_overtime_seconds > 0 and max_ot > 0 %}
             <div class="overtime-bar-wrap">
               <div class="overtime-bar" style="width: {{ (stat.total_overtime_seconds / max_ot * 100) | int }}%"></div>
@@ -293,7 +299,7 @@
     <span class="badge badge--blue">{{ period_label }}</span>
   </div>
   {% if planned_vs_actual %}
-  <div class="table-wrap">
+  <div class="table-wrap" data-mobile-cards>
     <table class="table">
       <thead>
         <tr>
@@ -307,15 +313,15 @@
       <tbody>
         {% for pva in planned_vs_actual %}
         <tr>
-          <td>
+          <td data-label="Empleado">
             <div class="employee-cell">
               <span class="avatar">{{ pva.employee_name[:2].upper() if pva.employee_name else '??' }}</span>
               {{ pva.employee_name }}
             </div>
           </td>
-          <td class="text-right text-muted">{{ fmt_hours(pva.planned_seconds) }}</td>
-          <td class="text-right font-mono">{{ fmt_hours(pva.actual_seconds) }}</td>
-          <td class="text-right">
+          <td class="text-right text-muted" data-label="Planificado">{{ fmt_hours(pva.planned_seconds) }}</td>
+          <td class="text-right font-mono" data-label="Real">{{ fmt_hours(pva.actual_seconds) }}</td>
+          <td class="text-right" data-label="Variacion">
             {% if pva.variance_seconds > 3600 %}
               <span class="badge badge--yellow">{{ pva.variance_label }}</span>
             {% elif pva.variance_seconds < -3600 %}
@@ -324,7 +330,7 @@
               <span class="badge badge--green">{{ pva.variance_label }}</span>
             {% endif %}
           </td>
-          <td>
+          <td data-label="Estado">
             {% if pva.status == 'overtime' %}
               <span class="badge badge--yellow">Horas extra</span>
             {% elif pva.status == 'under' %}

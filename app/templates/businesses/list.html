@@ -90,7 +90,7 @@
 <style>
 .biz-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
   gap: 20px;
 }
 
@@ -183,6 +183,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
   padding: 8px 12px;
   background: var(--color-surface-raised);
   border-radius: 8px;
@@ -201,12 +202,17 @@
   font-weight: 600;
   color: var(--color-text);
   letter-spacing: 0.04em;
+  overflow-wrap: anywhere;
 }
 
 .biz-card__actions {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.biz-card__actions form {
+  margin: 0;
 }
 
 .btn--sm {
@@ -259,6 +265,32 @@
   font-size: 14px;
   max-width: 340px;
   margin: 0;
+}
+
+@media (max-width: 520px) {
+  .biz-card {
+    padding: 16px;
+    gap: 14px;
+  }
+
+  .biz-card__header {
+    flex-wrap: wrap;
+  }
+
+  .biz-card__actions,
+  .biz-card__actions form,
+  .biz-card__actions .btn {
+    width: 100%;
+  }
+
+  .biz-card__actions .btn {
+    justify-content: center;
+    min-height: 44px;
+  }
+
+  .empty-state {
+    padding: 48px 18px;
+  }
 }
 </style>
 

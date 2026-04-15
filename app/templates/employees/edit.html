@@ -172,6 +172,7 @@
       {% if assignment_history and assignment_history|length > 1 %}
       <details class="history-details">
         <summary class="history-details__toggle">Ver historial de horarios ({{ assignment_history|length }})</summary>
+        <div class="table-wrap" data-mobile-cards>
         <table class="table table--compact">
           <thead>
             <tr><th>Horario</th><th>Desde</th><th>Hasta</th><th>Estado</th></tr>
@@ -179,10 +180,10 @@
           <tbody>
             {% for a in assignment_history %}
             <tr>
-              <td>{{ a.schedule_name }}</td>
-              <td>{{ a.effective_from }}</td>
-              <td>{{ a.effective_to or '—' }}</td>
-              <td>
+              <td data-label="Horario">{{ a.schedule_name }}</td>
+              <td data-label="Desde">{{ a.effective_from }}</td>
+              <td data-label="Hasta">{{ a.effective_to or '—' }}</td>
+              <td data-label="Estado">
                 <span class="badge badge--{{ 'success' if a.is_active else 'neutral' }} badge--sm">
                   {{ 'Activo' if a.is_active else 'Inactivo' }}
                 </span>
@@ -191,6 +192,7 @@
             {% endfor %}
           </tbody>
         </table>
+        </div>
       </details>
       {% endif %}
     </div>

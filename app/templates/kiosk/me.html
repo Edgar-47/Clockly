@@ -325,6 +325,43 @@
         transform: translateY(-1px);
         box-shadow: var(--shadow-lg);
     }
+
+    @media (max-width: 560px) {
+        .welcome-banner {
+            align-items: flex-start;
+            padding: var(--space-4);
+        }
+
+        .welcome-name {
+            white-space: normal;
+        }
+
+        .status-panel,
+        .colleague-section {
+            padding: var(--space-4);
+        }
+
+        .colleague-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .kiosk-float {
+            position: static;
+            margin: var(--space-4) auto 0;
+            width: 100%;
+            max-width: 760px;
+        }
+
+        .kiosk-float form,
+        .btn-logout {
+            width: 100%;
+        }
+
+        .btn-logout {
+            justify-content: center;
+            min-height: 48px;
+        }
+    }
 </style>
 
 <div class="kiosk-me">

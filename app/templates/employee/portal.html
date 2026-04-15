@@ -104,7 +104,7 @@
   </div>
 
   {% if recent_sessions %}
-  <div class="table-wrap">
+  <div class="table-wrap" data-mobile-cards>
     <table class="table">
       <thead>
         <tr>
@@ -117,18 +117,18 @@
       <tbody>
         {% for s in recent_sessions %}
         <tr>
-          <td class="text-muted">{{ format_timestamp(s.clock_in_time, "%d/%m/%Y %H:%M") }}</td>
-          <td class="text-muted">
+          <td class="text-muted" data-label="Entrada">{{ format_timestamp(s.clock_in_time, "%d/%m/%Y %H:%M") }}</td>
+          <td class="text-muted" data-label="Salida">
             {{ format_timestamp(s.clock_out_time, "%d/%m/%Y %H:%M") if s.clock_out_time else "-" }}
           </td>
-          <td>
+          <td data-label="Duracion">
             {% if s.is_active %}
               <span class="duration-live" data-since="{{ s.clock_in_time }}">-</span>
             {% else %}
               {{ format_duration(s.counted_duration_seconds) }}
             {% endif %}
           </td>
-          <td>
+          <td data-label="Estado">
             {% if s.is_active %}
               <span class="badge badge--green">Activa</span>
             {% elif s.severity != "none" %}

@@ -99,6 +99,28 @@
         border-color: var(--color-primary);
         color: var(--color-primary);
     }
+
+    @media (max-width: 520px) {
+        .kiosk-login {
+            gap: var(--space-4);
+        }
+
+        .login-form,
+        .error-alert,
+        .back-button {
+            max-width: none;
+            width: 100%;
+        }
+
+        .form-input {
+            min-height: 44px;
+            font-size: 16px;
+        }
+
+        .back-button {
+            text-align: center;
+        }
+    }
 </style>
 
 <div class="kiosk-login">

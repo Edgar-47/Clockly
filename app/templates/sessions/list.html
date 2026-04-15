@@ -29,7 +29,11 @@
 {% block content %}
 
 <!-- Filters -->
-<div class="card card--filters">
+<details class="card card--filters responsive-disclosure"
+         data-mobile-collapsed
+         data-has-filters="{{ 'true' if filters.employee_id or filters.is_active is not none or filters.incident_filter != 'all' else 'false' }}"
+         open>
+  <summary class="responsive-disclosure__summary">Filtros y busqueda</summary>
   <form method="get" action="/sessions" class="filter-form">
     <div class="filter-form__row">
       <div class="form__group">
@@ -84,7 +88,7 @@
       </div>
     </div>
   </form>
-</div>
+</details>
 
 <!-- Results -->
 <div class="card">
@@ -95,7 +99,7 @@
   </div>
 
   {% if sessions %}
-  <div class="table-wrap">
+  <div class="table-wrap" data-mobile-cards>
     <table class="table table--sessions">
       <thead>
         <tr>
@@ -111,7 +115,7 @@
       <tbody>
         {% for s in sessions %}
         <tr class="{{ 'row--warning' if s.severity == 'warning' else ('row--critical' if s.severity == 'critical') }}">
-          <td>
+          <td data-label="Empleado">
             <div class="employee-cell">
               <span class="avatar avatar--sm">{{ s.employee_name[:2].upper() if s.employee_name else '??' }}</span>
               <div>
@@ -120,11 +124,11 @@
               </div>
             </div>
           </td>
-          <td class="text-muted text-sm">
+          <td class="text-muted text-sm" data-label="Entrada">
             {{ format_timestamp(s.clock_in_time, "%d/%m/%Y") }}<br>
             <strong>{{ format_timestamp(s.clock_in_time, "%H:%M") }}</strong>
           </td>
-          <td class="text-muted text-sm">
+          <td class="text-muted text-sm" data-label="Salida">
             {% if s.clock_out_time %}
               {{ format_timestamp(s.clock_out_time, "%d/%m/%Y") }}<br>
               <strong>{{ format_timestamp(s.clock_out_time, "%H:%M") }}</strong>
@@ -132,14 +136,14 @@
               <span class="badge badge--green">Activa</span>
             {% endif %}
           </td>
-          <td>
+          <td data-label="Duración">
             {% if s.is_active %}
               <span class="duration-live" data-since="{{ s.clock_in_time }}">—</span>
             {% else %}
               {{ format_duration(s.counted_duration_seconds) }}
             {% endif %}
           </td>
-          <td>
+          <td data-label="Estado">
             {% if s.closed_by_admin %}
               <span class="badge badge--yellow">Cierre admin</span>
             {% elif s.is_active %}
@@ -148,7 +152,7 @@
               <span class="badge badge--gray">Cerrada</span>
             {% endif %}
           </td>
-          <td>
+          <td data-label="Incidencias">
             {% if s.severity == 'critical' %}
               <span class="badge badge--red">{{ s.incident_label }}</span>
             {% elif s.severity == 'warning' %}
@@ -160,7 +164,7 @@
               <span class="text-xs text-muted d-block">{{ s.exit_note[:60] }}{% if s.exit_note|length > 60 %}…{% endif %}</span>
             {% endif %}
           </td>
-          <td class="text-right">
+          <td class="text-right" data-label="Acciones">
             {% if s.is_active %}
             <button class="btn btn--ghost btn--xs btn--danger"
                     onclick="openCloseModal({{ s.id }}, {{ s.employee_name | tojson }})">

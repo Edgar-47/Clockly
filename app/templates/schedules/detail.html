@@ -28,7 +28,7 @@
   {% endif %}
 
   {% if swd.days %}
-  <div class="table-wrap">
+  <div class="table-wrap" data-mobile-cards>
     <table class="table">
       <thead>
         <tr>
@@ -44,13 +44,13 @@
       <tbody>
         {% for day in swd.days %}
         <tr>
-          <td><strong>{{ day.day_name }}</strong></td>
-          <td class="font-mono">{{ day.start_time_display }}</td>
-          <td class="font-mono">{{ day.end_time_display }}</td>
-          <td class="text-muted">{% if day.break_minutes %}{{ day.break_minutes }}m{% else %}—{% endif %}</td>
-          <td><span class="badge badge--blue">{{ day.net_hours_label }}</span></td>
-          <td class="text-muted">{% if day.late_tolerance_minutes %}±{{ day.late_tolerance_minutes }}m{% else %}—{% endif %}</td>
-          <td class="text-muted">{% if day.early_leave_tolerance_minutes %}±{{ day.early_leave_tolerance_minutes }}m{% else %}—{% endif %}</td>
+          <td data-label="Dia"><strong>{{ day.day_name }}</strong></td>
+          <td class="font-mono" data-label="Entrada">{{ day.start_time_display }}</td>
+          <td class="font-mono" data-label="Salida">{{ day.end_time_display }}</td>
+          <td class="text-muted" data-label="Descanso">{% if day.break_minutes %}{{ day.break_minutes }}m{% else %}—{% endif %}</td>
+          <td data-label="Horas netas"><span class="badge badge--blue">{{ day.net_hours_label }}</span></td>
+          <td class="text-muted" data-label="Tol. llegada">{% if day.late_tolerance_minutes %}±{{ day.late_tolerance_minutes }}m{% else %}—{% endif %}</td>
+          <td class="text-muted" data-label="Tol. salida">{% if day.early_leave_tolerance_minutes %}±{{ day.early_leave_tolerance_minutes }}m{% else %}—{% endif %}</td>
         </tr>
         {% endfor %}
       </tbody>
@@ -71,7 +71,7 @@
   </div>
 
   {% if assignments %}
-  <div class="table-wrap">
+  <div class="table-wrap" data-mobile-cards>
     <table class="table">
       <thead>
         <tr>
@@ -84,15 +84,15 @@
       <tbody>
         {% for a in assignments %}
         <tr>
-          <td>
+          <td data-label="Empleado">
             <div class="employee-cell">
               <span class="avatar">{{ a.employee_name[:2].upper() if a.employee_name else '??' }}</span>
               {{ a.employee_name or '—' }}
             </div>
           </td>
-          <td class="text-muted">{{ a.effective_from }}</td>
-          <td class="text-muted">{{ a.effective_to or 'Sin fecha de fin' }}</td>
-          <td>
+          <td class="text-muted" data-label="Desde">{{ a.effective_from }}</td>
+          <td class="text-muted" data-label="Hasta">{{ a.effective_to or 'Sin fecha de fin' }}</td>
+          <td data-label="Acciones">
             <form method="post" action="/schedules/assignments/{{ a.id }}/remove"
                   data-confirm="¿Eliminar esta asignación?">
               <input type="hidden" name="schedule_id" value="{{ swd.schedule.id }}">

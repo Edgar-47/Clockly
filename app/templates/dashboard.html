@@ -155,7 +155,7 @@
   </div>
 
   {% if clocked_in_statuses %}
-  <div class="table-wrap">
+  <div class="table-wrap" data-mobile-cards>
     <table class="table">
       <thead>
         <tr>
@@ -167,16 +167,16 @@
       <tbody>
         {% for status in clocked_in_statuses %}
         <tr>
-          <td>
+          <td data-label="Empleado">
             <div class="employee-cell">
               <span class="avatar">{{ status.employee.initials }}</span>
               {{ status.employee.full_name }}
             </div>
           </td>
-          <td class="text-muted">
+          <td class="text-muted" data-label="Entrada">
             {{ format_timestamp(status.active_session.clock_in_time, "%H:%M") if status.active_session else "—" }}
           </td>
-          <td>
+          <td data-label="Tiempo">
             {% if status.active_session %}
               <span class="duration-live" data-since="{{ status.active_session.clock_in_time }}">—</span>
             {% else %}
@@ -208,7 +208,7 @@
   </div>
 
   {% if recent_sessions %}
-  <div class="table-wrap">
+  <div class="table-wrap" data-mobile-cards>
     <table class="table">
       <thead>
         <tr>
@@ -222,13 +222,13 @@
       <tbody>
         {% for session in recent_sessions %}
         <tr>
-          <td>{{ session.employee_name }}</td>
-          <td class="text-muted">{{ format_timestamp(session.clock_in_time, "%d/%m %H:%M") }}</td>
-          <td class="text-muted">
+          <td data-label="Empleado">{{ session.employee_name }}</td>
+          <td class="text-muted" data-label="Entrada">{{ format_timestamp(session.clock_in_time, "%d/%m %H:%M") }}</td>
+          <td class="text-muted" data-label="Salida">
             {{ format_timestamp(session.clock_out_time, "%d/%m %H:%M") if session.clock_out_time else "—" }}
           </td>
-          <td>{{ format_duration(session.counted_duration_seconds) }}</td>
-          <td>
+          <td data-label="Duración">{{ format_duration(session.counted_duration_seconds) }}</td>
+          <td data-label="Estado">
             {% if session.severity == "critical" %}
               <span class="badge badge--red">{{ session.incident_label }}</span>
             {% elif session.severity == "warning" %}

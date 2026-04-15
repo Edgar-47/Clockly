@@ -631,9 +631,33 @@
 }
 
 @media (max-width: 560px) {
-  .analytics-kpi-grid { grid-template-columns: repeat(2, 1fr); }
-  .analytics-period-btn { padding: 5px 10px; font-size: var(--text-xs); }
-  .analytics-custom-range { flex-wrap: wrap; }
+  .analytics-filter-disclosure {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-soft);
+    border-radius: 20px;
+    box-shadow: var(--shadow-xs);
+  }
+  .analytics-filter-disclosure .analytics-filter-bar { margin-bottom: 0; }
+  .analytics-kpi-grid { grid-template-columns: 1fr; }
+  .analytics-period-btn {
+    min-height: 38px;
+    padding: 0 12px;
+    font-size: var(--text-xs);
+  }
+  .analytics-custom-range,
+  .analytics-filter-bar__periods,
+  .analytics-employee-filter {
+    align-items: stretch;
+    width: 100%;
+  }
+  .analytics-custom-range {
+    flex-direction: column;
+  }
+  .analytics-custom-range .input,
+  .analytics-custom-range .btn,
+  .analytics-employee-filter .input {
+    width: 100%;
+  }
   .analytics-chart-wrap { height: 220px; padding: var(--space-3) var(--space-4) var(--space-4); }
 }
 
