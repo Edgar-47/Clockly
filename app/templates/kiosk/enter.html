@@ -3,48 +3,150 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Acceso Kiosk - Clockly</title>
+    <title>Selecciona tu Negocio — Clockly</title>
     <link rel="stylesheet" href="/static/css/main.css">
     <style>
+        /* ── Full-screen centred entry screen ── */
         body {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            margin: 0;
+            background:
+                radial-gradient(circle at 20% 10%, rgba(10, 132, 255, 0.10), transparent 36%),
+                radial-gradient(circle at 80% 90%, rgba(56, 189, 248, 0.09), transparent 30%),
+                linear-gradient(180deg, #F8FAFF 0%, var(--color-bg) 100%);
+        }
+
+        /* ── Top bar: clock + admin link ── */
+        .enter-topbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 var(--space-6);
+            z-index: 10;
+        }
+
+        .enter-topbar__brand {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            font-family: var(--font-display);
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--color-text-muted);
+            letter-spacing: -0.02em;
+        }
+
+        .enter-topbar__brand svg {
+            width: 18px;
+            height: 18px;
+            color: var(--color-primary);
+        }
+
+        .enter-topbar__clock {
+            font-family: var(--font-mono);
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--color-text-muted);
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            white-space: nowrap;
+        }
+
+        .enter-topbar__admin {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            font-size: var(--text-sm);
+            font-weight: 600;
+            color: var(--color-text-muted);
+            border: 1.5px solid var(--color-border-strong);
+            border-radius: var(--radius-full);
+            background: rgba(255, 255, 255, 0.65);
+            -webkit-backdrop-filter: blur(8px);
+            backdrop-filter: blur(8px);
+            transition: color var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
+            text-decoration: none;
+        }
+
+        .enter-topbar__admin svg {
+            width: 13px;
+            height: 13px;
+        }
+
+        .enter-topbar__admin:hover {
+            color: var(--color-primary);
+            border-color: var(--color-primary);
+            background: var(--color-primary-soft);
+        }
+
+        /* ── Main centred card ── */
+        .enter-wrapper {
+            flex: 1;
             display: flex;
             align-items: center;
             justify-content: center;
-            min-height: 100vh;
-            margin: 0;
-            background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
-            font-family: var(--font-sans);
+            padding: 80px var(--space-6) var(--space-6);
         }
 
-        .kiosk-card {
-            background: var(--color-surface);
+        .enter-card {
+            background: var(--color-surface-solid);
             border-radius: var(--radius-xl);
             box-shadow: var(--shadow-lg);
-            padding: var(--space-10);
+            padding: var(--space-10) var(--space-10) var(--space-8);
             width: 100%;
-            max-width: 500px;
-            text-align: center;
+            max-width: 440px;
+            position: relative;
         }
 
-        .kiosk-logo {
-            font-size: 48px;
-            margin-bottom: var(--space-4);
+        /* Brand */
+        .enter-card__brand {
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+            font-family: var(--font-display);
+            font-size: 1.35rem;
+            font-weight: 760;
+            letter-spacing: -0.03em;
+            color: var(--color-text);
+            margin-bottom: var(--space-8);
         }
 
-        .kiosk-title {
+        .enter-card__logo {
+            width: 32px;
+            height: 32px;
+            color: var(--color-primary);
+        }
+
+        .enter-card__heading {
+            font-family: var(--font-display);
             font-size: var(--text-2xl);
-            font-weight: 700;
+            font-weight: 760;
+            letter-spacing: -0.03em;
             color: var(--color-text);
             margin: 0 0 var(--space-2) 0;
         }
 
-        .kiosk-subtitle {
+        .enter-card__sub {
             font-size: var(--text-sm);
             color: var(--color-text-muted);
-            margin-bottom: var(--space-6);
+            margin: 0 0 var(--space-7) 0;
+            line-height: 1.55;
         }
 
-        .error-box {
+        /* Error box */
+        .enter-error {
+            display: flex;
+            align-items: flex-start;
+            gap: var(--space-3);
             background: var(--color-danger-bg);
             border: 1px solid var(--color-danger-border);
             color: var(--color-danger);
@@ -52,14 +154,22 @@
             border-radius: var(--radius);
             margin-bottom: var(--space-4);
             font-size: var(--text-sm);
+            line-height: 1.5;
         }
 
-        .form-group {
-            margin-bottom: var(--space-4);
-            text-align: left;
+        .enter-error svg {
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+            margin-top: 1px;
         }
 
-        .form-label {
+        /* Form */
+        .enter-form__group {
+            margin-bottom: var(--space-5);
+        }
+
+        .enter-form__label {
             display: block;
             font-size: var(--text-sm);
             font-weight: 600;
@@ -67,89 +177,151 @@
             margin-bottom: var(--space-2);
         }
 
-        .form-input {
+        .enter-form__input {
             width: 100%;
-            padding: var(--space-3) var(--space-4);
-            font-size: var(--text-base);
-            border: 1px solid var(--color-border);
+            padding: var(--space-4) var(--space-4);
+            font-size: var(--text-lg);
+            font-family: var(--font-mono);
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            border: 1.5px solid var(--color-border-strong);
             border-radius: var(--radius);
-            font-family: var(--font-sans);
+            background: var(--color-surface-solid);
+            color: var(--color-text);
+            transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
             box-sizing: border-box;
-            transition: border-color 0.2s, box-shadow 0.2s;
         }
 
-        .form-input:focus {
+        .enter-form__input:focus {
             outline: none;
             border-color: var(--color-primary);
-            box-shadow: 0 0 0 3px var(--color-primary-light);
+            box-shadow: 0 0 0 3px var(--color-primary-soft);
         }
 
-        .button-large {
+        .enter-form__input::placeholder {
+            color: var(--color-text-xmuted);
+            font-family: var(--font-sans);
+            font-weight: 400;
+            letter-spacing: 0;
+            text-transform: none;
+            font-size: var(--text-base);
+        }
+
+        .enter-form__submit {
             width: 100%;
             padding: var(--space-4) var(--space-6);
             font-size: var(--text-base);
-            font-weight: 600;
+            font-weight: 640;
             border: none;
             border-radius: var(--radius);
-            cursor: pointer;
-            transition: background-color 0.2s, transform 0.1s;
-        }
-
-        .button-primary {
             background: var(--color-primary);
-            color: white;
+            color: #fff;
+            cursor: pointer;
+            transition: background var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
+            letter-spacing: -0.01em;
         }
 
-        .button-primary:hover {
+        .enter-form__submit:hover {
             background: var(--color-primary-dark);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-sm);
         }
 
-        .button-primary:active {
-            transform: scale(0.98);
+        .enter-form__submit:active {
+            transform: translateY(0);
         }
 
-        .help-text {
-            font-size: var(--text-xs);
-            color: var(--color-text-muted);
+        /* Help text */
+        .enter-help {
             margin-top: var(--space-6);
+            padding-top: var(--space-5);
+            border-top: 1px solid var(--color-border);
+            font-size: var(--text-xs);
+            color: var(--color-text-xmuted);
+            text-align: center;
+            line-height: 1.6;
         }
     </style>
 </head>
 <body>
-    <div class="kiosk-card">
-        <div class="kiosk-logo">⏱️</div>
-        <h1 class="kiosk-title">Bienvenido</h1>
-        <p class="kiosk-subtitle">Sistema de Fichaje por Kiosk</p>
 
-        {% if error %}
-        <div class="error-box">
-            {{ error }}
+    <!-- Top bar: brand | clock (centre) | admin link -->
+    <div class="enter-topbar">
+        <div class="enter-topbar__brand">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+            </svg>
+            Clockly
         </div>
-        {% endif %}
 
-        <form method="post">
-            <div class="form-group">
-                <label class="form-label" for="login_code">Código de Negocio</label>
-                <input
-                    type="text"
-                    id="login_code"
-                    name="login_code"
-                    class="form-input"
-                    placeholder="Ej: ABC123"
-                    autocomplete="off"
-                    required
-                    autofocus
-                >
+        <div id="live-clock" class="enter-topbar__clock">--:--:--</div>
+
+        <a href="/login" class="enter-topbar__admin">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            Admin
+        </a>
+    </div>
+
+    <!-- Business selector card -->
+    <div class="enter-wrapper">
+        <div class="enter-card">
+            <div class="enter-card__brand">
+                <svg class="enter-card__logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <polyline points="12 6 12 12 16 14"/>
+                </svg>
+                Clockly
             </div>
 
-            <button type="submit" class="button-large button-primary">
-                Acceder
-            </button>
-        </form>
+            <h1 class="enter-card__heading">¿Cuál es tu negocio?</h1>
+            <p class="enter-card__sub">
+                Introduce el código de acceso de tu negocio para acceder al sistema de fichaje.
+            </p>
 
-        <p class="help-text">
-            Solicita el código de acceso a tu administrador si no lo tienes.
-        </p>
+            {% if error %}
+            <div class="enter-error" role="alert">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <span>{{ error }}</span>
+            </div>
+            {% endif %}
+
+            <form method="post" action="/kiosk/enter">
+                <div class="enter-form__group">
+                    <label class="enter-form__label" for="login_code">Código de Negocio</label>
+                    <input
+                        type="text"
+                        id="login_code"
+                        name="login_code"
+                        class="enter-form__input"
+                        placeholder="Ej: REST-ABC123"
+                        value="{{ login_code or '' }}"
+                        autocomplete="off"
+                        autocorrect="off"
+                        spellcheck="false"
+                        required
+                        autofocus
+                    >
+                </div>
+
+                <button type="submit" class="enter-form__submit">
+                    Acceder al Kiosk
+                </button>
+            </form>
+
+            <p class="enter-help">
+                ¿No tienes el código? Solicítalo a tu administrador.<br>
+                Si eres administrador, accede desde el enlace <strong>Admin</strong> en la esquina superior derecha.
+            </p>
+        </div>
     </div>
 
     <script src="/static/js/main.js"></script>

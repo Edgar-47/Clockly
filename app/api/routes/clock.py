@@ -18,7 +18,7 @@ to allow a clean tablet experience.
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from app.api.dependencies import flash, require_admin, template_context
+from app.api.dependencies import flash, require_active_business, require_admin, template_context
 from app.core.flow_debug import flow_log, form_keys
 from app.core.templates import templates
 from app.models.employee import Employee
@@ -33,12 +33,13 @@ router = APIRouter(prefix="/clock", tags=["clock"])
 async def kiosk_view(
     request: Request,
     current_user: Employee = Depends(require_admin),
+    business_id: str = Depends(require_active_business),
 ):
     """
     Kiosk display: all active (clockable) employees with their live status.
     """
-    clock_service = TimeClockService()
-    employee_service = EmployeeService()
+    clock_service = TimeClockService(business_id=business_id)
+    employee_service = EmployeeService(business_id=business_id)
 
     # Only show employees with role="employee" (not admins) in the kiosk
     employees = employee_service.list_clockable_employees()
@@ -53,6 +54,7 @@ async def kiosk_view(
 async def clock_punch(
     request: Request,
     current_user: Employee = Depends(require_admin),
+    business_id: str = Depends(require_active_business),
 ):
     """
     Process a clock punch (in or out) for an employee.
@@ -96,7 +98,7 @@ async def clock_punch(
         return RedirectResponse("/clock/kiosk", status_code=303)
 
     # Register the punch
-    clock_service = TimeClockService()
+    clock_service = TimeClockService(business_id=business_id)
     try:
         clock_service.register(
             employee_id=employee_id,

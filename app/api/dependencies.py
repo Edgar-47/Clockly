@@ -5,14 +5,16 @@ FastAPI dependency injection helpers shared across all routes.
 
 Auth strategy summary:
   - SessionMiddleware stores a signed cookie (server-side data via itsdangerous).
-  - require_user()       → any authenticated user (admin or employee)
-  - require_admin()      → admin role only
-  - Both raise RequiresLoginException on missing/invalid session; the global
-    exception handler in main.py converts that to a 302 redirect to /login.
+  - require_user()            → any authenticated user (admin or employee)
+  - require_admin()           → admin role only
+  - require_active_business() → admin + an active business must be selected
+  - Both raise exception types handled by the global exception handler in main.py.
 
-Future extension: when adding a REST API or mobile app, add a separate
-  require_api_user() dependency that validates a Bearer JWT instead of the
-  session cookie, without modifying these web-layer dependencies.
+Session keys (admin):
+  user_id            (int)  — canonical user PK
+  user_name          (str)  — display name
+  user_role          (str)  — "admin" | "employee"
+  active_business_id (str)  — currently selected business UUID
 """
 
 from fastapi import Request
@@ -23,7 +25,7 @@ from app.models.employee import Employee
 
 
 # ---------------------------------------------------------------------------
-# Custom exception – caught by the exception handler in main.py
+# Custom exceptions – caught by the exception handler in main.py
 # ---------------------------------------------------------------------------
 
 class RequiresLoginException(Exception):
@@ -36,6 +38,10 @@ class RequiresAdminException(Exception):
 
 class RequiresKioskException(Exception):
     """Raised when a kiosk route is accessed without kiosk_business_id in session."""
+
+
+class RequiresOnboardingException(Exception):
+    """Raised when an admin has no businesses yet and must complete onboarding."""
 
 
 # ---------------------------------------------------------------------------
@@ -136,7 +142,64 @@ def template_context(request: Request) -> dict:
         "current_user_id": request.session.get("user_id"),
         "current_user_name": request.session.get("user_name"),
         "current_user_role": request.session.get("user_role"),
+        # Active business is surfaced to every template for the sidebar/header
+        "active_business_id": request.session.get("active_business_id"),
     }
+
+
+# ---------------------------------------------------------------------------
+# Business context helpers (admin panel)
+# ---------------------------------------------------------------------------
+
+def get_active_business_id(request: Request) -> str | None:
+    """Return the admin's currently selected business ID from session, or None."""
+    return request.session.get("active_business_id") or None
+
+
+def set_active_business_id(request: Request, business_id: str) -> None:
+    """Persist the admin's active business selection in the session."""
+    request.session["active_business_id"] = business_id
+
+
+def require_active_business(request: Request) -> str:
+    """
+    Dependency: ensure an admin is logged in AND has selected a business.
+
+    On first login the `active_business_id` key may be absent even though the
+    admin already owns businesses — BusinessService.choose_default_business()
+    is called lazily here so every route that uses this dependency stays clean.
+
+    Raises RequiresLoginException   → redirect to /login
+    Raises RequiresAdminException   → redirect to role home
+    Raises RequiresOnboardingException → redirect to /businesses/new
+    Returns business_id (str)
+    """
+    # Must be an authenticated admin first
+    employee = require_admin(request)
+
+    business_id = get_active_business_id(request)
+    if business_id:
+        return business_id
+
+    # Lazy default: pick the most recently accessed business
+    from app.services.business_service import BusinessService
+    svc = BusinessService()
+    if svc.requires_onboarding(employee.id):
+        flow_log("business.onboarding_required", user_id=employee.id)
+        raise RequiresOnboardingException()
+
+    business = svc.choose_default_business(employee.id)
+    if business is None:
+        raise RequiresOnboardingException()
+
+    set_active_business_id(request, business.id)
+    flow_log(
+        "business.default_selected",
+        user_id=employee.id,
+        business_id=business.id,
+        business_name=business.business_name,
+    )
+    return business.id
 
 
 # ---------------------------------------------------------------------------

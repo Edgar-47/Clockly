@@ -1,8 +1,8 @@
 {% extends "kiosk/base.html" %}
 
-{% block title %}Iniciar Sesión - Kiosk{% endblock %}
+{% block title %}Iniciar Sesión — {% if business %}{{ business.business_name }}{% else %}Kiosk{% endif %}{% endblock %}
 
-{% block header_title %}Iniciar Sesión - Empleado{% endblock %}
+{% block header_title %}{% if business %}{{ business.business_name }}{% else %}Kiosk{% endif %}{% endblock %}
 
 {% block content %}
 <style>

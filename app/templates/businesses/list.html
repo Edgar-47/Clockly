@@ -1,0 +1,265 @@
+{% extends "base.html" %}
+
+{% block title %}Mis negocios{% endblock %}
+{% block page_title %}Negocios{% endblock %}
+
+{% block topbar_actions %}
+<a href="/businesses/new" class="btn btn--primary">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+  </svg>
+  Nuevo negocio
+</a>
+{% endblock %}
+
+{% block content %}
+
+{% if not businesses %}
+<div class="empty-state">
+  <div class="empty-state__icon">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+      <polyline points="9 22 9 12 15 12 15 22"/>
+    </svg>
+  </div>
+  <h3 class="empty-state__title">Sin negocios aún</h3>
+  <p class="empty-state__text">Crea tu primer negocio para empezar a gestionar empleados y fichajes.</p>
+  <a href="/businesses/new" class="btn btn--primary">Crear negocio</a>
+</div>
+{% else %}
+
+<div class="biz-grid">
+  {% for biz in businesses %}
+  <div class="biz-card {% if biz.id == active_business_id %}biz-card--active{% endif %}">
+    <div class="biz-card__header">
+      <div class="biz-card__icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+          <polyline points="9 22 9 12 15 12 15 22"/>
+        </svg>
+      </div>
+      <div class="biz-card__meta">
+        <h3 class="biz-card__name">{{ biz.business_name }}</h3>
+        <span class="biz-card__type">{{ biz.business_type }}</span>
+      </div>
+      {% if biz.id == active_business_id %}
+      <span class="badge badge--active">Activo</span>
+      {% endif %}
+    </div>
+
+    <div class="biz-card__code">
+      <span class="biz-card__code-label">Código kiosk:</span>
+      <code class="biz-card__code-value">{{ biz.login_code }}</code>
+    </div>
+
+    <div class="biz-card__actions">
+      {% if biz.id != active_business_id %}
+      <form method="POST" action="/businesses/select">
+        <input type="hidden" name="business_id" value="{{ biz.id }}">
+        <input type="hidden" name="next" value="/dashboard">
+        <button type="submit" class="btn btn--primary btn--sm">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
+          Seleccionar
+        </button>
+      </form>
+      {% else %}
+      <a href="/dashboard" class="btn btn--ghost btn--sm">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+          <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+        </svg>
+        Ir al dashboard
+      </a>
+      {% endif %}
+      <a href="/businesses/{{ biz.id }}/settings" class="btn btn--ghost btn--sm" title="Configuración">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+        Configurar
+      </a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{% endif %}
+
+<style>
+.biz-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.biz-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  transition: box-shadow 0.15s, border-color 0.15s;
+}
+
+.biz-card:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+}
+
+.biz-card--active {
+  border-color: var(--color-primary-dark);
+  background: linear-gradient(135deg, rgba(10,132,255,0.04), var(--color-surface));
+}
+
+.biz-card__header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.biz-card__icon {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  background: var(--color-surface-raised);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-border);
+}
+
+.biz-card__icon svg {
+  width: 20px;
+  height: 20px;
+  color: var(--color-text-muted);
+}
+
+.biz-card--active .biz-card__icon {
+  background: rgba(10,132,255,0.08);
+  border-color: rgba(10,132,255,0.2);
+}
+
+.biz-card--active .biz-card__icon svg {
+  color: var(--color-primary-dark);
+}
+
+.biz-card__meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.biz-card__name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text);
+  margin: 0 0 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.biz-card__type {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  text-transform: capitalize;
+}
+
+.badge--active {
+  flex-shrink: 0;
+  padding: 3px 8px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  background: rgba(10,132,255,0.1);
+  color: var(--color-primary-dark);
+  border: 1px solid rgba(10,132,255,0.2);
+}
+
+.biz-card__code {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--color-surface-raised);
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+}
+
+.biz-card__code-label {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.biz-card__code-value {
+  font-family: var(--font-mono, 'SF Mono', monospace);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+  letter-spacing: 0.04em;
+}
+
+.biz-card__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.btn--sm {
+  padding: 6px 12px;
+  font-size: 13px;
+  gap: 5px;
+}
+
+.btn--sm svg {
+  width: 14px;
+  height: 14px;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 80px 24px;
+  gap: 16px;
+}
+
+.empty-state__icon {
+  width: 64px;
+  height: 64px;
+  background: var(--color-surface-raised);
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-border);
+}
+
+.empty-state__icon svg {
+  width: 32px;
+  height: 32px;
+  color: var(--color-text-muted);
+}
+
+.empty-state__title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.empty-state__text {
+  color: var(--color-text-muted);
+  font-size: 14px;
+  max-width: 340px;
+  margin: 0;
+}
+</style>
+
+{% endblock %}

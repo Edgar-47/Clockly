@@ -39,8 +39,9 @@ from app.api.dependencies import (
     RequiresAdminException,
     RequiresLoginException,
     RequiresKioskException,
+    RequiresOnboardingException,
 )
-from app.api.routes import auth, clock, dashboard, employees, kiosk, me, sessions
+from app.api.routes import auth, businesses, clock, dashboard, employees, kiosk, me, sessions
 from app.api.routes import analytics, schedules
 from app.database.schema import initialize_database
 
@@ -133,12 +134,20 @@ async def requires_kiosk_handler(request: Request, exc: RequiresKioskException):
     return RedirectResponse("/kiosk/enter", status_code=302)
 
 
+@app.exception_handler(RequiresOnboardingException)
+async def requires_onboarding_handler(request: Request, exc: RequiresOnboardingException):
+    """Redirect admins with no businesses to the onboarding / business creation screen."""
+    flow_log("onboarding.redirect", path=request.url.path)
+    return RedirectResponse("/businesses/new", status_code=302)
+
+
 # ---------------------------------------------------------------------------
 # Routers
 # ---------------------------------------------------------------------------
 
 app.include_router(auth.router)
 app.include_router(kiosk.router)
+app.include_router(businesses.router)
 app.include_router(dashboard.router)
 app.include_router(employees.router)
 app.include_router(clock.router)
@@ -155,7 +164,9 @@ app.include_router(schedules.router)
 @app.get("/")
 async def root(request: Request):
     if not request.session.get("user_id"):
-        return RedirectResponse("/login", status_code=302)
+        # Kiosk is the primary entry point; send unauthenticated visitors to
+        # the business-selection screen rather than the admin login page.
+        return RedirectResponse("/kiosk/enter", status_code=302)
     return RedirectResponse(
         home_path_for_role(request.session.get("user_role")),
         status_code=302,

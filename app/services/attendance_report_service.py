@@ -92,9 +92,12 @@ class AttendanceReportService:
     def __init__(
         self,
         attendance_session_repository: AttendanceSessionRepository | None = None,
+        *,
+        business_id: str | None = None,
     ) -> None:
         self.attendance_session_repository = (
-            attendance_session_repository or AttendanceSessionRepository()
+            attendance_session_repository
+            or AttendanceSessionRepository(business_id=business_id)
         )
 
     def get_current_period_summaries(

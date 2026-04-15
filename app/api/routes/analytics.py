@@ -12,7 +12,7 @@ from datetime import date, timedelta
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import HTMLResponse
 
-from app.api.dependencies import require_admin, template_context
+from app.api.dependencies import require_active_business, require_admin, template_context
 from app.core.templates import templates
 from app.models.employee import Employee
 from app.services.analytics_service import (
@@ -30,6 +30,7 @@ router = APIRouter(tags=["analytics"])
 async def analytics_dashboard(
     request: Request,
     current_user: Employee = Depends(require_admin),
+    business_id: str = Depends(require_active_business),
     period: str = Query("month", pattern="^(today|week|month|custom)$"),
     date_from: str | None = Query(None),
     date_to: str | None = Query(None),
@@ -64,7 +65,7 @@ async def analytics_dashboard(
         end = today
 
     # ── Employee filter ───────────────────────────────────────────
-    employee_service = EmployeeService()
+    employee_service = EmployeeService(business_id=business_id)
     all_employees = employee_service.list_employees()
     active_employees = [e for e in all_employees if e.active and e.role == "employee"]
     filtered_employee = next((e for e in all_employees if e.id == employee_id), None)
@@ -75,8 +76,8 @@ async def analytics_dashboard(
     else:
         user_ids = [e.id for e in active_employees]
 
-    analytics = AnalyticsService()
-    schedule_service = WorkScheduleService()
+    analytics = AnalyticsService(business_id=business_id)
+    schedule_service = WorkScheduleService(business_id=business_id)
 
     # ── Worker rankings ───────────────────────────────────────────
     rankings = analytics.get_worker_rankings(

@@ -3,8 +3,195 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Iniciar sesión — Clockly</title>
+  <title>Acceso Administrador — Clockly</title>
   <link rel="stylesheet" href="/static/css/main.css">
+  <style>
+    /* ── Admin login page — full-screen centred card ── */
+    body.login-page {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: var(--space-6);
+    }
+
+    .login-card {
+      width: 100%;
+      max-width: 420px;
+      border-radius: var(--radius-xl);
+      padding: var(--space-10) var(--space-10) var(--space-8);
+    }
+
+    /* Brand row */
+    .login-card__brand {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      font-family: var(--font-display);
+      font-size: 1.35rem;
+      font-weight: 760;
+      letter-spacing: -0.03em;
+      color: var(--color-text);
+      margin-bottom: var(--space-8);
+    }
+
+    .login-card__logo {
+      width: 28px;
+      height: 28px;
+      color: var(--color-primary);
+    }
+
+    /* Admin badge */
+    .login-card__badge {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-1);
+      padding: 3px 10px;
+      border-radius: var(--radius-full);
+      background: var(--color-primary-soft);
+      color: var(--color-primary);
+      font-size: var(--text-xs);
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin-bottom: var(--space-4);
+    }
+
+    .login-card__heading {
+      font-family: var(--font-display);
+      font-size: var(--text-2xl);
+      font-weight: 760;
+      letter-spacing: -0.03em;
+      color: var(--color-text);
+      margin: 0 0 var(--space-2) 0;
+    }
+
+    .login-card__sub {
+      font-size: var(--text-sm);
+      color: var(--color-text-muted);
+      margin: 0 0 var(--space-6) 0;
+      line-height: 1.5;
+    }
+
+    /* Alert */
+    .alert {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--space-3);
+      padding: var(--space-4);
+      border-radius: var(--radius);
+      margin-bottom: var(--space-4);
+      font-size: var(--text-sm);
+      line-height: 1.5;
+    }
+
+    .alert svg {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .alert--error {
+      background: var(--color-danger-bg);
+      border: 1px solid var(--color-danger-border);
+      color: var(--color-danger);
+    }
+
+    /* Form */
+    .form__group {
+      margin-bottom: var(--space-4);
+    }
+
+    .form__label {
+      display: block;
+      font-size: var(--text-sm);
+      font-weight: 600;
+      color: var(--color-text);
+      margin-bottom: var(--space-2);
+    }
+
+    .form__input {
+      width: 100%;
+      padding: var(--space-3) var(--space-4);
+      font-size: var(--text-base);
+      border: 1.5px solid var(--color-border-strong);
+      border-radius: var(--radius);
+      background: var(--color-surface-solid);
+      color: var(--color-text);
+      transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+      box-sizing: border-box;
+    }
+
+    .form__input:focus {
+      outline: none;
+      border-color: var(--color-primary);
+      box-shadow: 0 0 0 3px var(--color-primary-soft);
+    }
+
+    .form__input::placeholder {
+      color: var(--color-text-xmuted);
+    }
+
+    /* Submit button */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-2);
+      padding: var(--space-3) var(--space-6);
+      font-size: var(--text-base);
+      font-weight: 640;
+      border: none;
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: background var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
+      text-decoration: none;
+      letter-spacing: -0.01em;
+    }
+
+    .btn--primary {
+      background: var(--color-primary);
+      color: #fff;
+    }
+
+    .btn--primary:hover {
+      background: var(--color-primary-dark);
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .btn--primary:active {
+      transform: translateY(0);
+    }
+
+    .btn--full {
+      width: 100%;
+    }
+
+    /* Back link */
+    .login-back {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-2);
+      margin-top: var(--space-6);
+      font-size: var(--text-sm);
+      color: var(--color-text-muted);
+      text-decoration: none;
+      transition: color var(--transition-fast);
+    }
+
+    .login-back:hover {
+      color: var(--color-primary);
+    }
+
+    .login-back svg {
+      width: 14px;
+      height: 14px;
+    }
+  </style>
 </head>
 <body class="login-page">
 
@@ -17,8 +204,16 @@
       <span>Clockly</span>
     </div>
 
-    <h2 class="login-card__heading">Acceso al panel</h2>
-    <p class="login-card__sub">Introduce tus credenciales para continuar.</p>
+    <div class="login-card__badge">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+      </svg>
+      Administrador
+    </div>
+
+    <h2 class="login-card__heading">Acceso al Panel</h2>
+    <p class="login-card__sub">Introduce tus credenciales de administrador para continuar.</p>
 
     {% if error %}
     <div class="alert alert--error" role="alert">
@@ -27,7 +222,7 @@
         <line x1="12" y1="8" x2="12" y2="12"/>
         <line x1="12" y1="16" x2="12.01" y2="16"/>
       </svg>
-      {{ error }}
+      <span>{{ error }}</span>
     </div>
     {% endif %}
 
@@ -43,6 +238,7 @@
           placeholder="Tu DNI o nombre de usuario"
           required
           autofocus
+          autocomplete="username"
         >
       </div>
 
@@ -55,14 +251,23 @@
           name="password"
           placeholder="Tu contraseña"
           required
+          autocomplete="current-password"
         >
       </div>
 
       <button type="submit" class="btn btn--primary btn--full">
-        Entrar
+        Entrar al Panel
       </button>
     </form>
+
+    <a href="/kiosk" class="login-back">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="15 18 9 12 15 6"/>
+      </svg>
+      Volver al Kiosk
+    </a>
   </div>
 
+  <script src="/static/js/main.js"></script>
 </body>
 </html>

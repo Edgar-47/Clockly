@@ -130,6 +130,7 @@ class BusinessRepository:
         return Business.from_row(row) if row else None
 
     def get_by_login_code(self, login_code: str) -> Business | None:
+        """Return the business for this login code only if it is active."""
         with get_connection() as connection:
             row = connection.execute(
                 f"""
@@ -137,6 +138,22 @@ class BusinessRepository:
                 FROM businesses
                 WHERE LOWER(login_code) = LOWER(%s)
                   AND is_active IS TRUE
+                LIMIT 1
+                """,
+                (login_code,),
+            ).fetchone()
+        return Business.from_row(row) if row else None
+
+    def get_by_login_code_any_status(self, login_code: str) -> Business | None:
+        """Return the business for this login code regardless of active status.
+        Used to distinguish 'code not found' from 'business inactive' in the
+        kiosk entry flow so we can show a more helpful error message."""
+        with get_connection() as connection:
+            row = connection.execute(
+                f"""
+                SELECT {self._SELECT_COLUMNS}
+                FROM businesses
+                WHERE LOWER(login_code) = LOWER(%s)
                 LIMIT 1
                 """,
                 (login_code,),

@@ -23,7 +23,8 @@
       "Bash(pip --version)",
       "Bash(docker --version)",
       "Bash(pip show:*)",
-      "Bash(python -c \"from app.api.routes.employees import router\")"
+      "Bash(python -c \"from app.api.routes.employees import router\")",
+      "Bash(python -c ' *)"
     ],
     "additionalDirectories": [
       "c:\\Users\\epedr\\OneDrive\\App_Fichaje\\app",

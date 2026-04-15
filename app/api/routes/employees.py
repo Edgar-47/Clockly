@@ -15,8 +15,9 @@ from datetime import date
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from app.api.dependencies import flash, require_admin, template_context
+from app.api.dependencies import flash, require_active_business, require_admin, template_context
 from app.core.templates import templates
+from app.database.business_repository import BusinessRepository
 from app.database.employee_profile_repository import EmployeeProfileRepository
 from app.models.employee import Employee
 from app.models.employee_profile import CONTRACT_TYPE_CHOICES
@@ -30,9 +31,9 @@ router = APIRouter(prefix="/employees", tags=["employees"])
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _load_schedule_context() -> dict:
+def _load_schedule_context(business_id: str | None = None) -> dict:
     """Returns active schedules for the schedule-assignment dropdown."""
-    svc = WorkScheduleService()
+    svc = WorkScheduleService(business_id=business_id)
     return {
         "active_schedules": svc.list_active_schedules(),
         "contract_type_choices": CONTRACT_TYPE_CHOICES,
@@ -89,9 +90,10 @@ def _maybe_assign_schedule(
 async def employee_list(
     request: Request,
     current_user: Employee = Depends(require_admin),
+    business_id: str = Depends(require_active_business),
 ):
-    emp_service = EmployeeService()
-    sched_service = WorkScheduleService()
+    emp_service = EmployeeService(business_id=business_id)
+    sched_service = WorkScheduleService(business_id=business_id)
     employees = emp_service.list_employees()
 
     # Build a quick map user_id → current schedule assignment (name + type)
@@ -122,10 +124,11 @@ async def employee_list(
 async def employee_new_form(
     request: Request,
     current_user: Employee = Depends(require_admin),
+    business_id: str = Depends(require_active_business),
 ):
     ctx = template_context(request)
     ctx["form"] = {}
-    ctx.update(_load_schedule_context())
+    ctx.update(_load_schedule_context(business_id))
     return templates.TemplateResponse(request, "employees/create.html", ctx)
 
 
@@ -133,6 +136,7 @@ async def employee_new_form(
 async def employee_create(
     request: Request,
     current_user: Employee = Depends(require_admin),
+    business_id: str = Depends(require_active_business),
 ):
     form_data = await request.form()
     data = {
@@ -145,8 +149,19 @@ async def employee_create(
     profile_fields = _parse_profile_fields(form_data)
 
     try:
-        emp_service = EmployeeService()
+        emp_service = EmployeeService(business_id=business_id)
         user_id = emp_service.create_employee(**data)
+
+        # Add the new employee to this business automatically
+        try:
+            BusinessRepository().add_member(
+                business_id=business_id,
+                user_id=user_id,
+                member_role="employee",
+                is_default=True,
+            )
+        except Exception:
+            pass
 
         # Save HR profile (non-blocking — silently skip on error)
         try:
@@ -166,7 +181,7 @@ async def employee_create(
         ctx = template_context(request)
         ctx["error"] = str(exc)
         ctx["form"] = {**data, **profile_fields}
-        ctx.update(_load_schedule_context())
+        ctx.update(_load_schedule_context(business_id))
         return templates.TemplateResponse(request, "employees/create.html", ctx, status_code=400)
 
 
@@ -179,6 +194,7 @@ async def employee_edit_form(
     employee_id: int,
     request: Request,
     current_user: Employee = Depends(require_admin),
+    business_id: str = Depends(require_active_business),
 ):
     emp_service = EmployeeService()
     sched_service = WorkScheduleService()
@@ -212,6 +228,7 @@ async def employee_update(
     employee_id: int,
     request: Request,
     current_user: Employee = Depends(require_admin),
+    business_id: str = Depends(require_active_business),
 ):
     form_data = await request.form()
     data = {
@@ -275,6 +292,7 @@ async def employee_toggle(
     employee_id: int,
     request: Request,
     current_user: Employee = Depends(require_admin),
+    business_id: str = Depends(require_active_business),
 ):
     try:
         service = EmployeeService()
@@ -295,6 +313,7 @@ async def employee_reset_password(
     employee_id: int,
     request: Request,
     current_user: Employee = Depends(require_admin),
+    business_id: str = Depends(require_active_business),
 ):
     try:
         service = EmployeeService()
@@ -318,6 +337,7 @@ async def employee_set_password(
     employee_id: int,
     request: Request,
     current_user: Employee = Depends(require_admin),
+    business_id: str = Depends(require_active_business),
 ):
     form_data = await request.form()
     new_password = str(form_data.get("new_password", ""))
@@ -340,6 +360,7 @@ async def employee_remove_schedule(
     assignment_id: int,
     request: Request,
     current_user: Employee = Depends(require_admin),
+    business_id: str = Depends(require_active_business),
 ):
     try:
         svc = WorkScheduleService()

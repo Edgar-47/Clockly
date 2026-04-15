@@ -67,14 +67,22 @@ async def kiosk_enter_submit(request: Request):
         ctx["error"] = "Por favor ingrese un código de negocio."
         return templates.TemplateResponse(request, "kiosk/enter.html", ctx, status_code=400)
 
-    # Validate business code
+    # Validate business code — active businesses only
     business_repo = BusinessRepository()
     business = business_repo.get_by_login_code(login_code)
 
     if not business:
         flow_log("kiosk.enter.invalid_code", code=login_code)
+        # Distinguish "inactive business" from "code never existed" for a
+        # more actionable error message.
+        any_business = business_repo.get_by_login_code_any_status(login_code)
+        if any_business and not any_business.is_active:
+            error = "Este negocio está inactivo. Contacta con tu administrador."
+        else:
+            error = "Código de negocio no encontrado. Verifica el código e inténtalo de nuevo."
         ctx = template_context(request)
-        ctx["error"] = "Código de negocio inválido."
+        ctx["error"] = error
+        ctx["login_code"] = login_code
         return templates.TemplateResponse(request, "kiosk/enter.html", ctx, status_code=400)
 
     # Start kiosk mode: save business_id in session
@@ -216,6 +224,9 @@ async def kiosk_employee_view(
     """Display employee personal kiosk view: status, punch button, colleague list."""
     employee, business_id = auth
 
+    business_repo = BusinessRepository()
+    business = business_repo.get_by_id(business_id)
+
     # Load employee's current status
     clock_service = TimeClockService(business_id=business_id)
     status = clock_service.get_attendance_status(employee)
@@ -234,6 +245,7 @@ async def kiosk_employee_view(
 
     ctx = template_context(request)
     ctx.update({
+        "business": business,
         "employee": employee,
         "status": status,
         "colleague_statuses": colleague_statuses,

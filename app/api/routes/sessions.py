@@ -12,7 +12,7 @@ from datetime import date, timedelta
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 
-from app.api.dependencies import flash, require_admin, template_context
+from app.api.dependencies import flash, require_active_business, require_admin, template_context
 from app.core.flow_debug import flow_log
 from app.core.templates import templates
 from app.models.employee import Employee
@@ -43,6 +43,7 @@ def _default_date_to() -> str:
 async def session_list(
     request: Request,
     current_user: Employee = Depends(require_admin),
+    business_id: str = Depends(require_active_business),
     date_from: str | None = None,
     date_to: str | None = None,
     employee_id: str | None = None,
@@ -57,8 +58,8 @@ async def session_list(
       - Status: all | active | closed
       - Incident filter: all | incidents | previous_open | excess_8 | ...
     """
-    report_service = AttendanceReportService()
-    employee_service = EmployeeService()
+    report_service = AttendanceReportService(business_id=business_id)
+    employee_service = EmployeeService(business_id=business_id)
 
     flow_log("frontend.sessions.query", query=dict(request.query_params))
 
@@ -137,12 +138,13 @@ async def session_admin_close(
     session_id: int,
     request: Request,
     current_user: Employee = Depends(require_admin),
+    business_id: str = Depends(require_active_business),
 ):
     """Close an active session from the admin panel. Requires a reason."""
     form_data = await request.form()
     reason = str(form_data.get("reason", "")).strip()
     try:
-        clock_service = TimeClockService()
+        clock_service = TimeClockService(business_id=business_id)
         clock_service.admin_close_session(
             session_id,
             reason=reason,
@@ -165,6 +167,7 @@ async def session_admin_close(
 async def export_excel(
     request: Request,
     current_user: Employee = Depends(require_admin),
+    business_id: str = Depends(require_active_business),
     date_from: str | None = None,
     date_to: str | None = None,
     employee_id: str | None = None,
@@ -191,7 +194,7 @@ async def export_excel(
         return RedirectResponse("/sessions", status_code=303)
 
     try:
-        export_service = ExportService()
+        export_service = ExportService(business_id=business_id)
         path = export_service.export_sessions_to_excel(
             date_from=effective_date_from,
             date_to=effective_date_to,
@@ -213,6 +216,7 @@ async def export_excel(
 async def export_pdf(
     request: Request,
     current_user: Employee = Depends(require_admin),
+    business_id: str = Depends(require_active_business),
     date_from: str | None = None,
     date_to: str | None = None,
     employee_id: str | None = None,
@@ -239,7 +243,7 @@ async def export_pdf(
         return RedirectResponse("/sessions", status_code=303)
 
     try:
-        export_service = ExportService()
+        export_service = ExportService(business_id=business_id)
         path = export_service.export_sessions_to_pdf(
             date_from=effective_date_from,
             date_to=effective_date_to,

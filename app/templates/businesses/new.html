@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% block title %}{% if is_onboarding %}Bienvenido a Clockly{% else %}Nuevo negocio{% endif %}{% endblock %}
+
+{% block page_title %}{% if is_onboarding %}Configura tu negocio{% else %}Nuevo negocio{% endif %}{% endblock %}
+
+{% block content %}
+<div class="onboarding-wrap">
+
+  {% if is_onboarding %}
+  <div class="onboarding-hero">
+    <div class="onboarding-hero__icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <circle cx="12" cy="12" r="10"/>
+        <polyline points="12 6 12 12 16 14"/>
+      </svg>
+    </div>
+    <h2 class="onboarding-hero__title">Bienvenido a Clockly</h2>
+    <p class="onboarding-hero__subtitle">
+      Para empezar, crea tu primer espacio de trabajo. Podrás añadir empleados y
+      empezar a gestionar fichajes en segundos.
+    </p>
+  </div>
+  {% endif %}
+
+  <div class="card card--form">
+    <div class="card__header">
+      <h3 class="card__title">
+        {% if is_onboarding %}Tu negocio{% else %}Datos del negocio{% endif %}
+      </h3>
+    </div>
+
+    {% if error %}
+    <div class="alert alert--error" role="alert">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      {{ error }}
+    </div>
+    {% endif %}
+
+    <form method="POST" action="/businesses/new" class="form">
+      <div class="form-group">
+        <label class="form-label" for="business_name">Nombre del negocio <span class="required">*</span></label>
+        <input id="business_name" name="business_name" type="text" class="form-input"
+               value="{{ form.business_name or '' }}" placeholder="Ej: Restaurante El Rincón" required autofocus>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="business_type">Tipo de negocio</label>
+        <select id="business_type" name="business_type" class="form-input form-select">
+          {% for opt in business_type_choices %}
+          <option value="{{ opt.value }}" {% if form.business_type == opt.value %}selected{% endif %}>
+            {{ opt.label }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="login_code">
+          Código de acceso para empleados
+          <span class="form-hint">Los empleados lo usarán en el kiosk. Déjalo vacío para generar uno automáticamente.</span>
+        </label>
+        <input id="login_code" name="login_code" type="text" class="form-input form-input--mono"
+               value="{{ form.login_code or '' }}" placeholder="Ej: MIBAR-A1B2"
+               style="text-transform: uppercase;" autocomplete="off" spellcheck="false">
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn--primary btn--lg">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+          {% if is_onboarding %}Crear mi negocio{% else %}Crear negocio{% endif %}
+        </button>
+        {% if not is_onboarding %}
+        <a href="/businesses" class="btn btn--ghost">Cancelar</a>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+
+</div>
+
+<style>
+.onboarding-wrap {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 24px 0 48px;
+}
+
+.onboarding-hero {
+  text-align: center;
+  padding: 32px 24px 24px;
+}
+
+.onboarding-hero__icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 20px;
+  background: linear-gradient(135deg, rgba(10,132,255,0.12), rgba(10,132,255,0.04));
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(10,132,255,0.15);
+}
+
+.onboarding-hero__icon svg {
+  width: 32px;
+  height: 32px;
+  color: var(--color-primary-dark);
+}
+
+.onboarding-hero__title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0 0 10px;
+}
+
+.onboarding-hero__subtitle {
+  color: var(--color-text-muted);
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.card--form {
+  margin-top: 0;
+}
+
+.form-input--mono {
+  font-family: var(--font-mono, 'SF Mono', 'Fira Code', monospace);
+  letter-spacing: 0.04em;
+}
+
+.form-hint {
+  display: block;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  font-weight: 400;
+  margin-top: 3px;
+}
+
+.required {
+  color: var(--color-danger);
+}
+
+.form-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.btn--lg {
+  padding: 12px 24px;
+  font-size: 15px;
+}
+</style>
+{% endblock %}

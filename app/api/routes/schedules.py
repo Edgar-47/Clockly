@@ -10,7 +10,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, Form, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from app.api.dependencies import flash, require_admin, template_context
+from app.api.dependencies import flash, require_active_business, require_admin, template_context
 from app.core.templates import templates
 from app.models.employee import Employee
 from app.services.employee_service import EmployeeService
@@ -30,8 +30,9 @@ _DOW_NAMES = ("Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "
 async def list_schedules(
     request: Request,
     current_user: Employee = Depends(require_admin),
+    business_id: str = Depends(require_active_business),
 ):
-    service = WorkScheduleService()
+    service = WorkScheduleService(business_id=business_id)
     schedules_with_days = service.list_schedules()
     repo = WorkScheduleRepository()
     # Attach assigned employee count per schedule
@@ -56,6 +57,7 @@ async def list_schedules(
 async def new_schedule_form(
     request: Request,
     current_user: Employee = Depends(require_admin),
+    business_id: str = Depends(require_active_business),
 ):
     ctx = template_context(request)
     ctx["dow_names"] = _DOW_NAMES
@@ -68,6 +70,7 @@ async def new_schedule_form(
 async def create_schedule(
     request: Request,
     current_user: Employee = Depends(require_admin),
+    business_id: str = Depends(require_active_business),
 ):
     form = await request.form()
     name = str(form.get("name", "")).strip()
@@ -78,7 +81,7 @@ async def create_schedule(
 
     days = _parse_days_from_form(form)
 
-    service = WorkScheduleService()
+    service = WorkScheduleService(business_id=business_id)
     try:
         schedule_id = service.create_schedule(
             name=name,
@@ -112,8 +115,9 @@ async def schedule_detail(
     request: Request,
     schedule_id: int,
     current_user: Employee = Depends(require_admin),
+    business_id: str = Depends(require_active_business),
 ):
-    service = WorkScheduleService()
+    service = WorkScheduleService(business_id=business_id)
     swd = service.get_schedule(schedule_id)
     if not swd:
         flash(request, "Horario no encontrado.", "error")
@@ -121,7 +125,7 @@ async def schedule_detail(
 
     repo = WorkScheduleRepository()
     assignments = repo.list_assignments_for_schedule(schedule_id)
-    all_employees = EmployeeService().list_employees()
+    all_employees = EmployeeService(business_id=business_id).list_employees()
     clockable = [e for e in all_employees if e.active and e.role == "employee"]
 
     ctx = template_context(request)
@@ -144,8 +148,9 @@ async def edit_schedule_form(
     request: Request,
     schedule_id: int,
     current_user: Employee = Depends(require_admin),
+    business_id: str = Depends(require_active_business),
 ):
-    service = WorkScheduleService()
+    service = WorkScheduleService(business_id=business_id)
     swd = service.get_schedule(schedule_id)
     if not swd:
         flash(request, "Horario no encontrado.", "error")
@@ -164,6 +169,7 @@ async def update_schedule(
     request: Request,
     schedule_id: int,
     current_user: Employee = Depends(require_admin),
+    business_id: str = Depends(require_active_business),
 ):
     form = await request.form()
     name = str(form.get("name", "")).strip()
@@ -174,7 +180,7 @@ async def update_schedule(
     is_active = form.get("is_active") == "1"
     days = _parse_days_from_form(form)
 
-    service = WorkScheduleService()
+    service = WorkScheduleService(business_id=business_id)
     try:
         service.update_schedule(
             schedule_id,
@@ -208,8 +214,9 @@ async def delete_schedule(
     request: Request,
     schedule_id: int,
     current_user: Employee = Depends(require_admin),
+    business_id: str = Depends(require_active_business),
 ):
-    service = WorkScheduleService()
+    service = WorkScheduleService(business_id=business_id)
     swd = service.get_schedule(schedule_id)
     if swd:
         service.delete_schedule(schedule_id)
@@ -226,6 +233,7 @@ async def assign_schedule(
     request: Request,
     schedule_id: int,
     current_user: Employee = Depends(require_admin),
+    business_id: str = Depends(require_active_business),
 ):
     form = await request.form()
     user_id_raw = str(form.get("user_id", "")).strip()
@@ -244,7 +252,7 @@ async def assign_schedule(
         flash(request, "Datos inválidos en el formulario.", "error")
         return RedirectResponse(f"/schedules/{schedule_id}", status_code=303)
 
-    service = WorkScheduleService()
+    service = WorkScheduleService(business_id=business_id)
     try:
         service.assign_schedule(
             user_id=user_id,
@@ -264,10 +272,11 @@ async def remove_assignment(
     request: Request,
     assignment_id: int,
     current_user: Employee = Depends(require_admin),
+    business_id: str = Depends(require_active_business),
 ):
     form = await request.form()
     schedule_id_raw = str(form.get("schedule_id", "")).strip()
-    service = WorkScheduleService()
+    service = WorkScheduleService(business_id=business_id)
     service.deactivate_assignment(assignment_id)
     flash(request, "Asignación eliminada.", "info")
     redirect_to = f"/schedules/{schedule_id_raw}" if schedule_id_raw else "/schedules"

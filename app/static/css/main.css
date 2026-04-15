@@ -305,6 +305,54 @@ hr {
   opacity: 1;
 }
 
+.sidebar__divider {
+  height: 1px;
+  background: var(--color-border);
+  margin: 8px 12px;
+}
+
+.sidebar__business {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 4px;
+}
+
+.sidebar__business .sidebar__link--business {
+  flex: 1;
+  min-width: 0;
+}
+
+.sidebar__business-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar__link--new-business {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: var(--color-text-muted);
+  text-decoration: none;
+  transition: background 0.15s, color 0.15s;
+}
+
+.sidebar__link--new-business:hover {
+  background: var(--color-surface-raised);
+  color: var(--color-primary-dark);
+}
+
+.sidebar__link--new-business svg {
+  width: 16px;
+  height: 16px;
+}
+
 .sidebar__footer {
   padding: 16px 12px 18px;
   border-top: 1px solid var(--color-border);
