@@ -399,7 +399,7 @@
 /* ── Schedules grid ──────────────────────────────────────────────── */
 .schedules-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr));
   gap: var(--space-5);
 }
 
@@ -513,6 +513,22 @@
   .schedule-day-form-row__remove { grid-column: 3; }
 }
 
+@media (max-width: 560px) {
+  .schedule-day-form-row {
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-2);
+  }
+  .schedule-day-form-row > *:nth-child(1) { grid-column: 1 / -1; } /* Day label full width */
+  .schedule-day-form-row__remove { grid-column: 2; justify-self: end; }
+}
+
+@media (max-width: 400px) {
+  .schedule-day-form-row {
+    grid-template-columns: 1fr;
+  }
+  .schedule-day-form-row__remove { grid-column: 1; justify-self: start; }
+}
+
 /* ── Form helpers ────────────────────────────────────────────────── */
 .form-section {
   padding: var(--space-5) var(--space-6);
@@ -599,7 +615,10 @@
     flex-direction: column;
     align-items: flex-start;
   }
-  .analytics-filter-bar__employee { margin-left: 0; }
+  .analytics-filter-bar__employee { margin-left: 0; width: 100%; }
+  .analytics-employee-filter { width: 100%; }
+  .analytics-employee-filter .form__select,
+  .analytics-employee-filter .form__input { width: 100%; }
   .heatmap-grid {
     grid-template-columns: 36px repeat(24, 1fr);
     gap: 1px;
@@ -609,6 +628,13 @@
     flex-direction: column;
     text-align: center;
   }
+}
+
+@media (max-width: 560px) {
+  .analytics-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .analytics-period-btn { padding: 5px 10px; font-size: var(--text-xs); }
+  .analytics-custom-range { flex-wrap: wrap; }
+  .analytics-chart-wrap { height: 220px; padding: var(--space-3) var(--space-4) var(--space-4); }
 }
 
 /* ═══════════════════════════════════════════════════════════════════

@@ -225,12 +225,15 @@ hr {
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+  overscroll-behavior: contain;
   background: var(--color-sidebar);
   border: 1px solid var(--color-border-soft);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow);
   backdrop-filter: blur(var(--blur));
   -webkit-backdrop-filter: blur(var(--blur));
+  transition: width var(--transition), transform var(--transition);
+  will-change: transform;
 }
 
 .sidebar__brand {
@@ -393,6 +396,54 @@ hr {
   color: var(--color-danger);
 }
 
+/* ── Sidebar mobile backdrop ────────────────────────────────────── */
+.sidebar-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 99;
+  background: rgba(15, 23, 42, 0.32);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  opacity: 0;
+  transition: opacity var(--transition);
+  will-change: opacity;
+}
+
+.sidebar-backdrop--visible {
+  opacity: 1;
+}
+
+/* ── Hamburger toggle (mobile only) ─────────────────────────────── */
+.sidebar-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: rgba(15, 23, 42, 0.05);
+  border-radius: 12px;
+  color: var(--color-text);
+  cursor: pointer;
+  transition: background var(--transition-fast), transform var(--transition-fast);
+}
+
+.sidebar-toggle svg {
+  width: 20px;
+  height: 20px;
+  pointer-events: none;
+}
+
+.sidebar-toggle:hover {
+  background: rgba(15, 23, 42, 0.08);
+}
+
+.sidebar-toggle:active {
+  transform: scale(0.94);
+}
+
 /* ── 6. Main ───────────────────────────────────────────────────── */
 .main {
   flex: 1;
@@ -427,6 +478,10 @@ hr {
   font-weight: 780;
   color: var(--color-text);
   letter-spacing: -0.03em;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .topbar__actions {
@@ -629,6 +684,7 @@ hr {
 /* ── 10. Tables ─────────────────────────────────────────────────── */
 .table-wrap {
   overflow-x: auto;
+  overscroll-behavior-x: contain;
 }
 
 .table {
@@ -853,6 +909,13 @@ button.is-loading::after {
   display: flex;
   align-items: flex-end;
   gap: 12px;
+  flex-wrap: wrap;
+}
+
+.filter-form__row {
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
   flex-wrap: wrap;
 }
 
@@ -1840,6 +1903,8 @@ html[data-motion="reduced"] *,
 }
 
 /* ── 24. Responsive ────────────────────────────────────────────── */
+
+/* ── Large tablet / small laptop ─── */
 @media (max-width: 1024px) {
   .sidebar {
     width: 82px;
@@ -1848,7 +1913,8 @@ html[data-motion="reduced"] *,
   .sidebar__brand span,
   .sidebar__link span,
   .sidebar__user,
-  .sidebar__logout span {
+  .sidebar__logout span,
+  .sidebar__business-label {
     display: none;
   }
 
@@ -1858,22 +1924,36 @@ html[data-motion="reduced"] *,
     justify-content: center;
   }
 
+  .sidebar__business {
+    justify-content: center;
+    padding: 0;
+  }
+
+  .sidebar__link--new-business {
+    display: none;
+  }
+
   .main {
     margin-left: 106px;
   }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
+/* ── Tablet ─── */
 @media (max-width: 768px) {
   .sidebar {
     left: 8px;
     top: 8px;
     bottom: 8px;
-    width: 68px;
+    width: 64px;
     border-radius: 20px;
   }
 
   .main {
-    margin-left: 84px;
+    margin-left: 80px;
   }
 
   .topbar {
@@ -1884,21 +1964,29 @@ html[data-motion="reduced"] *,
   }
 
   .content {
-    padding: 18px 8px 14px 0;
+    padding: 16px 8px 14px 0;
+    gap: 16px;
   }
 
   .form__row {
     grid-template-columns: 1fr;
   }
 
-  .kiosk-grid,
+  /* Touch-friendly small buttons on tablet+ */
+  .btn--sm {
+    min-height: 38px;
+  }
+
+  .kiosk-grid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  }
+
   .colleague-grid {
-    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
   }
 
   .filter-form__row {
-    flex-direction: column;
-    align-items: stretch;
+    gap: 10px;
   }
 
   .card__header,
@@ -1922,9 +2010,146 @@ html[data-motion="reduced"] *,
   }
 }
 
-@media (max-width: 560px) {
-  .sidebar {
+/* ── Large phone / small tablet ─── */
+@media (max-width: 640px) {
+  .topbar__title {
+    font-size: var(--text-lg);
+  }
+
+  .topbar__clock {
     display: none;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .stat-card {
+    padding: 16px;
+    gap: 12px;
+    border-radius: 18px;
+  }
+
+  .stat-card__icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+  }
+
+  .stat-card__value {
+    font-size: var(--text-xl);
+  }
+
+  .card__header {
+    padding: 16px 18px;
+  }
+
+  .card__body {
+    padding: 18px;
+  }
+
+  .card--filters {
+    padding: 16px 18px;
+  }
+
+  .filter-form__row {
+    gap: 10px;
+  }
+
+  .filter-form__row .form__group {
+    min-width: calc(50% - 5px);
+    flex: 1 1 calc(50% - 5px);
+  }
+
+  .filter-form__row .form__group--action {
+    width: 100%;
+    flex: 1 1 100%;
+  }
+
+  /* Ensure 44px minimum touch targets on all interactive elements */
+  .btn--xs {
+    min-height: 36px;
+    padding: 0 12px;
+  }
+
+  .btn--sm {
+    min-height: 40px;
+  }
+
+  .topbar__actions .btn--sm,
+  .topbar__actions .btn--ghost {
+    min-height: 36px;
+    padding: 0 10px;
+    font-size: var(--text-xs);
+  }
+
+  /* Prevent iOS zoom on focus (inputs must be ≥16px font) */
+  .form__input,
+  .form__select,
+  .form__textarea {
+    font-size: 16px;
+  }
+
+  /* Kiosk grid tighter */
+  .kiosk-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+  }
+}
+
+/* ── Mobile (sidebar becomes drawer) ─── */
+@media (max-width: 560px) {
+  /* Show the backdrop element */
+  .sidebar-backdrop {
+    display: block;
+  }
+
+  /* Show hamburger */
+  .sidebar-toggle {
+    display: inline-flex;
+  }
+
+  /* Sidebar: off-canvas drawer */
+  .sidebar {
+    width: var(--sidebar-width);
+    transform: translateX(calc(-100% - 24px));
+    top: 8px;
+    left: 8px;
+    bottom: 8px;
+    border-radius: 22px;
+  }
+
+  /* Re-show all labels that were hidden at 1024px */
+  .sidebar__brand span,
+  .sidebar__link span,
+  .sidebar__logout span,
+  .sidebar__business-label {
+    display: inline;
+  }
+
+  .sidebar__user {
+    display: flex;
+  }
+
+  .sidebar__brand,
+  .sidebar__link,
+  .sidebar__logout {
+    justify-content: flex-start;
+  }
+
+  .sidebar__business {
+    justify-content: flex-start;
+    padding: 0 4px;
+  }
+
+  .sidebar__link--new-business {
+    display: flex;
+  }
+
+  /* Open state */
+  .sidebar.sidebar--open {
+    transform: translateX(0);
   }
 
   .main {
@@ -1932,18 +2157,31 @@ html[data-motion="reduced"] *,
   }
 
   .topbar {
-    margin-left: 8px;
+    margin: 8px 8px 0 8px;
     border-radius: 18px;
+    padding: 0 14px;
+    gap: var(--space-3);
   }
 
   .content {
-    padding-left: 8px;
+    padding: 14px 8px 16px 8px;
+    gap: 14px;
   }
 
-  .stats-grid,
-  .kiosk-grid,
+  /* Single column grids */
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .kiosk-grid {
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 10px;
+  }
+
   .colleague-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
   }
 
   .btn-group,
@@ -1956,5 +2194,58 @@ html[data-motion="reduced"] *,
   .float-actions {
     right: 12px;
     bottom: 12px;
+  }
+
+  /* Modal fits the screen */
+  .modal {
+    padding: 12px;
+    align-items: flex-end;
+  }
+
+  .modal__box {
+    max-width: 100%;
+    border-radius: 22px 22px 18px 18px;
+    max-height: 85vh;
+  }
+
+  /* Prevent iOS zoom */
+  .form__input,
+  .form__select,
+  .form__textarea {
+    font-size: 16px;
+  }
+
+  /* Ensure 44px touch targets */
+  .btn--xs {
+    min-height: 38px;
+    padding: 0 12px;
+  }
+
+  .btn--sm {
+    min-height: 40px;
+  }
+}
+
+/* ── Very small phones ─── */
+@media (max-width: 400px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .kiosk-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .colleague-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .topbar__title {
+    font-size: 1rem;
+  }
+
+  .filter-form__row .form__group {
+    min-width: 100%;
+    flex: 1 1 100%;
   }
 }

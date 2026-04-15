@@ -10,8 +10,11 @@
 </head>
 <body class="layout">
 
+  <!-- ── Sidebar backdrop (mobile drawer overlay) ─────────────────── -->
+  <div class="sidebar-backdrop" id="sidebar-backdrop" aria-hidden="true"></div>
+
   <!-- ── Sidebar ─────────────────────────────────────────────────── -->
-  <aside class="sidebar">
+  <aside class="sidebar" id="sidebar">
     <div class="sidebar__brand">
       <svg class="sidebar__logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <circle cx="12" cy="12" r="10"/>
@@ -137,6 +140,13 @@
   <!-- ── Main content ─────────────────────────────────────────────── -->
   <main class="main">
     <header class="topbar">
+      <button type="button" class="sidebar-toggle" id="sidebar-toggle" aria-label="Abrir menú" aria-expanded="false" aria-controls="sidebar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="3" y1="7" x2="21" y2="7"/>
+          <line x1="3" y1="12" x2="21" y2="12"/>
+          <line x1="3" y1="17" x2="21" y2="17"/>
+        </svg>
+      </button>
       <h1 class="topbar__title">{% block page_title %}{% endblock %}</h1>
       <div class="topbar__actions">{% block topbar_actions %}{% endblock %}</div>
     </header>

@@ -9,6 +9,7 @@
   const doc = document;
   const win = window;
   const prefersReducedMotion = win.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const isTouchDevice = win.matchMedia("(hover: none) and (pointer: coarse)").matches;
 
   const qs = (selector, root = doc) => root.querySelector(selector);
   const qsa = (selector, root = doc) => Array.from(root.querySelectorAll(selector));
@@ -65,6 +66,7 @@
     if (!clocks.length) return;
 
     function tick() {
+      if (doc.hidden) return;
       const now = new Date();
       const date = now.toLocaleDateString("es-ES", {
         weekday: "short",
@@ -98,6 +100,7 @@
     }));
 
     function update() {
+      if (doc.hidden) return;
       const now = Date.now();
 
       for (let i = 0; i < items.length; i += 1) {
@@ -244,7 +247,7 @@
 
       const focusable = getFocusable(modal);
       if (focusable.length) {
-        win.setTimeout(() => focusable[0].focus(), 24);
+        win.requestAnimationFrame(() => focusable[0].focus());
       }
     }
 
@@ -311,7 +314,7 @@
 
   /* ── 9. Refined card pointer response ───────────────────── */
   (function initInteractiveCards() {
-    if (prefersReducedMotion) return;
+    if (prefersReducedMotion || isTouchDevice) return;
 
     const cards = qsa(".stat-card, .kiosk-card, .employee-card, .colleague-card");
     if (!cards.length) return;
@@ -339,7 +342,7 @@
 
   /* ── 10. Button sheen polish ────────────────────────────── */
   (function initButtonMicroPolish() {
-    if (prefersReducedMotion) return;
+    if (prefersReducedMotion || isTouchDevice) return;
 
     const buttons = qsa(".btn, .button-login, .button-large, .button-submit, .button-punch, .button-small");
     if (!buttons.length) return;
@@ -365,4 +368,56 @@
       }, { passive: true });
     }
   })();
+
+  /* ── 11. Mobile sidebar drawer ──────────────────────────── */
+  (function initSidebarDrawer() {
+    const toggle = qs("#sidebar-toggle");
+    const sidebar = qs("#sidebar");
+    const backdrop = qs("#sidebar-backdrop");
+    if (!toggle || !sidebar || !backdrop) return;
+
+    function openSidebar() {
+      sidebar.classList.add("sidebar--open");
+      backdrop.classList.add("sidebar-backdrop--visible");
+      toggle.setAttribute("aria-expanded", "true");
+      doc.body.style.overflow = "hidden";
+    }
+
+    function closeSidebar() {
+      sidebar.classList.remove("sidebar--open");
+      backdrop.classList.remove("sidebar-backdrop--visible");
+      toggle.setAttribute("aria-expanded", "false");
+      doc.body.style.overflow = "";
+    }
+
+    toggle.addEventListener("click", () => {
+      if (sidebar.classList.contains("sidebar--open")) {
+        closeSidebar();
+      } else {
+        openSidebar();
+      }
+    });
+
+    backdrop.addEventListener("click", closeSidebar);
+
+    doc.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && sidebar.classList.contains("sidebar--open")) {
+        closeSidebar();
+      }
+    });
+
+    /* Close drawer when a nav link is clicked */
+    const navLinks = sidebar.querySelectorAll(".sidebar__link, .sidebar__logout");
+    for (let i = 0; i < navLinks.length; i += 1) {
+      navLinks[i].addEventListener("click", () => {
+        if (win.innerWidth <= 560) closeSidebar();
+      });
+    }
+
+    /* Close drawer on resize to desktop */
+    win.addEventListener("resize", rafThrottle(() => {
+      if (win.innerWidth > 560) closeSidebar();
+    }), { passive: true });
+  })();
+
 })();
