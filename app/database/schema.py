@@ -179,6 +179,23 @@ ON employee_schedules(user_id, is_active);
 CREATE INDEX IF NOT EXISTS idx_employee_schedules_schedule
 ON employee_schedules(schedule_id);
 
+CREATE TABLE IF NOT EXISTS employee_profiles (
+    user_id INTEGER PRIMARY KEY,
+    hire_date DATE,
+    contract_type TEXT,
+    department TEXT,
+    job_title TEXT,
+    phone TEXT,
+    personal_email TEXT,
+    emergency_contact_name TEXT,
+    emergency_contact_phone TEXT,
+    social_security_number TEXT,
+    notes TEXT,
+    created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
 """
 
 
@@ -195,6 +212,8 @@ def initialize_database() -> None:
         _migrate_attendance_sessions_add_context_columns(connection)
         _migrate_attendance_sessions_add_admin_close_columns(connection)
         _migrate_scheduling_tables(connection)
+        _migrate_work_schedules_schedule_type(connection)
+        _migrate_employee_profiles_table(connection)
         _reset_identity_sequences(connection)
 
 
@@ -618,6 +637,50 @@ def _migrate_scheduling_tables(connection) -> None:
         """
         CREATE INDEX IF NOT EXISTS idx_employee_schedules_schedule
         ON employee_schedules(schedule_id)
+        """
+    )
+
+
+def _migrate_work_schedules_schedule_type(connection) -> None:
+    """Add schedule_type column to work_schedules if not present."""
+    columns = _table_columns(connection, "work_schedules")
+    if "schedule_type" not in columns:
+        connection.execute(
+            """
+            ALTER TABLE work_schedules
+            ADD COLUMN schedule_type TEXT NOT NULL DEFAULT 'flexible'
+            """
+        )
+    # Enforce CHECK constraint safely (add index for clarity, not hard constraint to stay idempotent)
+    connection.execute(
+        """
+        UPDATE work_schedules
+        SET schedule_type = 'flexible'
+        WHERE schedule_type NOT IN ('flexible', 'strict')
+        """
+    )
+
+
+def _migrate_employee_profiles_table(connection) -> None:
+    """Create employee_profiles table if it doesn't exist yet."""
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS employee_profiles (
+            user_id INTEGER PRIMARY KEY,
+            hire_date DATE,
+            contract_type TEXT,
+            department TEXT,
+            job_title TEXT,
+            phone TEXT,
+            personal_email TEXT,
+            emergency_contact_name TEXT,
+            emergency_contact_phone TEXT,
+            social_security_number TEXT,
+            notes TEXT,
+            created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
         """
     )
 

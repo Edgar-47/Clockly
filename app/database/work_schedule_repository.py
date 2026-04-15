@@ -62,15 +62,17 @@ class WorkScheduleRepository:
         name: str,
         description: str | None = None,
         weekly_hours_target: float | None = None,
+        schedule_type: str = "flexible",
     ) -> int:
         with get_connection() as conn:
             cursor = conn.execute(
                 """
-                INSERT INTO work_schedules (business_id, name, description, weekly_hours_target)
-                VALUES (%s, %s, %s, %s)
+                INSERT INTO work_schedules
+                    (business_id, name, description, weekly_hours_target, schedule_type)
+                VALUES (%s, %s, %s, %s, %s)
                 RETURNING id
                 """,
-                (self.business_id, name.strip(), description, weekly_hours_target),
+                (self.business_id, name.strip(), description, weekly_hours_target, schedule_type),
             )
             return int(cursor.fetchone()["id"])
 
@@ -81,6 +83,7 @@ class WorkScheduleRepository:
         name: str,
         description: str | None = None,
         weekly_hours_target: float | None = None,
+        schedule_type: str = "flexible",
         is_active: bool = True,
     ) -> None:
         with get_connection() as conn:
@@ -90,11 +93,12 @@ class WorkScheduleRepository:
                 SET name = %s,
                     description = %s,
                     weekly_hours_target = %s,
+                    schedule_type = %s,
                     is_active = %s,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = %s
                 """,
-                (name.strip(), description, weekly_hours_target, is_active, schedule_id),
+                (name.strip(), description, weekly_hours_target, schedule_type, is_active, schedule_id),
             )
 
     def delete_schedule(self, schedule_id: int) -> None:
@@ -161,14 +165,14 @@ class WorkScheduleRepository:
         """Return the currently effective assignment for an employee."""
         ref = reference_date or date.today()
         clauses = [
-            "user_id = %s",
-            "is_active IS TRUE",
-            "effective_from <= %s",
-            "(effective_to IS NULL OR effective_to >= %s)",
+            "es.user_id = %s",
+            "es.is_active IS TRUE",
+            "es.effective_from <= %s",
+            "(es.effective_to IS NULL OR es.effective_to >= %s)",
         ]
         params: list = [user_id, ref, ref]
         if self.business_id is not None:
-            clauses.append("(business_id = %s OR business_id IS NULL)")
+            clauses.append("(es.business_id = %s OR es.business_id IS NULL)")
             params.append(self.business_id)
 
         with get_connection() as conn:
@@ -181,7 +185,7 @@ class WorkScheduleRepository:
                 JOIN work_schedules ws ON ws.id = es.schedule_id
                 JOIN users u ON u.id = es.user_id
                 WHERE {' AND '.join(clauses)}
-                ORDER BY effective_from DESC
+                ORDER BY es.effective_from DESC
                 LIMIT 1
                 """,
                 params,

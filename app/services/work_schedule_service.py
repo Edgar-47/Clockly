@@ -102,6 +102,7 @@ class WorkScheduleService:
         name: str,
         description: str | None = None,
         weekly_hours_target: float | None = None,
+        schedule_type: str = "flexible",
         days: list[dict],
     ) -> int:
         """
@@ -112,6 +113,8 @@ class WorkScheduleService:
         name = (name or "").strip()
         if len(name) < 2:
             raise ValueError("El nombre del horario debe tener al menos 2 caracteres.")
+        if schedule_type not in ("flexible", "strict"):
+            schedule_type = "flexible"
         if not days:
             raise ValueError("El horario debe tener al menos un día definido.")
         _validate_days(days)
@@ -120,6 +123,7 @@ class WorkScheduleService:
             name=name,
             description=description,
             weekly_hours_target=weekly_hours_target,
+            schedule_type=schedule_type,
         )
         self.repo.replace_days(schedule_id, days)
         return schedule_id
@@ -131,12 +135,15 @@ class WorkScheduleService:
         name: str,
         description: str | None = None,
         weekly_hours_target: float | None = None,
+        schedule_type: str = "flexible",
         is_active: bool = True,
         days: list[dict],
     ) -> None:
         name = (name or "").strip()
         if len(name) < 2:
             raise ValueError("El nombre del horario debe tener al menos 2 caracteres.")
+        if schedule_type not in ("flexible", "strict"):
+            schedule_type = "flexible"
         if not days:
             raise ValueError("El horario debe tener al menos un día definido.")
         _validate_days(days)
@@ -146,6 +153,7 @@ class WorkScheduleService:
             name=name,
             description=description,
             weekly_hours_target=weekly_hours_target,
+            schedule_type=schedule_type,
             is_active=is_active,
         )
         self.repo.replace_days(schedule_id, days)

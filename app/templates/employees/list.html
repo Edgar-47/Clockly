@@ -28,12 +28,14 @@
           <th>Nombre</th>
           <th>DNI</th>
           <th>Rol</th>
+          <th>Horario</th>
           <th>Estado</th>
           <th class="text-right">Acciones</th>
         </tr>
       </thead>
       <tbody>
         {% for emp in employees %}
+        {% set sched = schedule_by_employee.get(emp.id) %}
         <tr class="{{ 'row--inactive' if not emp.active }}">
           <td>
             <div class="employee-cell">
@@ -52,6 +54,18 @@
               <span class="badge badge--blue">Admin</span>
             {% else %}
               <span class="badge badge--gray">Empleado</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if sched %}
+              <div class="schedule-cell">
+                <span class="text-sm">{{ sched.name }}</span>
+                <span class="badge badge--sm badge--{{ 'warning' if sched.is_strict else 'info' }}">
+                  {{ sched.type_label }}
+                </span>
+              </div>
+            {% else %}
+              <span class="text-muted text-sm">—</span>
             {% endif %}
           </td>
           <td>

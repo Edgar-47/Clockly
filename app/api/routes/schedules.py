@@ -74,6 +74,7 @@ async def create_schedule(
     description = str(form.get("description", "")).strip() or None
     weekly_target_raw = str(form.get("weekly_hours_target", "")).strip()
     weekly_target = float(weekly_target_raw) if weekly_target_raw else None
+    schedule_type = str(form.get("schedule_type", "flexible")).strip()
 
     days = _parse_days_from_form(form)
 
@@ -83,6 +84,7 @@ async def create_schedule(
             name=name,
             description=description,
             weekly_hours_target=weekly_target,
+            schedule_type=schedule_type,
             days=days,
         )
     except ValueError as exc:
@@ -168,6 +170,7 @@ async def update_schedule(
     description = str(form.get("description", "")).strip() or None
     weekly_target_raw = str(form.get("weekly_hours_target", "")).strip()
     weekly_target = float(weekly_target_raw) if weekly_target_raw else None
+    schedule_type = str(form.get("schedule_type", "flexible")).strip()
     is_active = form.get("is_active") == "1"
     days = _parse_days_from_form(form)
 
@@ -178,6 +181,7 @@ async def update_schedule(
             name=name,
             description=description,
             weekly_hours_target=weekly_target,
+            schedule_type=schedule_type,
             is_active=is_active,
             days=days,
         )

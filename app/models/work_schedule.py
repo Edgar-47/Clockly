@@ -11,6 +11,7 @@ class WorkSchedule:
     name: str
     description: str | None
     weekly_hours_target: float | None
+    schedule_type: str          # 'flexible' | 'strict'
     is_active: bool
     created_at: str
     updated_at: str
@@ -23,6 +24,7 @@ class WorkSchedule:
             name=row["name"],
             description=row.get("description"),
             weekly_hours_target=row.get("weekly_hours_target"),
+            schedule_type=str(row.get("schedule_type") or "flexible"),
             is_active=bool(row.get("is_active", True)),
             created_at=str(row.get("created_at") or ""),
             updated_at=str(row.get("updated_at") or ""),
@@ -33,3 +35,11 @@ class WorkSchedule:
         if self.weekly_hours_target is None:
             return "—"
         return f"{self.weekly_hours_target:.1f}h/semana"
+
+    @property
+    def schedule_type_label(self) -> str:
+        return "Estricto" if self.schedule_type == "strict" else "Flexible"
+
+    @property
+    def is_strict(self) -> bool:
+        return self.schedule_type == "strict"

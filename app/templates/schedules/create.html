@@ -30,6 +30,25 @@
                class="input" step="0.5" min="1" max="80"
                placeholder="Ej: 40">
       </div>
+      <div class="form-group">
+        <label class="label">Tipo de horario</label>
+        <div class="toggle-group">
+          <input type="radio" name="schedule_type" id="type_flexible" value="flexible" checked>
+          <label for="type_flexible" class="toggle-option">
+            Flexible
+          </label>
+          <input type="radio" name="schedule_type" id="type_strict" value="strict">
+          <label for="type_strict" class="toggle-option">
+            Estricto
+          </label>
+        </div>
+        <p class="form-hint schedule-type-hint" id="schedule-type-hint-flex">
+          Informativo — el empleado puede fichar en cualquier momento.
+        </p>
+        <p class="form-hint schedule-type-hint schedule-type-hint--strict" id="schedule-type-hint-strict">
+          El fichaje queda <strong>bloqueado</strong> fuera de la ventana horaria definida.
+        </p>
+      </div>
     </div>
 
     <!-- ── Day definitions ─────────────────────────────── -->
@@ -128,6 +147,15 @@
   }
 
   addBtn.addEventListener("click", () => addDay());
+
+  // Schedule-type hint toggle
+  function updateTypeHint() {
+    const strict = document.getElementById("type_strict").checked;
+    document.getElementById("schedule-type-hint-flex").classList.toggle("schedule-type-hint--visible", !strict);
+    document.getElementById("schedule-type-hint-strict").classList.toggle("schedule-type-hint--visible", strict);
+  }
+  document.querySelectorAll("input[name='schedule_type']").forEach(r => r.addEventListener("change", updateTypeHint));
+  updateTypeHint();
 })();
 </script>
 {% endblock %}

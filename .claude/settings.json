@@ -22,7 +22,8 @@
       "Bash(python -m py_compile app/api/routes/kiosk.py app/api/dependencies.py app/core/security.py)",
       "Bash(pip --version)",
       "Bash(docker --version)",
-      "Bash(pip show:*)"
+      "Bash(pip show:*)",
+      "Bash(python -c \"from app.api.routes.employees import router\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\epedr\\OneDrive\\App_Fichaje\\app",

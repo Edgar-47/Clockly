@@ -12,6 +12,7 @@ from app.services.attendance_policy import (
     normalize_exit_note,
     normalize_incident_type,
 )
+from app.services.schedule_validation_service import ScheduleValidationService
 
 
 class TimeClockService:
@@ -24,6 +25,7 @@ class TimeClockService:
         employee_repository: EmployeeRepository | None = None,
         attendance_session_repository: AttendanceSessionRepository | None = None,
         time_entry_repository: TimeEntryRepository | None = None,
+        schedule_validation_service: ScheduleValidationService | None = None,
         *,
         business_id: str | None = None,
     ) -> None:
@@ -42,6 +44,7 @@ class TimeClockService:
         self.time_entry_repository = time_entry_repository or TimeEntryRepository(
             business_id=business_id
         )
+        self._schedule_validator = schedule_validation_service or ScheduleValidationService()
 
     def register(
         self,
@@ -86,6 +89,12 @@ class TimeClockService:
 
     def start_session_for_employee(self, employee_id: int) -> AttendanceSession:
         employee = self._require_clockable_employee(employee_id)
+
+        # Schedule enforcement: only blocks when a strict schedule is active
+        permission = self._schedule_validator.validate_clock_in(employee.id)
+        if not permission.allowed:
+            raise ValueError(permission.reason)
+
         active = self.attendance_session_repository.get_active_for_user(employee.id)
         if active:
             return active
