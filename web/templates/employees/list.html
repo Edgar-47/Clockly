@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block title %}Empleados{% endblock %}
+
+{% block page_title %}Empleados{% endblock %}
+
+{% block topbar_actions %}
+  <a href="/employees/new" class="btn btn--primary btn--sm">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+    </svg>
+    Nuevo empleado
+  </a>
+{% endblock %}
+
+{% block content %}
+
+<div class="card">
+  <div class="card__header">
+    <h2 class="card__title">Listado de empleados ({{ employees | length }})</h2>
+  </div>
+
+  {% if employees %}
+  <div class="table-wrap" data-mobile-cards>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Nombre</th>
+          <th>DNI</th>
+          <th>Rol</th>
+          <th>Horario</th>
+          <th>Estado</th>
+          <th class="text-right">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for emp in employees %}
+        {% set sched = schedule_by_employee.get(emp.id) %}
+        <tr class="{{ 'row--inactive' if not emp.active }}">
+          <td data-label="Nombre">
+            <div class="employee-cell">
+              <span class="avatar {{ 'avatar--inactive' if not emp.active }}">{{ emp.initials }}</span>
+              <span>
+                {{ emp.full_name }}
+                {% if emp.id == current_user_id %}
+                  <span class="badge badge--blue">Tú</span>
+                {% endif %}
+              </span>
+            </div>
+          </td>
+          <td class="text-mono text-muted" data-label="DNI">{{ emp.dni }}</td>
+          <td data-label="Rol">
+            {% if emp.role == "admin" %}
+              <span class="badge badge--blue">Admin</span>
+            {% elif emp.role == "manager" %}
+              <span class="badge badge--blue">Manager</span>
+            {% elif emp.role == "owner" %}
+              <span class="badge badge--blue">Owner</span>
+            {% else %}
+              <span class="badge badge--gray">Empleado</span>
+            {% endif %}
+          </td>
+          <td data-label="Horario">
+            {% if sched %}
+              <div class="schedule-cell">
+                <span class="text-sm">{{ sched.name }}</span>
+                <span class="badge badge--sm badge--{{ 'warning' if sched.is_strict else 'info' }}">
+                  {{ sched.type_label }}
+                </span>
+              </div>
+            {% else %}
+              <span class="text-muted text-sm">—</span>
+            {% endif %}
+          </td>
+          <td data-label="Estado">
+            {% if emp.active %}
+              <span class="badge badge--green">Activo</span>
+            {% else %}
+              <span class="badge badge--red">Inactivo</span>
+            {% endif %}
+          </td>
+          <td class="text-right" data-label="Acciones">
+            <div class="actions">
+              <a href="/employees/{{ emp.id }}/edit" class="btn btn--ghost btn--xs">
+                Editar
+              </a>
+
+              <form method="post" action="/employees/{{ emp.id }}/toggle" class="inline-form"
+                    onsubmit="return confirm('¿Confirmar {{ 'desactivar' if emp.active else 'activar' }} a {{ emp.full_name }}?')">
+                <button type="submit" class="btn btn--ghost btn--xs {{ 'btn--danger' if emp.active }}">
+                  {{ "Desactivar" if emp.active else "Activar" }}
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+      <circle cx="9" cy="7" r="4"/>
+    </svg>
+    <p>No hay empleados registrados todavía.</p>
+    <a href="/employees/new" class="btn btn--primary btn--sm">Crear el primero</a>
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}

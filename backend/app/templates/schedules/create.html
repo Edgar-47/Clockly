@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+
+{% block title %}Nuevo Horario{% endblock %}
+{% block page_title %}Nuevo Horario{% endblock %}
+
+{% block content %}
+<div class="card card--form-shell">
+  <div class="card__header">
+    <h2 class="card__title">Crear horario predefinido</h2>
+  </div>
+
+  <form method="post" action="/schedules/new" id="schedule-form">
+
+    <!-- ── Basic info ───────────────────────────────────── -->
+    <div class="form-section">
+      <div class="form-group">
+        <label class="label" for="name">Nombre del horario</label>
+        <input type="text" id="name" name="name" class="input"
+               value="{{ form_name or '' }}" placeholder="Ej: Turno de mañana, Jornada completa…"
+               required maxlength="100">
+      </div>
+      <div class="form-group">
+        <label class="label" for="description">Descripción (opcional)</label>
+        <input type="text" id="description" name="description" class="input"
+               value="{{ form_description or '' }}" placeholder="Notas adicionales…">
+      </div>
+      <div class="form-group form-group--compact">
+        <label class="label" for="weekly_hours_target">Horas semanales objetivo (opcional)</label>
+        <input type="number" id="weekly_hours_target" name="weekly_hours_target"
+               class="input" step="0.5" min="1" max="80"
+               placeholder="Ej: 40">
+      </div>
+      <div class="form-group">
+        <label class="label">Tipo de horario</label>
+        <div class="toggle-group">
+          <input type="radio" name="schedule_type" id="type_flexible" value="flexible" checked>
+          <label for="type_flexible" class="toggle-option">
+            Flexible
+          </label>
+          <input type="radio" name="schedule_type" id="type_strict" value="strict">
+          <label for="type_strict" class="toggle-option">
+            Estricto
+          </label>
+        </div>
+        <p class="form-hint schedule-type-hint" id="schedule-type-hint-flex">
+          Informativo — el empleado puede fichar en cualquier momento.
+        </p>
+        <p class="form-hint schedule-type-hint schedule-type-hint--strict" id="schedule-type-hint-strict">
+          El fichaje queda <strong>bloqueado</strong> fuera de la ventana horaria definida.
+        </p>
+      </div>
+    </div>
+
+    <!-- ── Day definitions ─────────────────────────────── -->
+    <div class="form-section">
+      <div class="form-section__header">
+        <h3 class="form-section__title">Días de trabajo</h3>
+        <button type="button" class="btn btn--ghost btn--sm" id="add-day-btn">
+          + Añadir día
+        </button>
+      </div>
+
+      <div id="days-container">
+        <!-- Day rows are added dynamically -->
+      </div>
+
+      <template id="day-row-template">
+        <div class="schedule-day-form-row">
+          <div class="schedule-day-form-row__dow">
+            <label class="label">Día</label>
+            <select name="day_dow" class="input input--sm" required>
+              <option value="0">Lunes</option>
+              <option value="1">Martes</option>
+              <option value="2">Miércoles</option>
+              <option value="3">Jueves</option>
+              <option value="4">Viernes</option>
+              <option value="5">Sábado</option>
+              <option value="6">Domingo</option>
+            </select>
+          </div>
+          <div class="schedule-day-form-row__time">
+            <label class="label">Entrada</label>
+            <input type="time" name="day_start" class="input input--sm" value="09:00" required>
+          </div>
+          <div class="schedule-day-form-row__time">
+            <label class="label">Salida</label>
+            <input type="time" name="day_end" class="input input--sm" value="17:00" required>
+          </div>
+          <div class="schedule-day-form-row__small">
+            <label class="label">Descanso (min)</label>
+            <input type="number" name="day_break" class="input input--sm" value="0" min="0" max="480">
+          </div>
+          <div class="schedule-day-form-row__small">
+            <label class="label">Tol. llegada (min)</label>
+            <input type="number" name="day_late_tol" class="input input--sm" value="0" min="0" max="60">
+          </div>
+          <div class="schedule-day-form-row__small">
+            <label class="label">Tol. salida (min)</label>
+            <input type="number" name="day_early_tol" class="input input--sm" value="0" min="0" max="60">
+          </div>
+          <div class="schedule-day-form-row__remove">
+            <label class="label">&nbsp;</label>
+            <button type="button" class="btn btn--ghost btn--sm remove-day-btn" title="Eliminar día">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6l-1 14H6L5 6"/>
+                <path d="M10 11v6"/><path d="M14 11v6"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </template>
+    </div>
+
+    <!-- ── Actions ─────────────────────────────────────── -->
+    <div class="form-actions">
+      <a href="/schedules" class="btn btn--ghost">Cancelar</a>
+      <button type="submit" class="btn btn--primary">Guardar horario</button>
+    </div>
+
+  </form>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(() => {
+  const container = document.getElementById("days-container");
+  const template = document.getElementById("day-row-template");
+  const addBtn = document.getElementById("add-day-btn");
+
+  function addDay(dow) {
+    const row = template.content.cloneNode(true);
+    if (dow !== undefined) {
+      row.querySelector("select[name='day_dow']").value = dow;
+    }
+    row.querySelector(".remove-day-btn").addEventListener("click", e => {
+      e.target.closest(".schedule-day-form-row").remove();
+    });
+    container.appendChild(row);
+  }
+
+  // Pre-populate Mon–Fri on first load
+  if (container.children.length === 0) {
+    [0, 1, 2, 3, 4].forEach(addDay);
+  }
+
+  addBtn.addEventListener("click", () => addDay());
+
+  // Schedule-type hint toggle
+  function updateTypeHint() {
+    const strict = document.getElementById("type_strict").checked;
+    document.getElementById("schedule-type-hint-flex").classList.toggle("schedule-type-hint--visible", !strict);
+    document.getElementById("schedule-type-hint-strict").classList.toggle("schedule-type-hint--visible", strict);
+  }
+  document.querySelectorAll("input[name='schedule_type']").forEach(r => r.addEventListener("change", updateTypeHint));
+  updateTypeHint();
+})();
+</script>
+{% endblock %}

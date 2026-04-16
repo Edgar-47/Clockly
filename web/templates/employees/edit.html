@@ -1,0 +1,394 @@
+{% extends "base.html" %}
+
+{% block title %}Editar empleado – Clockly{% endblock %}
+{% block page_title %}Editar empleado{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+  <div class="page-header__left">
+    <a href="/employees" class="btn btn--ghost btn--sm">← Volver</a>
+    <div class="employee-header-info">
+      <span class="avatar avatar--lg">{{ employee.initials }}</span>
+      <div>
+        <h1 class="page-title">{{ employee.full_name }}</h1>
+        <span class="badge badge--{{ 'success' if employee.active else 'neutral' }}">
+          {{ 'Activo' if employee.active else 'Inactivo' }}
+        </span>
+        {% if current_schedule %}
+        <span class="badge badge--{{ 'warning' if current_schedule.schedule.is_strict else 'info' }}">
+          {{ current_schedule.schedule.schedule_type_label }}
+        </span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if error %}
+<div class="alert alert--error" role="alert">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/>
+    <line x1="12" y1="16" x2="12.01" y2="16"/>
+  </svg>
+  {{ error }}
+</div>
+{% endif %}
+
+<form method="post" action="/employees/{{ employee.id }}/edit" class="form employee-form" novalidate>
+
+  <!-- ── 1. Identidad ─────────────────────────────────────────────────── -->
+  <section class="profile-section">
+    <div class="profile-section__header">
+      <div class="profile-section__icon-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+          <circle cx="12" cy="7" r="4"/>
+        </svg>
+      </div>
+      <div>
+        <h2 class="profile-section__title">Identidad</h2>
+        <p class="profile-section__subtitle">Datos personales del empleado</p>
+      </div>
+    </div>
+    <div class="profile-section__body">
+      <div class="form__row">
+        <div class="form__group">
+          <label class="form__label" for="first_name">Nombre <span class="form__required">*</span></label>
+          <input class="form__input" type="text" id="first_name" name="first_name"
+                 value="{{ (form.first_name if form is defined) or employee.first_name }}"
+                 required autofocus>
+        </div>
+        <div class="form__group">
+          <label class="form__label" for="last_name">Apellidos <span class="form__required">*</span></label>
+          <input class="form__input" type="text" id="last_name" name="last_name"
+                 value="{{ (form.last_name if form is defined) or employee.last_name }}"
+                 required>
+        </div>
+      </div>
+      <div class="form__row">
+        <div class="form__group">
+          <label class="form__label" for="dni">DNI / NIE <span class="form__required">*</span></label>
+          <input class="form__input" type="text" id="dni" name="dni"
+                 value="{{ (form.dni if form is defined) or employee.dni }}"
+                 required>
+        </div>
+        <div class="form__group">
+          <label class="form__label" for="role">Rol <span class="form__required">*</span></label>
+          <select class="form__select" id="role" name="role">
+            {% set current_role = (form.role if form is defined) or employee.role %}
+            <option value="employee" {{ 'selected' if current_role == 'employee' }}>Empleado</option>
+            {% if active_business_role == "owner" %}
+            <option value="admin"    {{ 'selected' if current_role == 'admin' }}>Administrador</option>
+            <option value="manager"  {{ 'selected' if current_role == 'manager' }}>Manager</option>
+            {% endif %}
+          </select>
+        </div>
+      </div>
+      <div class="form__group">
+        <label class="checkbox-label">
+          <input type="checkbox" name="active" value="1"
+                 {{ 'checked' if (form.active if form is defined is not none and form is defined) else ('checked' if employee.active) }}>
+          <span>Empleado activo</span>
+        </label>
+        <p class="form__hint">Los empleados inactivos no pueden fichar.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 2. Horario de trabajo ─────────────────────────────────────────── -->
+  <section class="profile-section">
+    <div class="profile-section__header">
+      <div class="profile-section__icon-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/>
+          <line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+        </svg>
+      </div>
+      <div>
+        <h2 class="profile-section__title">Horario de trabajo</h2>
+        <p class="profile-section__subtitle">
+          {% if current_schedule %}
+          Actualmente: <strong>{{ current_schedule.schedule.name }}</strong>
+          <span class="badge badge--sm badge--{{ 'warning' if current_schedule.schedule.is_strict else 'info' }}">
+            {{ current_schedule.schedule.schedule_type_label }}
+          </span>
+          {% else %}
+          Sin horario asignado
+          {% endif %}
+        </p>
+      </div>
+    </div>
+    <div class="profile-section__body">
+      {% if current_assignment %}
+      <div class="current-assignment-card">
+        <div class="current-assignment-card__info">
+          <strong>{{ current_schedule.schedule.name if current_schedule else '—' }}</strong>
+          <span class="text-muted">
+            Desde {{ current_assignment.effective_from }}
+            {% if current_assignment.effective_to %} hasta {{ current_assignment.effective_to }}{% endif %}
+          </span>
+        </div>
+        <form method="post"
+              action="/employees/{{ employee.id }}/remove-schedule/{{ current_assignment.id }}"
+              class="inline-form"
+              onsubmit="return confirm('¿Eliminar asignación de horario?')">
+          <button type="submit" class="btn btn--ghost btn--sm btn--danger-text">Quitar horario</button>
+        </form>
+      </div>
+      {% endif %}
+
+      {% if active_schedules %}
+      <p class="form__label form__label--subsection">
+        {{ 'Asignar nuevo horario' if current_assignment else 'Asignar horario' }}
+      </p>
+      <div class="form__row">
+        <div class="form__group">
+          <label class="form__label" for="schedule_id">Plantilla</label>
+          <select class="form__select" id="schedule_id" name="schedule_id"
+                  onchange="updateScheduleHint(this)">
+            <option value="">— Sin cambiar —</option>
+            {% for swd in active_schedules %}
+            <option value="{{ swd.schedule.id }}"
+                    data-type="{{ swd.schedule.schedule_type }}">
+              {{ swd.schedule.name }}
+              {% if swd.schedule.schedule_type == 'strict' %} · Estricto{% else %} · Flexible{% endif %}
+              {% if swd.schedule.weekly_hours_target %} · {{ swd.schedule.weekly_hours_label }}{% endif %}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form__group">
+          <label class="form__label" for="schedule_effective_from">Vigente desde</label>
+          <input class="form__input" type="date" id="schedule_effective_from"
+                 name="schedule_effective_from">
+        </div>
+      </div>
+      <div id="schedule-type-hint" class="schedule-type-indicator schedule-type-indicator--hidden"></div>
+      {% else %}
+      <p class="form__hint">
+        No hay plantillas disponibles.
+        <a href="/schedules/new">Crea una plantilla</a> primero.
+      </p>
+      {% endif %}
+
+      {% if assignment_history and assignment_history|length > 1 %}
+      <details class="history-details">
+        <summary class="history-details__toggle">Ver historial de horarios ({{ assignment_history|length }})</summary>
+        <div class="table-wrap" data-mobile-cards>
+        <table class="table table--compact">
+          <thead>
+            <tr><th>Horario</th><th>Desde</th><th>Hasta</th><th>Estado</th></tr>
+          </thead>
+          <tbody>
+            {% for a in assignment_history %}
+            <tr>
+              <td data-label="Horario">{{ a.schedule_name }}</td>
+              <td data-label="Desde">{{ a.effective_from }}</td>
+              <td data-label="Hasta">{{ a.effective_to or '—' }}</td>
+              <td data-label="Estado">
+                <span class="badge badge--{{ 'success' if a.is_active else 'neutral' }} badge--sm">
+                  {{ 'Activo' if a.is_active else 'Inactivo' }}
+                </span>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        </div>
+      </details>
+      {% endif %}
+    </div>
+  </section>
+
+  <!-- ── 3. Información RRHH ──────────────────────────────────────────── -->
+  <section class="profile-section">
+    <div class="profile-section__header">
+      <div class="profile-section__icon-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/>
+          <line x1="16" y1="17" x2="8" y2="17"/>
+        </svg>
+      </div>
+      <div>
+        <h2 class="profile-section__title">Información RRHH</h2>
+        <p class="profile-section__subtitle">Datos laborales y de contacto</p>
+      </div>
+    </div>
+    <div class="profile-section__body">
+      {% set p = profile %}
+      <div class="form__row">
+        <div class="form__group">
+          <label class="form__label" for="hire_date">Fecha de incorporación</label>
+          <input class="form__input" type="date" id="hire_date" name="hire_date"
+                 value="{{ (form.hire_date if form is defined) or (p.hire_date if p) or '' }}">
+        </div>
+        <div class="form__group">
+          <label class="form__label" for="contract_type">Tipo de contrato</label>
+          <select class="form__select" id="contract_type" name="contract_type">
+            <option value="">— Sin especificar —</option>
+            {% set cur_ct = (form.contract_type if form is defined) or (p.contract_type if p) or '' %}
+            {% for key, label in contract_type_choices %}
+            <option value="{{ key }}" {{ 'selected' if cur_ct == key }}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="form__row">
+        <div class="form__group">
+          <label class="form__label" for="department">Departamento</label>
+          <input class="form__input" type="text" id="department" name="department"
+                 value="{{ (form.department if form is defined) or (p.department if p) or '' }}"
+                 placeholder="Ej: Sala, Cocina, Administración">
+        </div>
+        <div class="form__group">
+          <label class="form__label" for="job_title">Puesto / Cargo</label>
+          <input class="form__input" type="text" id="job_title" name="job_title"
+                 value="{{ (form.job_title if form is defined) or (p.job_title if p) or '' }}"
+                 placeholder="Ej: Camarero, Chef, Gerente">
+        </div>
+      </div>
+      <div class="form__row">
+        <div class="form__group">
+          <label class="form__label" for="phone">Teléfono</label>
+          <input class="form__input" type="tel" id="phone" name="phone"
+                 value="{{ (form.phone if form is defined) or (p.phone if p) or '' }}"
+                 placeholder="+34 600 000 000">
+        </div>
+        <div class="form__group">
+          <label class="form__label" for="personal_email">Email personal</label>
+          <input class="form__input" type="email" id="personal_email" name="personal_email"
+                 value="{{ (form.personal_email if form is defined) or (p.personal_email if p) or '' }}"
+                 placeholder="nombre@correo.com">
+        </div>
+      </div>
+      <div class="form__row">
+        <div class="form__group">
+          <label class="form__label" for="social_security_number">Núm. Seguridad Social</label>
+          <input class="form__input" type="text" id="social_security_number"
+                 name="social_security_number"
+                 value="{{ (form.social_security_number if form is defined) or (p.social_security_number if p) or '' }}">
+        </div>
+        <div class="form__group">
+          <label class="form__label" for="emergency_contact_name">Contacto de emergencia</label>
+          <input class="form__input" type="text" id="emergency_contact_name"
+                 name="emergency_contact_name"
+                 value="{{ (form.emergency_contact_name if form is defined) or (p.emergency_contact_name if p) or '' }}"
+                 placeholder="Nombre y parentesco">
+        </div>
+      </div>
+      <div class="form__row">
+        <div class="form__group">
+          <label class="form__label" for="emergency_contact_phone">Teléfono emergencia</label>
+          <input class="form__input" type="tel" id="emergency_contact_phone"
+                 name="emergency_contact_phone"
+                 value="{{ (form.emergency_contact_phone if form is defined) or (p.emergency_contact_phone if p) or '' }}">
+        </div>
+        <div class="form__group"></div>
+      </div>
+      <div class="form__group">
+        <label class="form__label" for="notes">Notas internas</label>
+        <textarea class="form__input form__textarea" id="notes" name="notes"
+                  rows="3" placeholder="Información adicional solo visible para administradores…">{{ (form.notes if form is defined) or (p.notes if p) or '' }}</textarea>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Acciones ─────────────────────────────────────────────────────── -->
+  <div class="form__actions form__actions--spaced">
+    <a href="/employees" class="btn btn--ghost">Cancelar</a>
+    <button type="submit" class="btn btn--primary">Guardar cambios</button>
+  </div>
+
+</form>
+
+<!-- ── Cambio de contraseña ──────────────────────────────────────────── -->
+<section class="profile-section profile-section--standalone">
+  <div class="profile-section__header">
+    <div class="profile-section__icon-wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+      </svg>
+    </div>
+    <div>
+      <h2 class="profile-section__title">Contraseña</h2>
+      <p class="profile-section__subtitle">Cambia la contraseña o genera una temporal</p>
+    </div>
+  </div>
+  <div class="profile-section__body">
+    <div class="form__row form__row--align-end">
+      <form method="post" action="/employees/{{ employee.id }}/set-password"
+            class="form form--inline form__group--half">
+        <div class="form__group">
+          <label class="form__label" for="new_password">Nueva contraseña</label>
+          <input class="form__input" type="password" id="new_password" name="new_password"
+                 placeholder="Mínimo 6 caracteres" minlength="6" autocomplete="new-password">
+        </div>
+        <button type="submit" class="btn btn--secondary btn--sm">Establecer</button>
+      </form>
+
+      <form method="post" action="/employees/{{ employee.id }}/reset-password"
+            onsubmit="return confirm('¿Generar contraseña temporal para {{ employee.full_name }}?')">
+        <button type="submit" class="btn btn--ghost btn--sm">Generar contraseña temporal</button>
+      </form>
+    </div>
+  </div>
+</section>
+
+<!-- ── Zona de peligro ──────────────────────────────────────────────── -->
+<section class="profile-section profile-section--standalone profile-section--danger">
+  <div class="profile-section__header">
+    <div class="profile-section__icon-wrap profile-section__icon-wrap--danger">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+        <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+      </svg>
+    </div>
+    <div>
+      <h2 class="profile-section__title">Zona de peligro</h2>
+      <p class="profile-section__subtitle">
+        {% if employee.active %}Desactivar al empleado le impedirá fichar.{% else %}Activar al empleado le permitirá volver a fichar.{% endif %}
+      </p>
+    </div>
+  </div>
+  <div class="profile-section__body">
+    <form method="post" action="/employees/{{ employee.id }}/toggle"
+          onsubmit="return confirm('¿Confirmar {{ 'desactivar' if employee.active else 'activar' }} a {{ employee.full_name }}?')">
+      <button type="submit" class="btn btn--danger btn--sm">
+        {{ 'Desactivar empleado' if employee.active else 'Activar empleado' }}
+      </button>
+    </form>
+  </div>
+</section>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function () {
+  var dateInput = document.getElementById('schedule_effective_from');
+  if (dateInput && !dateInput.value) {
+    dateInput.value = new Date().toISOString().slice(0, 10);
+  }
+
+  function updateScheduleHint(sel) {
+    var hint = document.getElementById('schedule-type-hint');
+    if (!hint) return;
+    var opt = sel.options[sel.selectedIndex];
+    if (!opt || !opt.value) {
+      hint.className = 'schedule-type-indicator schedule-type-indicator--hidden';
+      return;
+    }
+    var type = opt.dataset.type;
+    hint.className = 'schedule-type-indicator schedule-type-indicator--' + type;
+    hint.innerHTML = type === 'strict'
+      ? '<strong>Horario Estricto</strong> — el fichaje quedará bloqueado fuera de la ventana horaria definida.'
+      : '<strong>Horario Flexible</strong> — solo informativo. El empleado puede fichar libremente.';
+  }
+
+  window.updateScheduleHint = updateScheduleHint;
+})();
+</script>
+{% endblock %}

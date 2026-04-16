@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+
+{% block title %}Revisar Gasto{% endblock %}
+{% block page_title %}Revisar Gasto{% endblock %}
+
+{% block extra_head %}
+<style>
+  .ticket-grid { display:flex; flex-wrap:wrap; gap:1rem; margin-top:.75rem; }
+  .ticket-thumb {
+    width:160px; height:160px; border-radius:var(--radius-md);
+    overflow:hidden; border:1px solid var(--color-border);
+    cursor:pointer; position:relative; background:var(--color-bg-secondary); text-decoration:none;
+  }
+  .ticket-thumb img { width:100%; height:100%; object-fit:cover; transition:opacity .2s; }
+  .ticket-thumb:hover img { opacity:.85; }
+  .ticket-thumb__label {
+    position:absolute; bottom:0; left:0; right:0;
+    background:rgba(0,0,0,.55); color:#fff; font-size:.7rem;
+    padding:.25rem .5rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .detail-row { display:flex; gap:.75rem; padding:.65rem 0; border-bottom:1px solid var(--color-border-subtle,var(--color-border)); }
+  .detail-row:last-child { border-bottom:none; }
+  .detail-row__label { width:160px; flex-shrink:0; color:var(--color-text-secondary); font-size:.875rem; }
+  .detail-row__value { flex:1; font-weight:500; }
+  .review-form { display:flex; flex-direction:column; gap:1rem; }
+  .action-buttons { display:flex; flex-wrap:wrap; gap:.625rem; }
+</style>
+{% endblock %}
+
+{% block topbar_actions %}
+  <a href="/expenses/admin" class="btn btn--ghost btn--sm">Volver a gastos</a>
+{% endblock %}
+
+{% block content %}
+<div style="display:grid;grid-template-columns:1fr 380px;gap:1.5rem;align-items:start" class="admin-detail-grid">
+
+  <!-- Left: expense info -->
+  <div style="display:flex;flex-direction:column;gap:1rem">
+
+    <div class="card">
+      <div class="card__header">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem">
+          <div>
+            <h2 class="card__title" style="margin:0 0 .25rem">{{ expense.title }}</h2>
+            <p class="card__subtitle" style="margin:0">{{ expense.employee_name or 'Empleado desconocido' }}</p>
+          </div>
+          <span class="badge {{ expense.status_css }}" style="font-size:.9rem;padding:.4rem .875rem">
+            {{ expense.status_label }}
+          </span>
+        </div>
+      </div>
+      <div class="card__body">
+        <div class="detail-row">
+          <span class="detail-row__label">Importe</span>
+          <span class="detail-row__value" style="font-size:1.375rem;font-weight:700;color:var(--color-primary)">
+            {{ expense.amount_display }}
+          </span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-row__label">Fecha del gasto</span>
+          <span class="detail-row__value">{{ expense.expense_date }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-row__label">Categoría</span>
+          <span class="detail-row__value">{{ expense.category_label }}</span>
+        </div>
+        {% if expense.description %}
+        <div class="detail-row">
+          <span class="detail-row__label">Descripción</span>
+          <span class="detail-row__value" style="white-space:pre-line">{{ expense.description }}</span>
+        </div>
+        {% endif %}
+        {% if expense.reference_number %}
+        <div class="detail-row">
+          <span class="detail-row__label">Referencia</span>
+          <span class="detail-row__value">{{ expense.reference_number }}</span>
+        </div>
+        {% endif %}
+        <div class="detail-row">
+          <span class="detail-row__label">Enviado el</span>
+          <span class="detail-row__value">{{ expense.created_at }}</span>
+        </div>
+        {% if expense.reviewed_at %}
+        <div class="detail-row">
+          <span class="detail-row__label">Revisado el</span>
+          <span class="detail-row__value">{{ expense.reviewed_at }}</span>
+        </div>
+        {% endif %}
+        {% if expense.reviewer_name %}
+        <div class="detail-row">
+          <span class="detail-row__label">Revisado por</span>
+          <span class="detail-row__value">{{ expense.reviewer_name }}</span>
+        </div>
+        {% endif %}
+        {% if expense.reimbursed_at %}
+        <div class="detail-row">
+          <span class="detail-row__label">Reembolsado el</span>
+          <span class="detail-row__value">{{ expense.reimbursed_at }}</span>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Ticket images -->
+    <div class="card">
+      <div class="card__header">
+        <h3 class="card__title" style="font-size:.9375rem">Fotos del ticket ({{ attachments | length }})</h3>
+      </div>
+      <div class="card__body">
+        {% if attachments %}
+          <div class="ticket-grid">
+            {% for att in attachments %}
+            <a class="ticket-thumb" href="/expenses/attachment/{{ expense.id }}/{{ att.id }}" target="_blank" title="{{ att.file_name }}">
+              <img src="/expenses/attachment/{{ expense.id }}/{{ att.id }}" alt="{{ att.file_name }}" loading="lazy">
+              <div class="ticket-thumb__label">{{ att.file_name }}</div>
+            </a>
+            {% endfor %}
+          </div>
+          <p class="text-muted text-sm" style="margin:.75rem 0 0">
+            Haz clic en cada imagen para abrirla en tamaño completo.
+          </p>
+        {% else %}
+          <p class="text-muted text-sm">Sin imágenes adjuntas.</p>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Right: review panel -->
+  <div style="display:flex;flex-direction:column;gap:1rem">
+
+    <div class="card">
+      <div class="card__header">
+        <h3 class="card__title" style="font-size:.9375rem">Gestionar gasto</h3>
+      </div>
+      <div class="card__body">
+        {% if expense.status == 'reembolsado' %}
+          <p class="text-muted text-sm">Este gasto ya ha sido reembolsado y no puede modificarse.</p>
+        {% else %}
+          <form method="post" action="/expenses/admin/{{ expense.id }}/review" class="review-form">
+
+            <!-- Admin notes -->
+            <div class="form-group" style="margin:0">
+              <label class="form-label" for="admin_notes">Nota interna</label>
+              <textarea
+                id="admin_notes"
+                name="admin_notes"
+                class="form-control"
+                rows="3"
+                placeholder="Nota visible solo para el equipo de gestión…"
+                maxlength="1000"
+              >{{ expense.admin_notes or '' }}</textarea>
+            </div>
+
+            <!-- Action buttons -->
+            <div>
+              <p class="form-label" style="margin-bottom:.5rem">Cambiar estado</p>
+              <div class="action-buttons">
+                {% if expense.status != 'aprobado' %}
+                <button type="submit" name="new_status" value="aprobado"
+                  class="btn btn--success btn--sm"
+                  onclick="return confirm('¿Aprobar este gasto?')">
+                  Aprobar
+                </button>
+                {% endif %}
+
+                {% if expense.status == 'aprobado' %}
+                <button type="submit" name="new_status" value="reembolsado"
+                  class="btn btn--primary btn--sm"
+                  onclick="return confirm('¿Marcar como reembolsado? Esta acción es definitiva.')">
+                  Marcar reembolsado
+                </button>
+                {% endif %}
+
+                {% if expense.status not in ('rechazado',) %}
+                <button type="submit" name="new_status" value="rechazado"
+                  class="btn btn--danger btn--sm"
+                  onclick="return confirm('¿Rechazar este gasto?')">
+                  Rechazar
+                </button>
+                {% endif %}
+
+                {% if expense.status != 'pendiente' %}
+                <button type="submit" name="new_status" value="pendiente"
+                  class="btn btn--ghost btn--sm"
+                  onclick="return confirm('¿Volver a pendiente?')">
+                  Volver a pendiente
+                </button>
+                {% endif %}
+              </div>
+            </div>
+
+            <!-- Save notes only -->
+            <div>
+              <button type="submit" name="new_status" value="{{ expense.status }}" class="btn btn--ghost btn--sm">
+                Guardar nota sin cambiar estado
+              </button>
+            </div>
+
+          </form>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Delete -->
+    <div class="card">
+      <div class="card__body">
+        <p class="text-muted text-sm" style="margin:0 0 .75rem">
+          Acción destructiva. Elimina el gasto y todas sus imágenes.
+        </p>
+        <form method="post" action="/expenses/{{ expense.id }}/delete"
+              onsubmit="return confirm('¿Eliminar este gasto permanentemente?')">
+          <button type="submit" class="btn btn--danger btn--sm">Eliminar gasto</button>
+        </form>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<style>
+@media (max-width: 768px) {
+  .admin-detail-grid { grid-template-columns: 1fr !important; }
+}
+</style>
+{% endblock %}

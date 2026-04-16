@@ -1,0 +1,268 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block page_title %}Dashboard{% endblock %}
+
+{% block topbar_actions %}
+  <a href="/analytics" class="btn btn--ghost btn--sm">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/>
+      <line x1="6" y1="20" x2="6" y2="14"/>
+    </svg>
+    Analíticas
+  </a>
+  <a href="/clock/kiosk" class="btn btn--primary btn--sm">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="10"/>
+      <polyline points="12 6 12 12 16 14"/>
+    </svg>
+    Abrir kiosk
+  </a>
+{% endblock %}
+
+{% block content %}
+
+<!-- Summary cards -->
+<div class="stats-grid">
+  {% if usage %}
+  <div class="stat-card">
+    <div class="stat-card__icon stat-card__icon--blue">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M3 3h18v18H3z"/><path d="M8 12h8"/><path d="M8 16h5"/><path d="M8 8h8"/>
+      </svg>
+    </div>
+    <div class="stat-card__body">
+      <p class="stat-card__label">{{ business.business_name if business else 'Negocio' }} Â· {{ usage.plan.name }}</p>
+      <p class="stat-card__value stat-card__value--md">
+        {{ usage.employee_count }}/{{ usage.plan.max_employees }} empleados
+      </p>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="stat-card">
+    <div class="stat-card__icon stat-card__icon--blue">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+        <circle cx="9" cy="7" r="4"/>
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+      </svg>
+    </div>
+    <div class="stat-card__body">
+      <p class="stat-card__label">Total empleados activos</p>
+      <p class="stat-card__value">{{ total_employees }}</p>
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-card__icon stat-card__icon--green">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+        <polyline points="22 4 12 14.01 9 11.01"/>
+      </svg>
+    </div>
+    <div class="stat-card__body">
+      <p class="stat-card__label">Trabajando ahora</p>
+      <p class="stat-card__value">{{ total_clocked_in }}</p>
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-card__icon stat-card__icon--gray">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="8" y1="12" x2="16" y2="12"/>
+      </svg>
+    </div>
+    <div class="stat-card__body">
+      <p class="stat-card__label">Fuera del trabajo</p>
+      <p class="stat-card__value">{{ total_clocked_out }}</p>
+    </div>
+  </div>
+</div>
+
+<!-- Workforce KPI row (analytics quick-view) -->
+{% if kpis %}
+<div class="stats-grid stats-grid--analytics">
+  <div class="stat-card stat-card--compact">
+    <div class="stat-card__icon stat-card__icon--blue">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+      </svg>
+    </div>
+    <div class="stat-card__body">
+      <p class="stat-card__label">Horas hoy</p>
+      <p class="stat-card__value stat-card__value--md">{{ fmt_hours(kpis.total_hours_today) }}</p>
+    </div>
+  </div>
+  <div class="stat-card stat-card--compact">
+    <div class="stat-card__icon stat-card__icon--green">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+        <circle cx="9" cy="7" r="4"/>
+      </svg>
+    </div>
+    <div class="stat-card__body">
+      <p class="stat-card__label">Horas esta semana</p>
+      <p class="stat-card__value stat-card__value--md">{{ fmt_hours(kpis.total_hours_week) }}</p>
+    </div>
+  </div>
+  <div class="stat-card stat-card--compact">
+    <div class="stat-card__icon stat-card__icon--gray">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/>
+        <line x1="6" y1="20" x2="6" y2="14"/>
+      </svg>
+    </div>
+    <div class="stat-card__body">
+      <p class="stat-card__label">Horas este mes</p>
+      <p class="stat-card__value stat-card__value--md">{{ fmt_hours(kpis.total_hours_month) }}</p>
+    </div>
+  </div>
+  <div class="stat-card stat-card--compact {% if kpis.month_overtime_seconds > 0 %}stat-card--warning{% endif %}">
+    <div class="stat-card__icon stat-card__icon--yellow">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+        <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+      </svg>
+    </div>
+    <div class="stat-card__body">
+      <p class="stat-card__label">H. extra este mes</p>
+      <p class="stat-card__value stat-card__value--md">{{ fmt_hours(kpis.month_overtime_seconds) }}</p>
+    </div>
+  </div>
+</div>
+
+{% if kpis.top_worker_this_week or kpis.busiest_hour_today is not none %}
+<div class="dashboard-insights">
+  {% if kpis.top_worker_this_week %}
+  <div class="insight-pill">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+    </svg>
+    Top esta semana: <strong>{{ kpis.top_worker_this_week }}</strong>
+  </div>
+  {% endif %}
+  {% if kpis.busiest_hour_today is not none %}
+  <div class="insight-pill">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+      <circle cx="9" cy="7" r="4"/>
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+    </svg>
+    Hora pico hoy: <strong>{{ "%02d:00"|format(kpis.busiest_hour_today) }}–{{ "%02d:00"|format(kpis.busiest_hour_today + 1) }}</strong>
+    ({{ kpis.busiest_concurrent_today }} trabajador{{ 'es' if kpis.busiest_concurrent_today != 1 else '' }})
+  </div>
+  {% endif %}
+  <a href="/analytics" class="insight-pill insight-pill--link">Ver analíticas completas →</a>
+</div>
+{% endif %}
+{% endif %}
+
+<!-- Currently clocked in -->
+<div class="card">
+  <div class="card__header">
+    <h2 class="card__title">
+      <span class="badge badge--green">En turno</span>
+      Empleados activos ahora
+    </h2>
+  </div>
+
+  {% if clocked_in_statuses %}
+  <div class="table-wrap" data-mobile-cards>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Empleado</th>
+          <th>Entrada</th>
+          <th>Tiempo transcurrido</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for status in clocked_in_statuses %}
+        <tr>
+          <td data-label="Empleado">
+            <div class="employee-cell">
+              <span class="avatar">{{ status.employee.initials }}</span>
+              {{ status.employee.full_name }}
+            </div>
+          </td>
+          <td class="text-muted" data-label="Entrada">
+            {{ format_timestamp(status.active_session.clock_in_time, "%H:%M") if status.active_session else "—" }}
+          </td>
+          <td data-label="Tiempo">
+            {% if status.active_session %}
+              <span class="duration-live" data-since="{{ status.active_session.clock_in_time }}">—</span>
+            {% else %}
+              —
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <circle cx="12" cy="12" r="10"/>
+      <line x1="12" y1="8" x2="12" y2="12"/>
+      <line x1="12" y1="16" x2="12.01" y2="16"/>
+    </svg>
+    <p>Ningún empleado está fichado en este momento.</p>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Recent sessions -->
+<div class="card">
+  <div class="card__header">
+    <h2 class="card__title">Últimas sesiones cerradas</h2>
+    <a href="/sessions" class="btn btn--ghost btn--sm">Ver todas →</a>
+  </div>
+
+  {% if recent_sessions %}
+  <div class="table-wrap" data-mobile-cards>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Empleado</th>
+          <th>Entrada</th>
+          <th>Salida</th>
+          <th>Duración</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for session in recent_sessions %}
+        <tr>
+          <td data-label="Empleado">{{ session.employee_name }}</td>
+          <td class="text-muted" data-label="Entrada">{{ format_timestamp(session.clock_in_time, "%d/%m %H:%M") }}</td>
+          <td class="text-muted" data-label="Salida">
+            {{ format_timestamp(session.clock_out_time, "%d/%m %H:%M") if session.clock_out_time else "—" }}
+          </td>
+          <td data-label="Duración">{{ format_duration(session.counted_duration_seconds) }}</td>
+          <td data-label="Estado">
+            {% if session.severity == "critical" %}
+              <span class="badge badge--red">{{ session.incident_label }}</span>
+            {% elif session.severity == "warning" %}
+              <span class="badge badge--yellow">{{ session.incident_label }}</span>
+            {% else %}
+              <span class="badge badge--green">OK</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <p>No hay sesiones recientes.</p>
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}

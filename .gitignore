@@ -7,4 +7,10 @@ app/data/*.sqlite3-*
 app/data/*.db
 app/data/*.db-*
 app/data/_pytest_tmp/
+backend/app/data/*.sqlite3
+backend/app/data/*.sqlite3-*
+backend/app/data/*.db
+backend/app/data/*.db-*
+backend/app/data/_pytest_tmp/
 exports/*.xlsx
+.claude/*.json
