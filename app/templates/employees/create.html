@@ -55,9 +55,20 @@
           <label class="form__label" for="role">Rol <span class="form__required">*</span></label>
           <select class="form__select" id="role" name="role">
             <option value="employee" {{ 'selected' if (form.role or 'employee') == 'employee' }}>Empleado</option>
+            {% if active_business_role == "owner" %}
             <option value="admin"    {{ 'selected' if form.role == 'admin' }}>Administrador</option>
+            <option value="manager"  {{ 'selected' if form.role == 'manager' }}>Manager</option>
+            {% endif %}
           </select>
         </div>
+      </div>
+      <div class="form__row">
+        <div class="form__group">
+          <label class="form__label" for="internal_code">Codigo interno</label>
+          <input class="form__input" type="text" id="internal_code" name="internal_code"
+                 value="{{ form.internal_code or '' }}" placeholder="Opcional; por defecto usa el DNI">
+        </div>
+        <div class="form__group"></div>
       </div>
     </div>
   </section>
@@ -73,15 +84,23 @@
       </div>
       <div>
         <h2 class="profile-section__title">Acceso</h2>
-        <p class="profile-section__subtitle">Contraseña inicial para el portal del empleado</p>
+        <p class="profile-section__subtitle">Contrasena o PIN inicial para acceso operativo</p>
       </div>
     </div>
     <div class="profile-section__body">
-      <div class="form__group form__group--half">
-        <label class="form__label" for="password">Contraseña inicial <span class="form__required">*</span></label>
-        <input class="form__input" type="password" id="password" name="password"
-               placeholder="Mínimo 6 caracteres" required minlength="6" autocomplete="new-password">
-        <p class="form__hint">El empleado podrá cambiarla desde su portal.</p>
+      <div class="form__row">
+        <div class="form__group">
+          <label class="form__label" for="password">Contrasena inicial</label>
+          <input class="form__input" type="password" id="password" name="password"
+                 placeholder="Minimo 6 caracteres" minlength="6" autocomplete="new-password">
+          <p class="form__hint">Usa contrasena para portal o gestion individual.</p>
+        </div>
+        <div class="form__group">
+          <label class="form__label" for="pin_code">PIN kiosk</label>
+          <input class="form__input" type="password" id="pin_code" name="pin_code"
+                 value="{{ form.pin_code or '' }}" placeholder="4+ digitos" inputmode="numeric" minlength="4">
+          <p class="form__hint">Si no hay contrasena, el PIN sera el acceso del empleado.</p>
+        </div>
       </div>
     </div>
   </section>

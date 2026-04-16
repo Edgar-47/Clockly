@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+
+{% block title %}Gestión de Gastos{% endblock %}
+{% block page_title %}Gestión de Gastos{% endblock %}
+
+{% block extra_head %}
+<style>
+  .summary-chips { display:flex; flex-wrap:wrap; gap:.75rem; margin-bottom:1.5rem; }
+  .chip {
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    padding:.875rem 1.25rem; border-radius:var(--radius-lg);
+    background:var(--color-bg-secondary); border:1px solid var(--color-border);
+    min-width:120px; cursor:pointer; text-decoration:none; transition:background .15s;
+  }
+  .chip:hover { background:var(--color-bg-tertiary); }
+  .chip--active { background:var(--color-primary-soft,rgba(10,132,255,.1)); border-color:var(--color-primary); }
+  .chip__value { font-size:1.375rem; font-weight:700; line-height:1.2; }
+  .chip__label { font-size:.75rem; color:var(--color-text-secondary); margin-top:.2rem; }
+  .chip--yellow .chip__value { color:#ff9f0a; }
+  .chip--green  .chip__value { color:#30d158; }
+  .chip--blue   .chip__value { color:#64d2ff; }
+  .chip--red    .chip__value { color:#ff453a; }
+  .filters-bar { display:flex; flex-wrap:wrap; gap:.75rem; align-items:flex-end; }
+  .filters-bar .form-group { flex:1; min-width:140px; margin:0; }
+</style>
+{% endblock %}
+
+{% block topbar_actions %}
+  <a href="/dashboard" class="btn btn--ghost btn--sm">Dashboard</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- Summary chips -->
+<div class="summary-chips">
+  <a href="/expenses/admin" class="chip {% if not filter_status %}chip--active{% endif %}">
+    <span class="chip__value">{{ (summary.count_pending + summary.count_approved + summary.count_reimbursed + summary.count_rejected) }}</span>
+    <span class="chip__label">Total</span>
+  </a>
+  <a href="/expenses/admin?status=pendiente" class="chip chip--yellow {% if filter_status == 'pendiente' %}chip--active{% endif %}">
+    <span class="chip__value">{{ summary.count_pending }}</span>
+    <span class="chip__label">Pendientes</span>
+  </a>
+  <a href="/expenses/admin?status=aprobado" class="chip chip--green {% if filter_status == 'aprobado' %}chip--active{% endif %}">
+    <span class="chip__value">{{ summary.count_approved }}</span>
+    <span class="chip__label">Aprobados</span>
+  </a>
+  <a href="/expenses/admin?status=reembolsado" class="chip chip--blue {% if filter_status == 'reembolsado' %}chip--active{% endif %}">
+    <span class="chip__value">{{ summary.count_reimbursed }}</span>
+    <span class="chip__label">Reembolsados</span>
+  </a>
+  <a href="/expenses/admin?status=rechazado" class="chip chip--red {% if filter_status == 'rechazado' %}chip--active{% endif %}">
+    <span class="chip__value">{{ summary.count_rejected }}</span>
+    <span class="chip__label">Rechazados</span>
+  </a>
+  <div class="chip" style="cursor:default">
+    <span class="chip__value" style="color:#ff9f0a">{{ "%.2f"|format(summary.total_pending) }} €</span>
+    <span class="chip__label">Pendiente de aprobar</span>
+  </div>
+  <div class="chip" style="cursor:default">
+    <span class="chip__value" style="color:#30d158">{{ "%.2f"|format(summary.total_approved) }} €</span>
+    <span class="chip__label">Por reembolsar</span>
+  </div>
+</div>
+
+<!-- Filters -->
+<div class="card" style="margin-bottom:1.5rem">
+  <div class="card__body" style="padding:1rem">
+    <form method="get" action="/expenses/admin" class="filters-bar">
+      <div class="form-group">
+        <label class="form-label">Estado</label>
+        <select name="status" class="form-control form-control--sm">
+          <option value="">Todos</option>
+          {% for value, label in status_choices %}
+            <option value="{{ value }}" {% if filter_status == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Empleado</label>
+        <select name="employee_id" class="form-control form-control--sm">
+          <option value="">Todos</option>
+          {% for emp in employees %}
+            <option value="{{ emp.id }}" {% if filter_employee_id == emp.id|string %}selected{% endif %}>
+              {{ emp.full_name }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Concepto</label>
+        <input type="text" name="search" class="form-control form-control--sm" placeholder="Buscar…" value="{{ filter_search }}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Desde</label>
+        <input type="date" name="date_from" class="form-control form-control--sm" value="{{ filter_date_from }}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Hasta</label>
+        <input type="date" name="date_to" class="form-control form-control--sm" value="{{ filter_date_to }}">
+      </div>
+      <div class="form-group" style="min-width:90px;max-width:110px">
+        <label class="form-label">Mín. €</label>
+        <input type="number" name="amount_min" class="form-control form-control--sm" placeholder="0" value="{{ filter_amount_min }}" step="0.01">
+      </div>
+      <div class="form-group" style="min-width:90px;max-width:110px">
+        <label class="form-label">Máx. €</label>
+        <input type="number" name="amount_max" class="form-control form-control--sm" placeholder="∞" value="{{ filter_amount_max }}" step="0.01">
+      </div>
+      <div style="display:flex;gap:.5rem;padding-bottom:.1rem">
+        <button type="submit" class="btn btn--primary btn--sm">Filtrar</button>
+        <a href="/expenses/admin" class="btn btn--ghost btn--sm">Limpiar</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Table -->
+<div class="card">
+  <div class="card__header">
+    <h2 class="card__title">Gastos ({{ expenses | length }})</h2>
+  </div>
+  <div class="card__body" style="padding:0">
+    {% if expenses %}
+    <div class="table-wrapper">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Empleado</th>
+            <th>Concepto</th>
+            <th>Categoría</th>
+            <th>Fecha</th>
+            <th>Importe</th>
+            <th>Estado</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for expense in expenses %}
+          <tr>
+            <td>
+              <span class="text-strong">{{ expense.employee_name or '—' }}</span>
+            </td>
+            <td>
+              <span class="text-strong">{{ expense.title }}</span>
+              {% if expense.description %}
+                <br><span class="text-muted text-sm">{{ expense.description | truncate(55) }}</span>
+              {% endif %}
+            </td>
+            <td>{{ expense.category_label }}</td>
+            <td>{{ expense.expense_date }}</td>
+            <td><strong>{{ expense.amount_display }}</strong></td>
+            <td>
+              <span class="badge {{ expense.status_css }}">{{ expense.status_label }}</span>
+            </td>
+            <td class="table__actions">
+              <a href="/expenses/admin/{{ expense.id }}" class="btn btn--ghost btn--xs">Gestionar</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div style="padding:3rem 2rem;text-align:center">
+      <p class="text-muted">No hay gastos con los filtros seleccionados.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

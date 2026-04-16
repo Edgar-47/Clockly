@@ -5,7 +5,13 @@
       "Bash(python -c \"from app.ui.attendance_view import AttendanceView; print\\('OK'\\)\")",
       "Bash(python -c ':*)",
       "Bash(.venv/Scripts/pip install:*)",
-      "Bash(.venv/Scripts/python -m pytest tests/ -v)"
+      "Bash(.venv/Scripts/python -m pytest tests/ -v)",
+      "Bash(xargs grep *)",
+      "Bash(python -m py_compile app/models/expense.py app/database/expense_repository.py app/services/expense_service.py app/api/routes/expenses.py app/main.py)",
+      "Bash(python -c \"from app.models.expense import Expense, ExpenseAttachment, EXPENSE_STATUSES, EXPENSE_CATEGORIES; print\\('models OK'\\)\")",
+      "Bash(python -c \"from app.database.expense_repository import ExpenseRepository; print\\('repo OK'\\)\")",
+      "Bash(python -c \"from app.services.expense_service import ExpenseService; print\\('service OK'\\)\")",
+      "Bash(python -c \"from app.api.routes.expenses import router; print\\('routes OK'\\)\")"
     ]
   }
 }

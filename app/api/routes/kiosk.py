@@ -10,7 +10,7 @@ Flow:
   6. /kiosk/logout → clear employee session (keep kiosk business active)
 
 All kiosk routes require kiosk_business_id in session.
-/kiosk/me and /kiosk/punch also require an employee to be logged in (user_id in session).
+/kiosk/me and /kiosk/punch also require a kiosk_employee_id in session.
 """
 
 from fastapi import APIRouter, Depends, Request
@@ -21,18 +21,21 @@ from app.api.dependencies import (
     require_kiosk_active,
     require_kiosk_employee,
     template_context,
-    RequiresKioskException,
 )
 from app.core.flow_debug import flow_log, form_keys
 from app.core.security import (
     build_kiosk_session_payload,
     build_kiosk_employee_payload,
+    clear_kiosk_employee_context,
+    reset_kiosk_context,
 )
 from app.core.templates import templates
 from app.database.business_repository import BusinessRepository
+from app.database.employee_repository import EmployeeRepository
 from app.models.employee import Employee
 from app.services.auth_service import AuthService
 from app.services.employee_service import EmployeeService
+from app.services.subscription_service import FeatureNotAvailableError, SubscriptionService
 from app.services.time_clock_service import TimeClockService
 
 
@@ -46,11 +49,17 @@ router = APIRouter(prefix="/kiosk", tags=["kiosk"])
 @router.get("/enter", response_class=HTMLResponse)
 async def kiosk_enter_form(request: Request):
     """Display the business code entry form."""
-    # If already in kiosk mode with a business, redirect to main view
-    if request.session.get("kiosk_business_id"):
-        return RedirectResponse("/kiosk", status_code=302)
-
+    clear_kiosk_employee_context(request.session)
     ctx = template_context(request)
+    active_business_id = request.session.get("kiosk_business_id")
+    if active_business_id:
+        business = BusinessRepository().get_by_id(active_business_id)
+        if business and business.is_active:
+            ctx["active_kiosk_business"] = business
+        else:
+            reset_kiosk_context(request.session)
+            flash(request, "El negocio activo del kiosk ya no esta disponible.", "warning")
+            ctx = template_context(request)
     return templates.TemplateResponse(request, "kiosk/enter.html", ctx)
 
 
@@ -59,6 +68,7 @@ async def kiosk_enter_submit(request: Request):
     """Validate business code and start kiosk mode."""
     form_data = await request.form()
     login_code = str(form_data.get("login_code", "")).strip()
+    previous_business_id = reset_kiosk_context(request.session)
 
     flow_log("kiosk.enter.form", form_keys=form_keys(form_data))
 
@@ -85,11 +95,42 @@ async def kiosk_enter_submit(request: Request):
         ctx["login_code"] = login_code
         return templates.TemplateResponse(request, "kiosk/enter.html", ctx, status_code=400)
 
+    try:
+        SubscriptionService().assert_feature(business.id, "kiosk")
+    except FeatureNotAvailableError as exc:
+        ctx = template_context(request)
+        ctx["error"] = str(exc)
+        ctx["login_code"] = login_code
+        return templates.TemplateResponse(request, "kiosk/enter.html", ctx, status_code=403)
+
     # Start kiosk mode: save business_id in session
     request.session.update(build_kiosk_session_payload(business.id))
-    flow_log("kiosk.enter.success", business_id=business.id, business_name=business.business_name)
+    flow_log(
+        "kiosk.enter.success",
+        previous_business_id=previous_business_id,
+        business_id=business.id,
+        business_name=business.business_name,
+    )
 
     return RedirectResponse("/kiosk", status_code=303)
+
+
+@router.get("/change")
+async def kiosk_change_get(request: Request):
+    """Reset kiosk context and return to business selection."""
+    previous_business_id = reset_kiosk_context(request.session)
+    flow_log("kiosk.change", previous_business_id=previous_business_id, method="GET")
+    flash(request, "Contexto del kiosk reiniciado. Introduce el codigo del negocio.", "info")
+    return RedirectResponse("/kiosk/enter", status_code=302)
+
+
+@router.post("/change")
+async def kiosk_change_post(request: Request):
+    """Reset kiosk context and return to business selection."""
+    previous_business_id = reset_kiosk_context(request.session)
+    flow_log("kiosk.change", previous_business_id=previous_business_id, method="POST")
+    flash(request, "Contexto del kiosk reiniciado. Introduce el codigo del negocio.", "info")
+    return RedirectResponse("/kiosk/enter", status_code=303)
 
 
 # ---------------------------------------------------------------------------
@@ -108,7 +149,7 @@ async def kiosk_main(
     if not business:
         # Business was deleted or invalid
         flow_log("kiosk.main.business_not_found", business_id=business_id)
-        request.session.clear()
+        reset_kiosk_context(request.session)
         flash(request, "El código de negocio ya no es válido.", "error")
         return RedirectResponse("/kiosk/enter", status_code=302)
 
@@ -147,10 +188,13 @@ async def kiosk_login_form(
     """Display employee login form."""
     business_repo = BusinessRepository()
     business = business_repo.get_by_id(business_id)
+    if not business:
+        reset_kiosk_context(request.session)
+        flash(request, "El negocio activo del kiosk ya no esta disponible.", "error")
+        return RedirectResponse("/kiosk/enter", status_code=302)
 
     ctx = template_context(request)
-    if business:
-        ctx["business"] = business
+    ctx["business"] = business
     return templates.TemplateResponse(request, "kiosk/login.html", ctx)
 
 
@@ -163,11 +207,12 @@ async def kiosk_login_submit(
     form_data = await request.form()
     identifier = str(form_data.get("identifier", "")).strip()
     password = str(form_data.get("password", ""))
+    clear_kiosk_employee_context(request.session)
 
     flow_log("kiosk.login.form", form_keys=form_keys(form_data), business_id=business_id)
 
     # Authenticate employee
-    auth_service = AuthService()
+    auth_service = AuthService(EmployeeRepository(business_id=business_id))
     try:
         employee = auth_service.login(identifier, password)
     except ValueError as exc:
@@ -323,12 +368,19 @@ async def kiosk_logout(
     """Log out the employee but keep the kiosk business active."""
     employee, business_id = auth
 
-    # Clear only employee session keys; keep kiosk_business_id
-    request.session.pop("user_id", None)
-    request.session.pop("user_name", None)
-    request.session.pop("user_role", None)
+    # Clear only kiosk employee keys; keep kiosk_business_id
+    clear_kiosk_employee_context(request.session)
 
     flow_log("kiosk.logout", user_id=employee.id, business_id=business_id)
     flash(request, f"Sesión de {employee.full_name} cerrada.", "info")
 
     return RedirectResponse("/kiosk/login", status_code=302)
+
+
+@router.get("/logout")
+async def kiosk_logout_get(
+    request: Request,
+    auth: tuple[Employee, str] = Depends(require_kiosk_employee),
+):
+    """GET fallback for kiosk employee logout."""
+    return await kiosk_logout(request, auth)

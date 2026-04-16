@@ -157,7 +157,13 @@ async def employee_create(
         "last_name": str(form_data.get("last_name", "")),
         "dni": str(form_data.get("dni", "")),
         "password": str(form_data.get("password", "")),
+        "pin_code": str(form_data.get("pin_code", "")),
+        "internal_code": str(form_data.get("internal_code", "")),
+        "email": str(form_data.get("personal_email", "")),
+        "phone": str(form_data.get("phone", "")),
+        "role_title": str(form_data.get("job_title", "")),
         "role": str(form_data.get("role", "employee")),
+        "actor_user_id": current_user.id,
     }
     profile_fields: dict = {}
 
@@ -239,6 +245,7 @@ async def employee_update(
         "dni": str(form_data.get("dni", "")),
         "role": str(form_data.get("role", "employee")),
         "active": form_data.get("active") is not None,
+        "actor_user_id": current_user.id,
     }
     profile_fields: dict = {}
 
@@ -299,7 +306,7 @@ async def employee_toggle(
 ):
     try:
         service = EmployeeService(business_id=business_id)
-        new_state = service.toggle_active(employee_id)
+        new_state = service.toggle_active(employee_id, actor_user_id=current_user.id)
         label = "activado" if new_state else "desactivado"
         flash(request, f"Empleado {label}.", "success")
     except ValueError as exc:
@@ -320,7 +327,7 @@ async def employee_reset_password(
 ):
     try:
         service = EmployeeService(business_id=business_id)
-        temp_password = service.reset_password(employee_id)
+        temp_password = service.reset_password(employee_id, actor_user_id=current_user.id)
         flash(
             request,
             f"Contraseña temporal generada: {temp_password} — comunícasela al empleado.",
@@ -346,7 +353,7 @@ async def employee_set_password(
     new_password = str(form_data.get("new_password", ""))
     try:
         service = EmployeeService(business_id=business_id)
-        service.set_password(employee_id, new_password)
+        service.set_password(employee_id, new_password, actor_user_id=current_user.id)
         flash(request, "Contraseña actualizada.", "success")
     except ValueError as exc:
         flash(request, str(exc), "error")

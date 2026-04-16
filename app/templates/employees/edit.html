@@ -78,7 +78,10 @@
           <select class="form__select" id="role" name="role">
             {% set current_role = (form.role if form is defined) or employee.role %}
             <option value="employee" {{ 'selected' if current_role == 'employee' }}>Empleado</option>
+            {% if active_business_role == "owner" %}
             <option value="admin"    {{ 'selected' if current_role == 'admin' }}>Administrador</option>
+            <option value="manager"  {{ 'selected' if current_role == 'manager' }}>Manager</option>
+            {% endif %}
           </select>
         </div>
       </div>

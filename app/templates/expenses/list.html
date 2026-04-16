@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block title %}Mis Gastos{% endblock %}
+{% block page_title %}Mis Gastos{% endblock %}
+
+{% block topbar_actions %}
+  <a href="/expenses/new" class="btn btn--primary btn--sm">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+    </svg>
+    Nuevo gasto
+  </a>
+{% endblock %}
+
+{% block content %}
+
+<!-- Summary -->
+<div class="stats-grid" style="margin-bottom:1.5rem">
+  <div class="stat-card">
+    <div class="stat-card__icon stat-card__icon--blue">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="2" y="5" width="20" height="14" rx="2"/>
+        <line x1="2" y1="10" x2="22" y2="10"/>
+      </svg>
+    </div>
+    <div class="stat-card__body">
+      <p class="stat-card__label">Total gastos enviados</p>
+      <p class="stat-card__value">{{ expenses | length }}</p>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-card__icon stat-card__icon--green">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+      </svg>
+    </div>
+    <div class="stat-card__body">
+      <p class="stat-card__label">Importe total</p>
+      <p class="stat-card__value">{{ "%.2f"|format(total) }} €</p>
+    </div>
+  </div>
+</div>
+
+<!-- Filters -->
+<div class="card" style="margin-bottom:1.5rem">
+  <div class="card__body">
+    <form method="get" action="/expenses" class="form-inline" style="display:flex;gap:1rem;flex-wrap:wrap;align-items:flex-end">
+      <div class="form-group" style="flex:1;min-width:160px">
+        <label class="form-label">Estado</label>
+        <select name="status" class="form-control form-control--sm" onchange="this.form.submit()">
+          <option value="">Todos</option>
+          {% for value, label in status_choices %}
+            <option value="{{ value }}" {% if filter_status == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button type="submit" class="btn btn--ghost btn--sm">Filtrar</button>
+      {% if filter_status %}
+        <a href="/expenses" class="btn btn--ghost btn--sm">Limpiar</a>
+      {% endif %}
+    </form>
+  </div>
+</div>
+
+<!-- Expenses table -->
+<div class="card">
+  <div class="card__header">
+    <h2 class="card__title">Mis gastos</h2>
+  </div>
+  <div class="card__body" style="padding:0">
+    {% if expenses %}
+    <div class="table-wrapper">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Concepto</th>
+            <th>Categoría</th>
+            <th>Fecha</th>
+            <th>Importe</th>
+            <th>Estado</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for expense in expenses %}
+          <tr>
+            <td>
+              <span class="text-strong">{{ expense.title }}</span>
+              {% if expense.description %}
+                <br><span class="text-muted text-sm">{{ expense.description | truncate(60) }}</span>
+              {% endif %}
+            </td>
+            <td>{{ expense.category_label }}</td>
+            <td>{{ expense.expense_date }}</td>
+            <td><strong>{{ expense.amount_display }}</strong></td>
+            <td>
+              <span class="badge {{ expense.status_css }}">{{ expense.status_label }}</span>
+            </td>
+            <td class="table__actions">
+              <a href="/expenses/{{ expense.id }}" class="btn btn--ghost btn--xs">Ver</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state" style="padding:3rem 2rem;text-align:center">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:3rem;height:3rem;margin:0 auto 1rem;color:var(--color-text-tertiary)">
+        <rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>
+      </svg>
+      <p class="text-muted">No tienes gastos registrados todavía.</p>
+      <a href="/expenses/new" class="btn btn--primary" style="margin-top:1rem">Añadir gasto</a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

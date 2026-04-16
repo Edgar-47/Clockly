@@ -10,9 +10,9 @@ import json
 from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, Query, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 
-from app.api.dependencies import require_active_business, require_admin, template_context
+from app.api.dependencies import flash, require_active_business, require_admin, template_context
 from app.core.templates import templates
 from app.models.employee import Employee
 from app.services.analytics_service import (
@@ -21,6 +21,7 @@ from app.services.analytics_service import (
     _fmt_hours,
 )
 from app.services.employee_service import EmployeeService
+from app.services.subscription_service import FeatureNotAvailableError, SubscriptionService
 from app.services.work_schedule_service import WorkScheduleService
 
 router = APIRouter(tags=["analytics"])
@@ -41,6 +42,12 @@ async def analytics_dashboard(
     Provides: worker rankings, peak staffing heatmap, overtime trends,
     planned vs actual compliance, and monthly overtime breakdown.
     """
+    try:
+        SubscriptionService().assert_feature(business_id, "advanced_reports")
+    except FeatureNotAvailableError as exc:
+        flash(request, str(exc), "error")
+        return RedirectResponse("/dashboard", status_code=303)
+
     today = date.today()
 
     # ── Resolve date range ────────────────────────────────────────

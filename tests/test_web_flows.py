@@ -1,6 +1,7 @@
 from fastapi.testclient import TestClient
 
 from app.database.connection import get_connection
+from app.services.business_service import BusinessService
 from app.services.employee_service import EmployeeService
 
 
@@ -24,6 +25,15 @@ def _create_employee(
         password=password,
         role="employee",
     )
+
+
+def _admin_id() -> int:
+    with get_connection() as connection:
+        row = connection.execute(
+            "SELECT id FROM users WHERE LOWER(dni) = LOWER(%s)",
+            ("admin",),
+        ).fetchone()
+    return int(row["id"])
 
 
 def _insert_session(
@@ -149,3 +159,121 @@ def test_session_filters_accept_blank_values_and_filter_results(db):
     assert filtered.status_code == 200
     assert "Ana Lopez" in filtered.text
     assert "87654321B" not in filtered.text
+
+
+def test_kiosk_business_switch_resets_context_and_scopes_data(db):
+    owner_id = _admin_id()
+    business_service = BusinessService()
+    first = business_service.create_business(
+        owner_user_id=owner_id,
+        business_name="Kiosk Norte",
+        business_type="cafeteria",
+        login_code="KIOSK-NORTE",
+        plan_code="pro",
+    )
+    second = business_service.create_business(
+        owner_user_id=owner_id,
+        business_name="Kiosk Sur",
+        business_type="bar",
+        login_code="KIOSK-SUR",
+        plan_code="pro",
+    )
+
+    EmployeeService(business_id=first.id).create_employee(
+        first_name="Ana",
+        last_name="Norte",
+        dni="NORTE001",
+        password="clave123",
+    )
+    EmployeeService(business_id=second.id).create_employee(
+        first_name="Luis",
+        last_name="Sur",
+        dni="SUR001",
+        password="clave123",
+    )
+
+    with TestClient(_app()) as client:
+        response = client.post(
+            "/kiosk/enter",
+            data={"login_code": "KIOSK-NORTE"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 303
+        assert response.headers["location"] == "/kiosk"
+
+        kiosk = client.get("/kiosk")
+        assert kiosk.status_code == 200
+        assert "Kiosk Norte" in kiosk.text
+        assert "Ana" in kiosk.text
+        assert "Luis" not in kiosk.text
+
+        login = client.post(
+            "/kiosk/login",
+            data={"identifier": "NORTE001", "password": "clave123"},
+            follow_redirects=False,
+        )
+        assert login.status_code == 303
+        assert login.headers["location"] == "/kiosk/me"
+
+        change = client.post("/kiosk/change", follow_redirects=False)
+        assert change.status_code == 303
+        assert change.headers["location"] == "/kiosk/enter"
+
+        no_context = client.get("/kiosk", follow_redirects=False)
+        assert no_context.status_code == 302
+        assert no_context.headers["location"] == "/kiosk/enter"
+
+        response = client.post(
+            "/kiosk/enter",
+            data={"login_code": "KIOSK-SUR"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 303
+        assert response.headers["location"] == "/kiosk"
+
+        kiosk = client.get("/kiosk")
+        assert kiosk.status_code == 200
+        assert "Kiosk Sur" in kiosk.text
+        assert "Luis" in kiosk.text
+        assert "Ana" not in kiosk.text
+
+        stale_employee = client.get("/kiosk/me", follow_redirects=False)
+        assert stale_employee.status_code == 302
+        assert stale_employee.headers["location"] == "/kiosk/login"
+
+
+def test_kiosk_invalid_new_business_code_drops_previous_context(db):
+    owner_id = _admin_id()
+    business = BusinessService().create_business(
+        owner_user_id=owner_id,
+        business_name="Kiosk Codigo",
+        business_type="tienda",
+        login_code="KIOSK-CODIGO",
+        plan_code="pro",
+    )
+    EmployeeService(business_id=business.id).create_employee(
+        first_name="Marta",
+        last_name="Codigo",
+        dni="COD001",
+        password="clave123",
+    )
+
+    with TestClient(_app()) as client:
+        response = client.post(
+            "/kiosk/enter",
+            data={"login_code": "KIOSK-CODIGO"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 303
+
+        response = client.post(
+            "/kiosk/enter",
+            data={"login_code": "NO-EXISTE"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 400
+        assert "no encontrado" in response.text
+
+        no_context = client.get("/kiosk", follow_redirects=False)
+        assert no_context.status_code == 302
+        assert no_context.headers["location"] == "/kiosk/enter"

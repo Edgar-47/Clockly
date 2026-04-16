@@ -166,6 +166,43 @@
       transform: translateY(0);
     }
 
+    .btn--google {
+      background: #fff;
+      color: #1f2937;
+      border: 1px solid var(--color-border-strong);
+      margin-bottom: var(--space-4);
+    }
+
+    .btn--google:hover {
+      border-color: var(--color-primary);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .btn[aria-disabled="true"] {
+      opacity: 0.6;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
+    .login-divider {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      color: var(--color-text-muted);
+      font-size: var(--text-xs);
+      margin: var(--space-2) 0 var(--space-4);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .login-divider::before,
+    .login-divider::after {
+      content: "";
+      height: 1px;
+      flex: 1;
+      background: var(--color-border);
+    }
+
     .btn--full {
       width: 100%;
     }
@@ -235,7 +272,7 @@
     </div>
 
     <h2 class="login-card__heading">Acceso al Panel</h2>
-    <p class="login-card__sub">Introduce tus credenciales de administrador para continuar.</p>
+    <p class="login-card__sub">Entra con Google para crear o gestionar tu negocio.</p>
 
     {% if error %}
     <div class="alert alert--error" role="alert">
@@ -247,6 +284,18 @@
       <span>{{ error }}</span>
     </div>
     {% endif %}
+
+    <a href="/auth/google"
+       class="btn btn--google btn--full"
+       {% if not google_auth_enabled %}aria-disabled="true"{% endif %}>
+      Continuar con Google
+    </a>
+
+    {% if not google_auth_enabled %}
+    <p class="login-card__sub">Google OAuth necesita GOOGLE_CLIENT_ID y GOOGLE_CLIENT_SECRET.</p>
+    {% endif %}
+
+    <div class="login-divider">Acceso operativo</div>
 
     <form method="post" action="/login" class="form" novalidate>
       <div class="form__group">

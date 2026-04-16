@@ -180,6 +180,10 @@
         flex-wrap: wrap;
     }
 
+    .kiosk-cta__form {
+        margin: 0;
+    }
+
     .kiosk-cta__btn {
         display: inline-flex;
         align-items: center;
@@ -246,9 +250,13 @@
         }
 
         .kiosk-stat-pill,
-        .kiosk-cta__btn {
+        .kiosk-cta__btn,
+        .kiosk-cta__form {
             width: 100%;
             min-width: 0;
+        }
+
+        .kiosk-cta__btn {
             min-height: 48px;
         }
 
@@ -319,13 +327,14 @@
             </svg>
             Iniciar Sesión para Fichar
         </a>
-        <a
-            href="/kiosk/enter"
-            class="kiosk-cta__btn kiosk-cta__btn--secondary"
-            data-confirm-click="¿Cambiar de negocio? Se cerrará la sesión actual del kiosk."
-        >
-            Cambiar Negocio
-        </a>
+        <form method="post"
+              action="/kiosk/change"
+              class="kiosk-cta__form"
+              data-confirm="Cambiar de negocio cerrara la sesion actual del kiosk.">
+            <button type="submit" class="kiosk-cta__btn kiosk-cta__btn--secondary">
+                Cambiar Negocio
+            </button>
+        </form>
     </div>
 
 </div>

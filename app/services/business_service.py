@@ -11,6 +11,8 @@ from app.database.connection import DatabaseIntegrityError
 from app.database.business_repository import BusinessRepository
 from app.database.employee_repository import EmployeeRepository
 from app.models.business import Business
+from app.services.authorization_service import AuthorizationError, AuthorizationService
+from app.services.subscription_service import SubscriptionService
 
 
 class BusinessService:
@@ -34,6 +36,8 @@ class BusinessService:
     ) -> None:
         self.business_repository = business_repository or BusinessRepository()
         self.employee_repository = employee_repository or EmployeeRepository()
+        self.authorization_service = AuthorizationService()
+        self.subscription_service = SubscriptionService()
 
     def requires_onboarding(self, user_id: int) -> bool:
         return self.business_repository.count_for_user(user_id) == 0
@@ -92,8 +96,11 @@ class BusinessService:
         *,
         owner_user_id: int,
         business_name: str,
-        business_type: str,
-        login_code: str,
+        business_type: str = "otro",
+        login_code: str = "",
+        timezone: str = "Europe/Madrid",
+        country: str | None = None,
+        plan_code: str | None = None,
     ) -> Business:
         owner = self.employee_repository.get_by_id(owner_user_id)
         if not owner or not owner.active:
@@ -103,6 +110,8 @@ class BusinessService:
 
         clean_name = self._clean_business_name(business_name)
         clean_type = self._normalize_business_type(business_type)
+        clean_timezone = self._normalize_timezone(timezone)
+        clean_country = self._normalize_country(country)
         raw_login_code = (login_code or "").strip()
         clean_login_code = self._normalize_login_code(raw_login_code)
         login_code_generated = False
@@ -143,9 +152,15 @@ class BusinessService:
                     login_code=clean_login_code,
                     slug=self._build_slug(clean_name, business_id),
                     business_key=self._generate_business_key(),
+                    timezone=clean_timezone,
+                    country=clean_country,
                     settings_json=settings_json,
                     mark_default=True,
                     include_legacy_records=include_legacy_records,
+                )
+                self.subscription_service.ensure_default_subscription(
+                    business_id=business.id,
+                    plan_code=plan_code,
                 )
                 break
             except DatabaseIntegrityError as exc:
@@ -169,13 +184,18 @@ class BusinessService:
         business_name: str,
         business_type: str,
         login_code: str,
+        timezone: str | None = None,
+        country: str | None = None,
         settings_json: str | dict | None = None,
     ) -> Business:
-        if not self.business_repository.user_has_access(
-            business_id=business_id,
-            user_id=requester_user_id,
-        ):
-            raise ValueError("No tienes acceso a este negocio.")
+        try:
+            self.authorization_service.require_permission(
+                user_id=requester_user_id,
+                business_id=business_id,
+                permission="business:update",
+            )
+        except AuthorizationError as exc:
+            raise ValueError(str(exc)) from exc
 
         current = self.business_repository.get_by_id(business_id)
         if current is None:
@@ -183,6 +203,8 @@ class BusinessService:
 
         clean_name = self._clean_business_name(business_name)
         clean_type = self._normalize_business_type(business_type)
+        clean_timezone = self._normalize_timezone(timezone or current.timezone)
+        clean_country = self._normalize_country(country if country is not None else current.country)
         clean_login_code = self._normalize_login_code(login_code)
         clean_settings = self._normalize_settings_json(
             settings_json,
@@ -209,6 +231,8 @@ class BusinessService:
                 business_type=clean_type,
                 login_code=clean_login_code,
                 settings_json=clean_settings,
+                timezone=clean_timezone,
+                country=clean_country,
             )
         except DatabaseIntegrityError as exc:
             raise ValueError("Ya existe un negocio con ese codigo o identificador.") from exc
@@ -217,11 +241,19 @@ class BusinessService:
         return re.sub(r"\s+", " ", value).strip()
 
     def _normalize_business_type(self, value: str) -> str:
-        clean = self._ascii_key(value)
+        clean = self._ascii_key(value or "otro")
         clean = re.sub(r"\s+", "_", clean)
         if clean not in self.BUSINESS_TYPES:
             raise ValueError("Selecciona un tipo de negocio valido.")
         return clean
+
+    def _normalize_timezone(self, value: str | None) -> str:
+        clean = (value or "Europe/Madrid").strip()
+        return clean[:64] or "Europe/Madrid"
+
+    def _normalize_country(self, value: str | None) -> str | None:
+        clean = (value or "").strip()
+        return clean[:64] or None
 
     def _normalize_login_code(self, value: str) -> str:
         clean = re.sub(r"\s+", "-", value.strip().upper())

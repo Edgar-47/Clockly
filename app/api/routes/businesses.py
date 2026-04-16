@@ -29,8 +29,10 @@ from app.api.dependencies import (
 from app.core.flow_debug import flow_log, form_keys
 from app.core.templates import templates
 from app.database.business_repository import BusinessRepository
+from app.database.plan_repository import PlanRepository
 from app.models.employee import Employee
 from app.services.business_service import BusinessService
+from app.services.subscription_service import SubscriptionService
 
 router = APIRouter(prefix="/businesses", tags=["businesses"])
 
@@ -138,6 +140,7 @@ async def business_new_form(
     ctx.update({
         "form": {},
         "business_type_choices": _business_type_choices(),
+        "plan_choices": PlanRepository().list_active(),
         "is_onboarding": is_onboarding,
     })
     return templates.TemplateResponse(request, "businesses/new.html", ctx)
@@ -153,6 +156,9 @@ async def business_create(
 
     business_name = str(form_data.get("business_name", "")).strip()
     business_type = str(form_data.get("business_type", "otro")).strip()
+    timezone = str(form_data.get("timezone", "Europe/Madrid")).strip()
+    country = str(form_data.get("country", "")).strip() or None
+    plan_code = str(form_data.get("plan_code", "basic")).strip() or "basic"
     raw_code = str(form_data.get("login_code", "")).strip()
 
     flow_log(
@@ -172,19 +178,26 @@ async def business_create(
             business_name=business_name,
             business_type=business_type,
             login_code=raw_code,
+            timezone=timezone,
+            country=country,
+            plan_code=plan_code,
         )
     except ValueError as exc:
         ctx = template_context(request)
         ctx.update({
             "error": str(exc),
-            "form": {
-                "business_name": business_name,
-                "business_type": business_type,
-                "login_code": raw_code,
-            },
-            "business_type_choices": _business_type_choices(),
-            "is_onboarding": is_onboarding,
-        })
+                "form": {
+                    "business_name": business_name,
+                    "business_type": business_type,
+                    "timezone": timezone,
+                    "country": country,
+                    "plan_code": plan_code,
+                    "login_code": raw_code,
+                },
+                "business_type_choices": _business_type_choices(),
+                "plan_choices": PlanRepository().list_active(),
+                "is_onboarding": is_onboarding,
+            })
         return templates.TemplateResponse(request, "businesses/new.html", ctx, status_code=400)
 
     # Activate the newly created business
@@ -235,9 +248,12 @@ async def business_settings_form(
         "form": {
             "business_name": business.business_name,
             "business_type": business.business_type,
+            "timezone": business.timezone,
+            "country": business.country,
             "login_code": business.login_code,
         },
         "business_type_choices": _business_type_choices(),
+        "usage": SubscriptionService().get_usage_summary(business.id),
     })
     return templates.TemplateResponse(request, "businesses/settings.html", ctx)
 
@@ -257,6 +273,8 @@ async def business_settings_update(
     form_data = await request.form()
     business_name = str(form_data.get("business_name", "")).strip()
     business_type = str(form_data.get("business_type", "")).strip()
+    timezone = str(form_data.get("timezone", "Europe/Madrid")).strip()
+    country = str(form_data.get("country", "")).strip() or None
     login_code = str(form_data.get("login_code", "")).strip()
 
     flow_log(
@@ -274,6 +292,8 @@ async def business_settings_update(
             business_name=business_name,
             business_type=business_type,
             login_code=login_code,
+            timezone=timezone,
+            country=country,
         )
         flash(request, "Configuración guardada correctamente.", "success")
         flow_log(
@@ -289,13 +309,15 @@ async def business_settings_update(
             "form": {
                 "business_name": business_name,
                 "business_type": business_type,
+                "timezone": timezone,
+                "country": country,
                 "login_code": login_code,
             },
             "business_type_choices": _business_type_choices(),
+            "usage": SubscriptionService().get_usage_summary(business_id),
         })
         return templates.TemplateResponse(
             request, "businesses/settings.html", ctx, status_code=400
         )
 
     return RedirectResponse(f"/businesses/{business_id}/settings", status_code=303)
-

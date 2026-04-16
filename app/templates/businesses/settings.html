@@ -51,6 +51,18 @@
       </div>
 
       <div class="form-group">
+        <label class="form-label" for="timezone">Zona horaria</label>
+        <input id="timezone" name="timezone" type="text" class="form-input"
+               value="{{ form.timezone or 'Europe/Madrid' }}">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="country">PaÃ­s</label>
+        <input id="country" name="country" type="text" class="form-input"
+               value="{{ form.country or '' }}">
+      </div>
+
+      <div class="form-group">
         <label class="form-label" for="login_code">
           Código de acceso
           <span class="form-hint">Los empleados lo usan en el kiosk. Cámbialo con cuidado — los empleados necesitarán el nuevo código.</span>
@@ -86,6 +98,26 @@
       Los empleados introducen este código en la pantalla de entrada del kiosk.
     </p>
   </div>
+
+  {% if usage %}
+  <div class="card settings-info-card">
+    <div class="settings-info-card__header">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7H14a3.5 3.5 0 0 1 0 7H6"/>
+      </svg>
+      <span>Plan actual</span>
+    </div>
+    <div class="settings-info-card__code">{{ usage.plan.name }}</div>
+    <p class="settings-info-card__hint">
+      Empleados: {{ usage.employee_count }} / {{ usage.plan.max_employees }} Â·
+      Admins/managers: {{ usage.admin_count }} / {{ usage.plan.max_admins }}
+    </p>
+    <p class="settings-info-card__hint">
+      Kiosk: {{ 'incluido' if usage.plan.has_kiosk else 'no incluido' }} Â·
+      AnalÃ­ticas avanzadas: {{ 'incluidas' if usage.plan.has_advanced_reports else 'no incluidas' }}
+    </p>
+  </div>
+  {% endif %}
 
 </div>
 

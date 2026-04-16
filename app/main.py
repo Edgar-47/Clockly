@@ -41,7 +41,7 @@ from app.api.dependencies import (
     RequiresKioskException,
     RequiresOnboardingException,
 )
-from app.api.routes import auth, businesses, clock, dashboard, employees, kiosk, me, sessions
+from app.api.routes import auth, businesses, clock, dashboard, employees, expenses, kiosk, me, sessions
 from app.api.routes import analytics, schedules
 from app.database.schema import initialize_database
 
@@ -95,6 +95,12 @@ app.add_middleware(
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
+# Serve uploaded expense ticket images.
+# The directory is created on first upload; ensure it exists at startup.
+import os as _os
+_os.makedirs("uploads/tickets", exist_ok=True)
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
 
 # ---------------------------------------------------------------------------
 # Exception handlers
@@ -105,13 +111,26 @@ async def requires_login_handler(request: Request, exc: RequiresLoginException):
     """Redirect to login when a protected route is accessed without a session.
     Special case: kiosk routes redirect to /kiosk/enter instead of /login."""
     if request.url.path.startswith("/kiosk"):
-        return RedirectResponse("/kiosk/enter", status_code=302)
+        target = (
+            "/kiosk/login"
+            if request.session.get("kiosk_business_id")
+            else "/kiosk/enter"
+        )
+        return RedirectResponse(target, status_code=302)
     return RedirectResponse("/login", status_code=302)
 
 
 @app.exception_handler(RequiresAdminException)
 async def requires_admin_handler(request: Request, exc: RequiresAdminException):
     """Redirect non-admin users to their own flow, avoiding dashboard loops."""
+    if request.url.path.startswith("/kiosk"):
+        target = (
+            "/kiosk/login"
+            if request.session.get("kiosk_business_id")
+            else "/kiosk/enter"
+        )
+        return RedirectResponse(target, status_code=302)
+
     target = (
         home_path_for_role(request.session.get("user_role"))
         if request.session.get("user_id")
@@ -155,6 +174,7 @@ app.include_router(sessions.router)
 app.include_router(me.router)
 app.include_router(analytics.router)
 app.include_router(schedules.router)
+app.include_router(expenses.router)
 
 
 # ---------------------------------------------------------------------------
@@ -164,9 +184,7 @@ app.include_router(schedules.router)
 @app.get("/")
 async def root(request: Request):
     if not request.session.get("user_id"):
-        # Kiosk is the primary entry point; send unauthenticated visitors to
-        # the business-selection screen rather than the admin login page.
-        return RedirectResponse("/kiosk/enter", status_code=302)
+        return RedirectResponse("/login", status_code=302)
     return RedirectResponse(
         home_path_for_role(request.session.get("user_role")),
         status_code=302,

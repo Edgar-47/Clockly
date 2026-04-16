@@ -1,6 +1,8 @@
 import pytest
 
 from app.database.connection import get_connection
+from app.database.employee_repository import EmployeeRepository
+from app.services.auth_service import AuthService
 from app.services.business_service import BusinessService
 from app.services.employee_service import EmployeeService
 from app.services.time_clock_service import TimeClockService
@@ -188,3 +190,135 @@ def test_business_context_scopes_created_employees_and_sessions(db):
 
     with pytest.raises(ValueError, match="inactivo|no valido"):
         TimeClockService(business_id=second.id).start_session_for_employee(first_emp)
+
+
+def test_basic_plan_limits_active_employees(db):
+    business_svc = BusinessService()
+    admin_id = _admin_id()
+    business = business_svc.create_business(
+        owner_user_id=admin_id,
+        business_name="Basic Cafe",
+        business_type="cafeteria",
+        login_code="BASIC",
+        plan_code="basic",
+    )
+    employee_svc = EmployeeService(business_id=business.id)
+
+    for index in range(3):
+        employee_svc.create_employee(
+            first_name=f"Empleado{index}",
+            last_name="Basic",
+            dni=f"LIMIT{index}",
+            password="clave123",
+            actor_user_id=admin_id,
+        )
+
+    with pytest.raises(ValueError, match="permite hasta 3 empleados"):
+        employee_svc.create_employee(
+            first_name="Extra",
+            last_name="Basic",
+            dni="LIMITX",
+            password="clave123",
+            actor_user_id=admin_id,
+        )
+
+
+def test_basic_plan_limits_admin_like_members(db):
+    business_svc = BusinessService()
+    owner_id = _admin_id()
+    business = business_svc.create_business(
+        owner_user_id=owner_id,
+        business_name="Admin Limit",
+        business_type="oficina",
+        login_code="ADMINLIMIT",
+        plan_code="basic",
+    )
+    employee_svc = EmployeeService(business_id=business.id)
+
+    employee_svc.create_employee(
+        first_name="Ana",
+        last_name="Admin",
+        dni="ADMIN1",
+        password="clave123",
+        role="admin",
+        actor_user_id=owner_id,
+    )
+
+    with pytest.raises(ValueError, match="administradores o managers"):
+        employee_svc.create_employee(
+            first_name="Marta",
+            last_name="Manager",
+            dni="MANAGER1",
+            password="clave123",
+            role="manager",
+            actor_user_id=owner_id,
+        )
+
+
+def test_admin_cannot_create_or_manage_admin_roles(db):
+    business_svc = BusinessService()
+    owner_id = _admin_id()
+    business = business_svc.create_business(
+        owner_user_id=owner_id,
+        business_name="Role Guard",
+        business_type="oficina",
+        login_code="ROLES",
+        plan_code="pro",
+    )
+    employee_svc = EmployeeService(business_id=business.id)
+    admin_id = employee_svc.create_employee(
+        first_name="Ana",
+        last_name="Admin",
+        dni="ADMIN2",
+        password="clave123",
+        role="admin",
+        actor_user_id=owner_id,
+    )
+
+    with pytest.raises(ValueError, match="permisos"):
+        employee_svc.create_employee(
+            first_name="Marta",
+            last_name="Manager",
+            dni="MANAGER2",
+            password="clave123",
+            role="manager",
+            actor_user_id=admin_id,
+        )
+
+    with pytest.raises(ValueError, match="propio rol"):
+        employee_svc.update_employee(
+            admin_id,
+            first_name="Ana",
+            last_name="Admin",
+            dni="ADMIN2",
+            role="employee",
+            active=True,
+            actor_user_id=admin_id,
+        )
+
+
+def test_kiosk_employee_can_login_with_internal_code_and_pin(db):
+    business_svc = BusinessService()
+    owner_id = _admin_id()
+    business = business_svc.create_business(
+        owner_user_id=owner_id,
+        business_name="Kiosk Cafe",
+        business_type="cafeteria",
+        login_code="KIOSKPIN",
+        plan_code="basic",
+    )
+    employee_svc = EmployeeService(business_id=business.id)
+    employee_id = employee_svc.create_employee(
+        first_name="Pablo",
+        last_name="Pin",
+        dni="PIN001",
+        internal_code="mesa-1",
+        pin_code="1234",
+        actor_user_id=owner_id,
+    )
+
+    auth = AuthService(EmployeeRepository(business_id=business.id))
+    employee = auth.login("MESA-1", "1234")
+
+    assert employee.id == employee_id
+    assert employee.role == "employee"

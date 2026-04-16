@@ -52,6 +52,10 @@
           <td data-label="Rol">
             {% if emp.role == "admin" %}
               <span class="badge badge--blue">Admin</span>
+            {% elif emp.role == "manager" %}
+              <span class="badge badge--blue">Manager</span>
+            {% elif emp.role == "owner" %}
+              <span class="badge badge--blue">Owner</span>
             {% else %}
               <span class="badge badge--gray">Empleado</span>
             {% endif %}

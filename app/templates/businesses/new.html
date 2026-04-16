@@ -58,6 +58,31 @@
       </div>
 
       <div class="form-group">
+        <label class="form-label" for="timezone">Zona horaria</label>
+        <input id="timezone" name="timezone" type="text" class="form-input"
+               value="{{ form.timezone or 'Europe/Madrid' }}" placeholder="Europe/Madrid">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="country">PaÃ­s</label>
+        <input id="country" name="country" type="text" class="form-input"
+               value="{{ form.country or '' }}" placeholder="EspaÃ±a">
+      </div>
+
+      {% if plan_choices %}
+      <div class="form-group">
+        <label class="form-label" for="plan_code">Plan inicial</label>
+        <select id="plan_code" name="plan_code" class="form-input form-select">
+          {% for plan in plan_choices %}
+          <option value="{{ plan.code }}" {% if (form.plan_code or 'basic') == plan.code %}selected{% endif %}>
+            {{ plan.name }} Â· {{ plan.max_employees }} empleados Â· {{ plan.max_admins }} admins
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
+
+      <div class="form-group">
         <label class="form-label" for="login_code">
           Código de acceso para empleados
           <span class="form-hint">Los empleados lo usarán en el kiosk. Déjalo vacío para generar uno automáticamente.</span>

@@ -34,14 +34,19 @@ class AttendanceSessionRepository:
             return int(cursor.fetchone()["id"])
 
     def get_by_id(self, session_id: int) -> AttendanceSession | None:
+        clauses = ["id = %s"]
+        params: list = [session_id]
+        if self.business_id:
+            clauses.append("business_id = %s")
+            params.append(self.business_id)
         with get_connection() as connection:
             row = connection.execute(
                 f"""
                 SELECT {self._SELECT_COLUMNS}
                 FROM attendance_sessions
-                WHERE id = %s
+                WHERE {" AND ".join(clauses)}
                 """,
-                (session_id,),
+                params,
             ).fetchone()
         return AttendanceSession.from_row(row) if row else None
 
@@ -154,9 +159,21 @@ class AttendanceSessionRepository:
         exit_note: str | None = None,
         incident_type: str | None = None,
     ) -> None:
+        clauses = ["id = %s", "is_active IS TRUE"]
+        params: list = [
+            clock_out_time,
+            total_seconds,
+            notes,
+            exit_note,
+            incident_type,
+            session_id,
+        ]
+        if self.business_id:
+            clauses.append("business_id = %s")
+            params.append(self.business_id)
         with get_connection() as connection:
             connection.execute(
-                """
+                f"""
                 UPDATE attendance_sessions
                 SET clock_out_time = %s,
                     is_active = FALSE,
@@ -164,16 +181,9 @@ class AttendanceSessionRepository:
                     notes = COALESCE(%s, notes),
                     exit_note = COALESCE(%s, exit_note),
                     incident_type = COALESCE(%s, incident_type)
-                WHERE id = %s AND is_active IS TRUE
+                WHERE {" AND ".join(clauses)}
                 """,
-                (
-                    clock_out_time,
-                    total_seconds,
-                    notes,
-                    exit_note,
-                    incident_type,
-                    session_id,
-                ),
+                params,
             )
 
     def admin_clock_out(
@@ -187,9 +197,22 @@ class AttendanceSessionRepository:
         exit_note: str | None = None,
         incident_type: str | None = None,
     ) -> None:
+        clauses = ["id = %s", "is_active IS TRUE"]
+        params: list = [
+            clock_out_time,
+            total_seconds,
+            reason,
+            closed_by_user_id,
+            exit_note,
+            incident_type,
+            session_id,
+        ]
+        if self.business_id:
+            clauses.append("business_id = %s")
+            params.append(self.business_id)
         with get_connection() as connection:
             connection.execute(
-                """
+                f"""
                 UPDATE attendance_sessions
                 SET clock_out_time = %s,
                     is_active = FALSE,
@@ -199,17 +222,9 @@ class AttendanceSessionRepository:
                     closed_by_user_id = %s,
                     exit_note = COALESCE(%s, exit_note),
                     incident_type = COALESCE(%s, incident_type)
-                WHERE id = %s AND is_active IS TRUE
+                WHERE {" AND ".join(clauses)}
                 """,
-                (
-                    clock_out_time,
-                    total_seconds,
-                    reason,
-                    closed_by_user_id,
-                    exit_note,
-                    incident_type,
-                    session_id,
-                ),
+                params,
             )
 
     def list_with_user_names(

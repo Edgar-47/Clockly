@@ -20,6 +20,8 @@ def hash_password(password: str) -> str:
 
 
 def verify_password(password: str, stored_hash: str) -> bool:
+    if not stored_hash or not isinstance(stored_hash, str):
+        return False
     try:
         algorithm, iterations, salt, expected_digest = stored_hash.split("$", 3)
     except ValueError:

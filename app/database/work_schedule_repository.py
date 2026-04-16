@@ -22,7 +22,7 @@ class WorkScheduleRepository:
         clauses = ["id = %s"]
         params: list = [schedule_id]
         if self.business_id is not None:
-            clauses.append("(business_id = %s OR business_id IS NULL)")
+            clauses.append("business_id = %s")
             params.append(self.business_id)
         with get_connection() as conn:
             row = conn.execute(
@@ -35,7 +35,7 @@ class WorkScheduleRepository:
         clauses = ["1=1"]
         params: list = []
         if self.business_id is not None:
-            clauses.append("(business_id = %s OR business_id IS NULL)")
+            clauses.append("business_id = %s")
             params.append(self.business_id)
         with get_connection() as conn:
             rows = conn.execute(
@@ -48,7 +48,7 @@ class WorkScheduleRepository:
         clauses = ["is_active IS TRUE"]
         params: list = []
         if self.business_id is not None:
-            clauses.append("(business_id = %s OR business_id IS NULL)")
+            clauses.append("business_id = %s")
             params.append(self.business_id)
         with get_connection() as conn:
             rows = conn.execute(
@@ -102,7 +102,7 @@ class WorkScheduleRepository:
                     is_active = %s,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = %s
-                  AND (%s IS NULL OR business_id = %s OR business_id IS NULL)
+                  AND (%s IS NULL OR business_id = %s)
                 """,
                 (
                     name.strip(),
@@ -125,7 +125,7 @@ class WorkScheduleRepository:
                 SET is_active = FALSE,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = %s
-                  AND (%s IS NULL OR business_id = %s OR business_id IS NULL)
+                  AND (%s IS NULL OR business_id = %s)
                 """,
                 (schedule_id, self.business_id, self.business_id),
             )
@@ -193,7 +193,7 @@ class WorkScheduleRepository:
         ]
         params: list = [user_id, ref, ref]
         if self.business_id is not None:
-            clauses.append("(es.business_id = %s OR es.business_id IS NULL)")
+            clauses.append("es.business_id = %s")
             params.append(self.business_id)
 
         with get_connection() as conn:
@@ -217,7 +217,7 @@ class WorkScheduleRepository:
         clauses = ["es.user_id = %s"]
         params: list = [user_id]
         if self.business_id is not None:
-            clauses.append("(es.business_id = %s OR es.business_id IS NULL)")
+            clauses.append("es.business_id = %s")
             params.append(self.business_id)
         with get_connection() as conn:
             rows = conn.execute(
@@ -239,7 +239,7 @@ class WorkScheduleRepository:
         clauses = ["es.schedule_id = %s", "es.is_active IS TRUE"]
         params: list = [schedule_id]
         if self.business_id is not None:
-            clauses.append("(es.business_id = %s OR es.business_id IS NULL)")
+            clauses.append("es.business_id = %s")
             params.append(self.business_id)
         with get_connection() as conn:
             rows = conn.execute(
@@ -313,7 +313,7 @@ class WorkScheduleRepository:
                 UPDATE employee_schedules
                 SET is_active = FALSE
                 WHERE id = %s
-                  AND (%s IS NULL OR business_id = %s OR business_id IS NULL)
+                  AND (%s IS NULL OR business_id = %s)
                 """,
                 (assignment_id, self.business_id, self.business_id),
             )
@@ -328,7 +328,7 @@ class WorkScheduleRepository:
         ]
         params: list = [ref, ref]
         if self.business_id is not None:
-            clauses.append("(es.business_id = %s OR es.business_id IS NULL)")
+            clauses.append("es.business_id = %s")
             params.append(self.business_id)
 
         with get_connection() as conn:

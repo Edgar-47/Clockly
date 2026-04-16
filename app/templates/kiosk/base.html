@@ -70,6 +70,7 @@
             display: flex;
             justify-content: flex-end;
             align-items: center;
+            gap: var(--space-2);
         }
 
         /* Admin access link — visible but discreet */
@@ -99,6 +100,15 @@
             color: var(--color-primary);
             border-color: var(--color-primary);
             background: var(--color-primary-soft);
+        }
+
+        .kiosk-context-form {
+            margin: 0;
+        }
+
+        .kiosk-context-form .kiosk-admin-link {
+            font: inherit;
+            cursor: pointer;
         }
 
         /* ── Content ── */
@@ -227,6 +237,16 @@
 
         <!-- Admin access (right-aligned, discreet) -->
         <div class="kiosk-header__right">
+            {% if kiosk_business_id %}
+            <form method="post"
+                  action="/kiosk/change"
+                  class="kiosk-context-form"
+                  data-confirm="Cambiar de negocio cerrara la sesion actual del kiosk.">
+                <button type="submit" class="kiosk-admin-link">
+                    Cambiar negocio
+                </button>
+            </form>
+            {% endif %}
             <a href="/login" class="kiosk-admin-link" title="Acceso al panel de administración">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>

@@ -56,6 +56,14 @@ SECURE_COOKIES = _env_bool("CLOCKLY_SECURE_COOKIES", default=IS_PRODUCTION)
 DOCS_ENABLED = _env_bool("CLOCKLY_DOCS_ENABLED", default=not IS_PRODUCTION)
 PORT = int(os.getenv("PORT", "8000"))
 
+# Google OAuth owner/admin login.
+# These are optional in development so the legacy password login and tests keep
+# working. In production, set them to enable "Continue with Google".
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "").strip()
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "").strip()
+GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "").strip()
+GOOGLE_AUTH_ENABLED = bool(GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET)
+
 
 def ensure_runtime_directories() -> None:
     EXPORTS_DIR.mkdir(parents=True, exist_ok=True)

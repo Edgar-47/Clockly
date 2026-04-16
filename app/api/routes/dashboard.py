@@ -20,6 +20,7 @@ from app.models.employee import Employee
 from app.services.analytics_service import AnalyticsService, _fmt_hours
 from app.services.attendance_report_service import AttendanceReportService
 from app.services.employee_service import EmployeeService
+from app.services.subscription_service import SubscriptionService
 from app.services.time_clock_service import TimeClockService
 
 router = APIRouter(tags=["dashboard"])
@@ -43,6 +44,7 @@ async def dashboard(
     # Load business for display
     business_repo = BusinessRepository()
     business = business_repo.get_by_id(business_id)
+    usage = SubscriptionService().get_usage_summary(business_id)
 
     clock_service = TimeClockService(business_id=business_id)
     employee_service = EmployeeService(business_id=business_id)
@@ -74,6 +76,7 @@ async def dashboard(
     ctx = template_context(request)
     ctx.update({
         "business": business,
+        "usage": usage,
         "total_employees": len(all_statuses),
         "total_clocked_in": len(clocked_in),
         "total_clocked_out": len(clocked_out),

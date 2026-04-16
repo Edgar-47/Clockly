@@ -4,13 +4,14 @@ from app.models.business import Business
 
 class BusinessRepository:
     _SELECT_COLUMNS = """
-        id, owner_user_id, business_name, business_type, login_code, slug,
-        business_key, settings_json, last_accessed_at, is_active,
+        id, owner_user_id, name, business_name, business_type, timezone, country,
+        login_code, slug, business_key, settings_json, last_accessed_at, is_active,
         created_at, updated_at
     """
     _QUALIFIED_SELECT_COLUMNS = """
-        b.id, b.owner_user_id, b.business_name, b.business_type, b.login_code,
-        b.slug, b.business_key, b.settings_json, b.last_accessed_at,
+        b.id, b.owner_user_id, b.name, b.business_name, b.business_type,
+        b.timezone, b.country, b.login_code, b.slug, b.business_key,
+        b.settings_json, b.last_accessed_at,
         b.is_active, b.created_at, b.updated_at
     """
 
@@ -24,6 +25,8 @@ class BusinessRepository:
         login_code: str,
         slug: str,
         business_key: str,
+        timezone: str = "Europe/Madrid",
+        country: str | None = None,
         settings_json: str = "{}",
         mark_default: bool = True,
         include_legacy_records: bool = False,
@@ -33,16 +36,19 @@ class BusinessRepository:
                 """
                 INSERT INTO businesses
                     (
-                        id, owner_user_id, business_name, business_type,
-                        login_code, slug, business_key, settings_json
+                        id, owner_user_id, name, business_name, business_type,
+                        timezone, country, login_code, slug, business_key, settings_json
                     )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """,
                 (
                     business_id,
                     owner_user_id,
                     business_name,
+                    business_name,
                     business_type,
+                    timezone,
+                    country,
                     login_code,
                     slug,
                     business_key,
@@ -65,6 +71,18 @@ class BusinessRepository:
                 ON CONFLICT DO NOTHING
                 """,
                 (business_id, owner_user_id, mark_default),
+            )
+            connection.execute(
+                """
+                INSERT INTO business_users
+                    (business_id, user_id, role, status)
+                VALUES (%s, %s, 'owner', 'active')
+                ON CONFLICT (business_id, user_id) DO UPDATE
+                SET role = 'owner',
+                    status = 'active',
+                    updated_at = CURRENT_TIMESTAMP
+                """,
+                (business_id, owner_user_id),
             )
             connection.execute(
                 "UPDATE users SET last_business_id = %s WHERE id = %s",
@@ -105,6 +123,8 @@ class BusinessRepository:
                     """,
                     (user_id,),
                 )
+            business_role = member_role if member_role in {"owner", "admin", "manager", "employee", "kiosk_device"} else "employee"
+            legacy_role = business_role if business_role in {"owner", "admin", "employee"} else "admin"
             connection.execute(
                 """
                 INSERT INTO business_members
@@ -114,7 +134,19 @@ class BusinessRepository:
                 SET member_role = EXCLUDED.member_role,
                     is_default = EXCLUDED.is_default
                 """,
-                (business_id, user_id, member_role, is_default),
+                (business_id, user_id, legacy_role, is_default),
+            )
+            connection.execute(
+                """
+                INSERT INTO business_users
+                    (business_id, user_id, role, status)
+                VALUES (%s, %s, %s, 'active')
+                ON CONFLICT (business_id, user_id) DO UPDATE
+                SET role = EXCLUDED.role,
+                    status = 'active',
+                    updated_at = CURRENT_TIMESTAMP
+                """,
+                (business_id, user_id, business_role),
             )
 
     def count_all(self) -> int:
@@ -128,8 +160,9 @@ class BusinessRepository:
                 """
                 SELECT COUNT(*) AS count
                 FROM businesses b
-                JOIN business_members bm ON bm.business_id = b.id
-                WHERE bm.user_id = %s
+                JOIN business_users bu ON bu.business_id = b.id
+                WHERE bu.user_id = %s
+                  AND bu.status = 'active'
                   AND b.is_active IS TRUE
                 """,
                 (user_id,),
@@ -215,13 +248,18 @@ class BusinessRepository:
         business_type: str,
         login_code: str,
         settings_json: str,
+        timezone: str | None = None,
+        country: str | None = None,
     ) -> Business:
         with get_connection() as connection:
             connection.execute(
                 """
                 UPDATE businesses
-                SET business_name = %s,
+                SET name = %s,
+                    business_name = %s,
                     business_type = %s,
+                    timezone = COALESCE(%s, timezone),
+                    country = %s,
                     login_code = %s,
                     settings_json = %s,
                     updated_at = CURRENT_TIMESTAMP
@@ -230,7 +268,10 @@ class BusinessRepository:
                 """,
                 (
                     business_name,
+                    business_name,
                     business_type,
+                    timezone,
+                    country,
                     login_code,
                     settings_json,
                     business_id,
@@ -255,8 +296,11 @@ class BusinessRepository:
                 f"""
                 SELECT {self._QUALIFIED_SELECT_COLUMNS}
                 FROM businesses b
-                JOIN business_members bm ON bm.business_id = b.id
-                WHERE bm.user_id = %s
+                JOIN business_users bu ON bu.business_id = b.id
+                LEFT JOIN business_members bm
+                  ON bm.business_id = b.id AND bm.user_id = bu.user_id
+                WHERE bu.user_id = %s
+                  AND bu.status = 'active'
                   AND b.is_active IS TRUE
                 ORDER BY
                     CASE WHEN b.id = (
@@ -308,10 +352,11 @@ class BusinessRepository:
             row = connection.execute(
                 """
                 SELECT 1
-                FROM business_members bm
-                JOIN businesses b ON b.id = bm.business_id
-                WHERE bm.business_id = %s
-                  AND bm.user_id = %s
+                FROM business_users bu
+                JOIN businesses b ON b.id = bu.business_id
+                WHERE bu.business_id = %s
+                  AND bu.user_id = %s
+                  AND bu.status = 'active'
                   AND b.is_active IS TRUE
                 LIMIT 1
                 """,
@@ -331,6 +376,16 @@ class BusinessRepository:
                 ON CONFLICT DO NOTHING
                 """,
                 (business_id, row["id"], member_role),
+            )
+            business_role = "admin" if member_role == "admin" else "employee"
+            connection.execute(
+                """
+                INSERT INTO business_users
+                    (business_id, user_id, role, status)
+                VALUES (%s, %s, %s, 'active')
+                ON CONFLICT (business_id, user_id) DO NOTHING
+                """,
+                (business_id, row["id"], business_role),
             )
 
         connection.execute(
