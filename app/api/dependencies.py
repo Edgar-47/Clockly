@@ -137,12 +137,25 @@ def get_flash_messages(request: Request) -> list[dict]:
     return messages
 
 
+_MOBILE_UA_KEYWORDS = (
+    "mobile", "android", "iphone", "ipad", "ipod", "blackberry",
+    "windows phone", "opera mini", "opera mobi",
+)
+
+
+def _detect_mobile(request: Request) -> bool:
+    """Return True when the User-Agent looks like a mobile/tablet device."""
+    ua = request.headers.get("user-agent", "").lower()
+    return any(kw in ua for kw in _MOBILE_UA_KEYWORDS)
+
+
 def template_context(request: Request) -> dict:
     """
     Base context dict to pass to every template.
     NOTE: 'request' is NOT included here — Starlette 1.0+ injects it automatically
     when you call templates.TemplateResponse(request, name, context).
     """
+    is_mobile = _detect_mobile(request)
     return {
         "flash_messages": get_flash_messages(request),
         "current_user_id": request.session.get("user_id"),
@@ -155,6 +168,8 @@ def template_context(request: Request) -> dict:
         "kiosk_employee_id": request.session.get(KIOSK_EMPLOYEE_ID_KEY),
         "kiosk_employee_name": request.session.get("kiosk_employee_name"),
         "kiosk_employee_role": request.session.get("kiosk_employee_role"),
+        # Platform detection — drives shell template selection in base.html
+        "is_mobile": is_mobile,
     }
 
 
