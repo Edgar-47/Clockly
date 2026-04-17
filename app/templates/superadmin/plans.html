@@ -1,0 +1,29 @@
+{% extends "superadmin/base.html" %}
+
+{% block title %}Planes{% endblock %}
+{% block page_title %}Planes de suscripcion{% endblock %}
+
+{% block content %}
+<div class="sa-grid sa-grid--four">
+  {% for plan in plans %}
+  <article class="sa-card sa-plan">
+    <div class="sa-card__header">
+      <h2>{{ plan.name }}</h2>
+      <span>{{ plan.code }}</span>
+    </div>
+    <strong class="sa-price">{{ plan.price_monthly }} EUR / mes</strong>
+    <div class="sa-detail-list">
+      <div><span>Precio anual</span><strong>{{ plan.price_yearly }} EUR</strong></div>
+      <div><span>Empleados</span><strong>{{ plan.max_employees }}</strong></div>
+      <div><span>Admins</span><strong>{{ plan.max_admins }}</strong></div>
+      <div><span>Soporte prioritario</span><strong>{{ 'si' if plan.has_priority_support else 'no' }}</strong></div>
+      <div><span>Exportaciones</span><strong>{{ 'avanzadas' if plan.has_exports_advanced else 'basicas' }}</strong></div>
+      <div><span>Analitica avanzada</span><strong>{{ 'si' if plan.has_advanced_reports else 'no' }}</strong></div>
+      <div><span>Geolocalizacion</span><strong>{{ 'si' if plan.has_geolocation else 'no' }}</strong></div>
+      <div><span>Multiadmin</span><strong>{{ 'si' if plan.max_admins > 1 else 'no' }}</strong></div>
+      <div><span>Branding</span><strong>{{ 'si' if plan.has_custom_branding else 'no' }}</strong></div>
+    </div>
+  </article>
+  {% endfor %}
+</div>
+{% endblock %}

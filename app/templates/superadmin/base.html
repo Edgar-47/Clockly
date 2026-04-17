@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Superadmin{% endblock %} - Clockly</title>
+  <link rel="stylesheet" href="/static/css/main.css">
+  <link rel="stylesheet" href="/static/css/superadmin.css">
+</head>
+<body class="sa-layout">
+  <aside class="sa-sidebar">
+    <a class="sa-brand" href="/superadmin/dashboard">
+      <span class="sa-brand__mark">C</span>
+      <span>
+        <strong>Clockly</strong>
+        <small>Superadmin Panel</small>
+      </span>
+    </a>
+    <nav class="sa-nav">
+      <a class="{% if request.url.path == '/superadmin/dashboard' %}is-active{% endif %}" href="/superadmin/dashboard">Dashboard global</a>
+      <a class="{% if '/superadmin/businesses' in request.url.path %}is-active{% endif %}" href="/superadmin/businesses">Clientes / negocios</a>
+      <a class="{% if '/superadmin/users' in request.url.path %}is-active{% endif %}" href="/superadmin/users">Usuarios globales</a>
+      <a class="{% if '/superadmin/subscriptions' in request.url.path %}is-active{% endif %}" href="/superadmin/subscriptions">Suscripciones</a>
+      <a class="{% if '/superadmin/billing' in request.url.path %}is-active{% endif %}" href="/superadmin/billing">Facturacion / pagos</a>
+      <a class="{% if '/superadmin/metrics' in request.url.path %}is-active{% endif %}" href="/superadmin/metrics">Metricas globales</a>
+      <a class="{% if '/superadmin/internal-users' in request.url.path %}is-active{% endif %}" href="/superadmin/internal-users">Usuarios internos</a>
+      <a class="{% if '/superadmin/logs' in request.url.path %}is-active{% endif %}" href="/superadmin/logs">Logs / auditoria</a>
+      <a class="{% if '/superadmin/settings' in request.url.path %}is-active{% endif %}" href="/superadmin/settings">Configuracion global</a>
+      <a class="{% if '/superadmin/plans' in request.url.path %}is-active{% endif %}" href="/superadmin/plans">Planes</a>
+    </nav>
+    <div class="sa-sidebar__footer">
+      {% if impersonation_business_id %}
+      <a href="/dashboard">Abrir negocio impersonado</a>
+      {% endif %}
+      <form method="post" action="/superadmin/logout">
+        <button class="sa-nav-button" type="submit">Salir de consola</button>
+      </form>
+    </div>
+  </aside>
+
+  <main class="sa-main">
+    <header class="sa-topbar">
+      <div>
+        <p class="sa-eyebrow">Operacion interna</p>
+        <h1>{% block page_title %}Superadmin{% endblock %}</h1>
+      </div>
+      <div class="sa-topbar__actions">
+        {% block topbar_actions %}{% endblock %}
+      </div>
+    </header>
+
+    {% if impersonation_business_id %}
+    <div class="sa-alert sa-alert--warning">
+      <span>Impersonacion activa: {{ impersonation_business_name }}.</span>
+      <form method="post" action="/superadmin/impersonation/stop">
+        <button class="sa-btn sa-btn--ghost" type="submit">Finalizar</button>
+      </form>
+    </div>
+    {% endif %}
+
+    {% if flash_messages %}
+    <div class="sa-flashes">
+      {% for msg in flash_messages %}
+      <div class="sa-flash sa-flash--{{ msg.category }}">{{ msg.message }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <section class="sa-content">
+      {% block content %}{% endblock %}
+    </section>
+  </main>
+</body>
+</html>

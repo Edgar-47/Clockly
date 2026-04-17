@@ -1,0 +1,38 @@
+{% extends "superadmin/base.html" %}
+
+{% block title %}Metricas globales{% endblock %}
+{% block page_title %}Metricas y estadisticas globales{% endblock %}
+
+{% block content %}
+<div class="sa-kpi-grid">
+  <div class="sa-kpi"><span>Fichajes totales</span><strong>{{ usage_metrics.overview.total_sessions or 0 }}</strong></div>
+  <div class="sa-kpi"><span>Sesiones abiertas</span><strong>{{ usage_metrics.overview.open_sessions or 0 }}</strong></div>
+  <div class="sa-kpi"><span>Horas registradas</span><strong>{{ "%.1f"|format(usage_metrics.overview.total_hours or 0) }}</strong></div>
+  <div class="sa-kpi"><span>Media empleados / negocio</span><strong>{{ "%.1f"|format(usage_metrics.business_averages.avg_employees_per_business or 0) }}</strong></div>
+  <div class="sa-kpi"><span>Media fichajes / negocio</span><strong>{{ "%.1f"|format(usage_metrics.business_averages.avg_sessions_per_business or 0) }}</strong></div>
+  <div class="sa-kpi"><span>Free - paid</span><strong>{{ stats.subscriptions_active }}</strong><small>Suscripciones activas</small></div>
+</div>
+
+<div class="sa-grid sa-grid--two">
+  <article class="sa-card">
+    <div class="sa-card__header"><h2>Dias con mas actividad</h2></div>
+    <div class="sa-list">
+      {% for day in usage_metrics.days %}
+      <div><span>{{ day.day }}</span><strong>{{ day.sessions }}</strong></div>
+      {% else %}
+      <p class="sa-empty">Sin actividad.</p>
+      {% endfor %}
+    </div>
+  </article>
+  <article class="sa-card">
+    <div class="sa-card__header"><h2>Top clientes por valor</h2></div>
+    <div class="sa-list">
+      {% for client in usage_metrics.top_value %}
+      <div><span>{{ client.business_name }}</span><strong>{{ client.price_monthly }} EUR</strong></div>
+      {% else %}
+      <p class="sa-empty">Sin clientes de pago.</p>
+      {% endfor %}
+    </div>
+  </article>
+</div>
+{% endblock %}

@@ -13,7 +13,8 @@ class EmployeeRepository:
     """
 
     _SELECT_COLUMNS = """
-        id, first_name, last_name, dni, password_hash, role, active,
+        id, first_name, last_name, dni, email, password_hash, role, active,
+        platform_role, last_login_at, force_password_change,
         last_business_id, created_at
     """
 
@@ -42,11 +43,12 @@ class EmployeeRepository:
                       AND bu.status = 'active'
                       AND (
                         LOWER(u.dni) = LOWER(%s)
+                        OR LOWER(u.email) = LOWER(%s)
                         OR LOWER(e.internal_code) = LOWER(%s)
                       )
                     LIMIT 1
                     """,
-                    (self.business_id, clean_dni, clean_dni),
+                    (self.business_id, clean_dni, clean_dni, clean_dni),
                 ).fetchone()
             else:
                 row = connection.execute(
@@ -54,8 +56,10 @@ class EmployeeRepository:
                     SELECT {self._SELECT_COLUMNS}
                     FROM users
                     WHERE LOWER(dni) = LOWER(%s)
+                       OR LOWER(email) = LOWER(%s)
+                    LIMIT 1
                     """,
-                    (clean_dni,),
+                    (clean_dni, clean_dni),
                 ).fetchone()
         flow_log(
             "repository.employee.by_dni",
@@ -349,8 +353,26 @@ class EmployeeRepository:
     def set_password_hash(self, employee_id: int, password_hash: str) -> None:
         with get_connection() as connection:
             connection.execute(
-                "UPDATE users SET password_hash = %s WHERE id = %s",
+                """
+                UPDATE users
+                SET password_hash = %s,
+                    force_password_change = FALSE,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = %s
+                """,
                 (password_hash, employee_id),
+            )
+
+    def mark_login_success(self, employee_id: int) -> None:
+        with get_connection() as connection:
+            connection.execute(
+                """
+                UPDATE users
+                SET last_login_at = CURRENT_TIMESTAMP,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = %s
+                """,
+                (employee_id,),
             )
 
     def count_active_admins(self) -> int:
@@ -393,12 +415,14 @@ class EmployeeRepository:
     def _qualify_select_columns(self) -> str:
         if self.business_id:
             return """
-                u.id, u.first_name, u.last_name, u.dni, u.password_hash,
-                bu.role AS role, u.active, u.last_business_id, u.created_at
+                u.id, u.first_name, u.last_name, u.dni, u.email, u.password_hash,
+                bu.role AS role, u.active, u.platform_role, u.last_login_at,
+                u.force_password_change, u.last_business_id, u.created_at
             """
         return """
-            u.id, u.first_name, u.last_name, u.dni, u.password_hash, u.role,
-            u.active, u.last_business_id, u.created_at
+            u.id, u.first_name, u.last_name, u.dni, u.email, u.password_hash, u.role,
+            u.active, u.platform_role, u.last_login_at, u.force_password_change,
+            u.last_business_id, u.created_at
         """
 
     def _normalize_business_role(self, role: str) -> str:

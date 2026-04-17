@@ -2,13 +2,11 @@ from dataclasses import dataclass
 
 from app.models.attendance_session import AttendanceSession
 from app.models.employee import Employee
-from app.models.time_entry import TimeEntry
 
 
 @dataclass(frozen=True)
 class AttendanceStatus:
     employee: Employee
-    last_entry: TimeEntry | None = None
     active_session: AttendanceSession | None = None
     latest_session: AttendanceSession | None = None
 
@@ -26,9 +24,7 @@ class AttendanceStatus:
             return "Clock In"
         if self.latest_session:
             return "Clock Out" if self.latest_session.clock_out_time else "Clock In"
-        if not self.last_entry:
-            return "No records"
-        return "Clock In" if self.last_entry.entry_type == "entrada" else "Clock Out"
+        return "No records"
 
     @property
     def last_timestamp(self) -> str | None:
@@ -36,4 +32,4 @@ class AttendanceStatus:
             return self.active_session.clock_in_time
         if self.latest_session:
             return self.latest_session.clock_out_time or self.latest_session.clock_in_time
-        return self.last_entry.timestamp if self.last_entry else None
+        return None

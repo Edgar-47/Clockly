@@ -24,12 +24,15 @@ from app.api.dependencies import (
     require_admin,
     require_active_business,
     set_active_business_id,
+    set_active_business_role,
     template_context,
 )
 from app.api.v1.dependencies import build_auth_payload, set_access_cookie
 from app.core.flow_debug import flow_log, form_keys
+from app.core.security import business_role_to_session_role
 from app.core.templates import templates
 from app.database.business_repository import BusinessRepository
+from app.database.business_user_repository import BusinessUserRepository
 from app.database.plan_repository import PlanRepository
 from app.models.employee import Employee
 from app.services.business_service import BusinessService
@@ -107,6 +110,13 @@ async def business_select(
             business_id=business_id,
         )
         set_active_business_id(request, business.id)
+        business_role = BusinessUserRepository().get_active_role(
+            business_id=business.id,
+            user_id=current_user.id,
+        )
+        set_active_business_role(request, business_role)
+        if business_role:
+            request.session["user_role"] = business_role_to_session_role(business_role)
         flash(request, f"Negocio cambiado a «{business.business_name}».", "success")
         flow_log(
             "businesses.select.success",
@@ -206,6 +216,8 @@ async def business_create(
 
     # Activate the newly created business
     set_active_business_id(request, business.id)
+    set_active_business_role(request, "owner")
+    request.session["user_role"] = "admin"
 
     flow_log(
         "businesses.create.success",

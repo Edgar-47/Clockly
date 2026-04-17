@@ -139,8 +139,10 @@ async def employee_new_form(
     current_user: Employee = Depends(require_admin),
     business_id: str = Depends(require_active_business),
 ):
+    from app.services.subscription_service import SubscriptionService
     ctx = template_context(request)
     ctx["form"] = {}
+    ctx["usage"] = SubscriptionService().get_usage_summary(business_id)
     ctx.update(_load_schedule_context(business_id))
     return templates.TemplateResponse(request, "employees/create.html", ctx)
 

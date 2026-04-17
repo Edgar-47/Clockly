@@ -1,0 +1,26 @@
+{% extends "superadmin/base.html" %}
+
+{% block title %}Configuracion global{% endblock %}
+{% block page_title %}Configuracion global del sistema{% endblock %}
+
+{% block content %}
+<article class="sa-card">
+  <div class="sa-card__header"><h2>Ajustes de plataforma</h2><span>Aplican a todo Clockly</span></div>
+  <form class="sa-settings" method="post" action="/superadmin/settings">
+    {% for key, setting in settings.items() %}
+    <label>
+      <span>{{ key }}<small>{{ setting.description or '' }}</small></span>
+      {% if setting.value in ['true','false'] %}
+      <select name="{{ key }}">
+        <option value="true" {% if setting.value == 'true' %}selected{% endif %}>true</option>
+        <option value="false" {% if setting.value == 'false' %}selected{% endif %}>false</option>
+      </select>
+      {% else %}
+      <input name="{{ key }}" value="{{ setting.value }}">
+      {% endif %}
+    </label>
+    {% endfor %}
+    <button class="sa-btn sa-btn--primary" type="submit">Guardar configuracion</button>
+  </form>
+</article>
+{% endblock %}

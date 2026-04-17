@@ -1,0 +1,34 @@
+{% extends "superadmin/base.html" %}
+
+{% block title %}Facturacion{% endblock %}
+{% block page_title %}Facturacion / estado de pagos{% endblock %}
+
+{% block content %}
+<form class="sa-filters" method="get">
+  <input name="search" value="{{ search }}" placeholder="Buscar negocio o ID">
+  <button class="sa-btn sa-btn--primary" type="submit">Buscar</button>
+</form>
+
+<article class="sa-card">
+  <div class="sa-card__header"><h2>Registros de pago</h2><span>Interno hasta integrar Stripe</span></div>
+  <div class="sa-table-wrap">
+    <table class="sa-table">
+      <thead><tr><th>Negocio</th><th>Plan</th><th>Importe</th><th>Estado</th><th>Periodo</th><th>Fecha</th></tr></thead>
+      <tbody>
+      {% for payment in payment_records %}
+      <tr>
+        <td>{{ payment.business_name }}<small>{{ payment.business_id }}</small></td>
+        <td>{{ payment.plan_name or '-' }}</td>
+        <td>{{ payment.amount }} {{ payment.currency }}</td>
+        <td><span class="sa-badge">{{ payment.status }}</span></td>
+        <td>{{ payment.billing_period_start or '-' }} / {{ payment.billing_period_end or '-' }}</td>
+        <td>{{ payment.created_at }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6"><p class="sa-empty">Aun no hay pagos reales. La capa interna ya esta lista para Stripe.</p></td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</article>
+{% endblock %}

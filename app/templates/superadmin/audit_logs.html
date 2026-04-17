@@ -1,0 +1,36 @@
+{% extends "superadmin/base.html" %}
+
+{% block title %}Logs / auditoria{% endblock %}
+{% block page_title %}Logs y auditoria{% endblock %}
+
+{% block content %}
+<form class="sa-filters" method="get">
+  <input name="action" value="{{ filters.action }}" placeholder="Accion">
+  <input name="resource_type" value="{{ filters.resource_type }}" placeholder="Recurso">
+  <input name="business_id" value="{{ filters.business_id }}" placeholder="Business ID">
+  <button class="sa-btn sa-btn--primary" type="submit">Filtrar</button>
+</form>
+
+<article class="sa-card">
+  <div class="sa-card__header"><h2>Eventos criticos</h2><span>Ultimos 150</span></div>
+  <div class="sa-table-wrap">
+    <table class="sa-table">
+      <thead><tr><th>Fecha</th><th>Actor</th><th>Accion</th><th>Recurso</th><th>Negocio</th><th>IP</th></tr></thead>
+      <tbody>
+      {% for log in logs %}
+      <tr>
+        <td>{{ log.created_at }}</td>
+        <td>{{ log.actor_name or log.actor_email or log.actor_user_id or '-' }}</td>
+        <td>{{ log.action_label }}</td>
+        <td>{{ log.resource_type or '-' }}<small>{{ log.resource_id or '' }}</small></td>
+        <td>{{ log.business_name or log.business_id or '-' }}</td>
+        <td>{{ log.ip_address or '-' }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6"><p class="sa-empty">Sin logs para estos filtros.</p></td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</article>
+{% endblock %}

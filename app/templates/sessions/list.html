@@ -5,8 +5,11 @@
 {% block page_title %}Sesiones de asistencia{% endblock %}
 
 {% block topbar_actions %}
+  {% set has_exports = usage and usage.plan.has_exports_advanced %}
+  {% set export_qs %}date_from={{ filters.date_from }}&date_to={{ filters.date_to }}{% if filters.employee_id %}&employee_id={{ filters.employee_id }}{% endif %}{% if filters.is_active is not none %}&is_active={{ filters.is_active }}{% endif %}{% if filters.incident_filter != 'all' %}&incident_filter={{ filters.incident_filter }}{% endif %}{% endset %}
   <div class="btn-group">
-    <a href="/sessions/export/excel?date_from={{ filters.date_from }}&date_to={{ filters.date_to }}{% if filters.employee_id %}&employee_id={{ filters.employee_id }}{% endif %}{% if filters.is_active is not none %}&is_active={{ filters.is_active }}{% endif %}{% if filters.incident_filter != 'all' %}&incident_filter={{ filters.incident_filter }}{% endif %}"
+    {% if has_exports %}
+    <a href="/sessions/export/excel?{{ export_qs }}"
        class="btn btn--ghost btn--sm" title="Exportar a Excel">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -15,7 +18,7 @@
       </svg>
       Excel
     </a>
-    <a href="/sessions/export/pdf?date_from={{ filters.date_from }}&date_to={{ filters.date_to }}{% if filters.employee_id %}&employee_id={{ filters.employee_id }}{% endif %}{% if filters.is_active is not none %}&is_active={{ filters.is_active }}{% endif %}{% if filters.incident_filter != 'all' %}&incident_filter={{ filters.incident_filter }}{% endif %}"
+    <a href="/sessions/export/pdf?{{ export_qs }}"
        class="btn btn--ghost btn--sm" title="Exportar a PDF">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -23,6 +26,26 @@
       </svg>
       PDF
     </a>
+    {% else %}
+    <span class="btn btn--ghost btn--sm btn--disabled export-locked" title="Disponible en el plan Pro"
+          aria-disabled="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+      </svg>
+      Exportar
+      <span class="export-locked__badge">Pro</span>
+    </span>
+    {% if business_id %}
+    <a href="/businesses/{{ business_id }}/upgrade" class="btn btn--primary btn--sm">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="17 11 12 6 7 11"/><line x1="12" y1="18" x2="12" y2="6"/>
+      </svg>
+      Actualizar
+    </a>
+    {% endif %}
+    {% endif %}
   </div>
 {% endblock %}
 
@@ -221,6 +244,35 @@
   </div>
 </div>
 
+{% endblock %}
+
+{% block extra_styles %}
+<style>
+.btn--disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+.export-locked {
+  position: relative;
+  pointer-events: auto !important;
+  cursor: default !important;
+  opacity: 0.6;
+}
+.export-locked__badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  font-size: 9px;
+  font-weight: 760;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: linear-gradient(135deg, rgba(10,132,255,0.18), rgba(10,132,255,0.10));
+  color: var(--color-primary-dark);
+  border-radius: var(--radius-full);
+  margin-left: 2px;
+}
+</style>
 {% endblock %}
 
 {% block extra_scripts %}

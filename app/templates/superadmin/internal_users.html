@@ -1,0 +1,80 @@
+{% extends "superadmin/base.html" %}
+
+{% block title %}Usuarios internos{% endblock %}
+{% block page_title %}Usuarios internos de la plataforma{% endblock %}
+
+{% block content %}
+<div class="sa-grid sa-grid--two">
+  <article class="sa-card">
+    <div class="sa-card__header"><h2>Crear usuario interno</h2></div>
+    <form class="sa-form" method="post" action="/superadmin/internal-users/create">
+      <label>Nombre completo<input name="full_name" required></label>
+      <label>Email<input name="email" type="email" required></label>
+      <label>Password temporal<input name="password" type="password" minlength="12" required></label>
+      <label>Rol
+        <select name="platform_role">
+          <option value="internal_admin">internal_admin (reservado)</option>
+          <option value="superadmin">superadmin</option>
+        </select>
+      </label>
+      <button class="sa-btn sa-btn--primary" type="submit">Crear</button>
+    </form>
+  </article>
+
+  <article class="sa-card">
+    <div class="sa-card__header"><h2>Convertir admin existente</h2></div>
+    <form class="sa-filters" method="get">
+      <input name="search" value="{{ search }}" placeholder="Buscar admin por nombre, email o DNI">
+      <button class="sa-btn sa-btn--ghost" type="submit">Buscar</button>
+    </form>
+    <div class="sa-list">
+      {% for user in admin_candidates[:8] %}
+      <div>
+        <span>{{ user.full_name }} <small>{{ user.email or user.dni }}</small></span>
+        <form method="post" action="/superadmin/internal-users/{{ user.id }}/role">
+          <select name="platform_role">
+            <option value="">sin rol interno</option>
+            <option value="internal_admin">internal_admin (reservado)</option>
+            <option value="superadmin">superadmin</option>
+          </select>
+          <button class="sa-btn sa-btn--ghost" type="submit">Aplicar</button>
+        </form>
+      </div>
+      {% else %}
+      <p class="sa-empty">Busca admins para asignar rol interno.</p>
+      {% endfor %}
+    </div>
+  </article>
+</div>
+
+<article class="sa-card">
+  <div class="sa-card__header"><h2>Superadmins e internal_admins</h2></div>
+  <div class="sa-table-wrap">
+    <table class="sa-table">
+      <thead><tr><th>Usuario</th><th>Rol</th><th>Estado</th><th>Ultimo login</th><th>Acciones</th></tr></thead>
+      <tbody>
+      {% for user in internal_users %}
+      <tr>
+        <td>{{ user.full_name }}<small>{{ user.email or user.dni }}</small></td>
+        <td>{{ user.platform_role }}</td>
+        <td>{{ 'activo' if user.active else 'inactivo' }}{% if user.force_password_change %}<small>cambio forzado</small>{% endif %}</td>
+        <td>{{ user.last_login_at or '-' }}</td>
+        <td>
+          <form class="sa-row-form" method="post" action="/superadmin/internal-users/{{ user.id }}/active">
+            <input type="hidden" name="active" value="{{ 'false' if user.active else 'true' }}">
+            <button class="sa-btn sa-btn--ghost" type="submit">{{ 'Desactivar' if user.active else 'Activar' }}</button>
+          </form>
+          <form class="sa-row-form" method="post" action="/superadmin/internal-users/{{ user.id }}/reset-password">
+            <input name="new_password" type="password" minlength="8" placeholder="Nueva password">
+            <button class="sa-btn sa-btn--ghost" type="submit">Reset</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5"><p class="sa-empty">No hay usuarios internos.</p></td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</article>
+{% endblock %}

@@ -16,9 +16,11 @@ from app.api.dependencies import flash, require_active_business, require_admin, 
 from app.core.flow_debug import flow_log
 from app.core.templates import templates
 from app.models.employee import Employee
+from app.models.plan_constants import PlanFeature
 from app.services.attendance_report_service import AttendanceReportService
 from app.services.employee_service import EmployeeService
 from app.services.export_service import ExportService
+from app.services.subscription_service import FeatureNotAvailableError, SubscriptionService
 from app.services.time_clock_service import TimeClockService
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
@@ -114,10 +116,14 @@ async def session_list(
 
     employees = employee_service.list_employees()
 
+    usage = SubscriptionService().get_usage_summary(business_id)
+
     ctx = template_context(request)
     ctx.update({
         "sessions": sessions,
         "employees": employees,
+        "usage": usage,
+        "business_id": business_id,
         "filters": {
             "date_from": effective_date_from,
             "date_to": effective_date_to,
@@ -175,6 +181,12 @@ async def export_excel(
     is_active: str | None = None,
     incident_filter: str | None = None,
 ):
+    try:
+        SubscriptionService().assert_feature(business_id, PlanFeature.EXPORTS_ADVANCED)
+    except FeatureNotAvailableError as exc:
+        flash(request, str(exc), "error")
+        return RedirectResponse("/sessions", status_code=303)
+
     effective_date_from = date_from or _default_date_from()
     effective_date_to = date_to or _default_date_to()
     errors: list[str] = []
@@ -224,6 +236,11 @@ async def export_pdf(
     is_active: str | None = None,
     incident_filter: str | None = None,
 ):
+    try:
+        SubscriptionService().assert_feature(business_id, PlanFeature.EXPORTS_ADVANCED)
+    except FeatureNotAvailableError as exc:
+        flash(request, str(exc), "error")
+        return RedirectResponse("/sessions", status_code=303)
     effective_date_from = date_from or _default_date_from()
     effective_date_to = date_to or _default_date_to()
     errors: list[str] = []

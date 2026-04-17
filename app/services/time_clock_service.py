@@ -6,7 +6,6 @@ from app.database.employee_repository import EmployeeRepository
 from app.models.attendance_session import AttendanceSession
 from app.models.attendance_status import AttendanceStatus
 from app.models.employee import Employee
-from app.models.time_entry import TimeEntry
 from app.services.attendance_policy import (
     normalize_exit_note,
     normalize_incident_type,
@@ -23,7 +22,6 @@ class TimeClockService:
         self,
         employee_repository: EmployeeRepository | None = None,
         attendance_session_repository: AttendanceSessionRepository | None = None,
-        time_entry_repository: object | None = None,
         schedule_validation_service: ScheduleValidationService | None = None,
         *,
         business_id: str | None = None,
@@ -238,14 +236,6 @@ class TimeClockService:
             raise RuntimeError("Error al cerrar la sesión.")
         return updated
 
-    # ── Legacy API ────────────────────────────────────────────────────────────
-    # Kept for older callers, but backed by attendance_sessions.
-
-    def get_last_entry(self, employee_id: int) -> TimeEntry | None:
-        """Compatibility adapter backed by the canonical attendance session."""
-        session = self.attendance_session_repository.get_latest_for_user(employee_id)
-        return self._session_to_time_entry(session) if session else None
-
     # ── Private helpers ───────────────────────────────────────────────────────
 
     def _require_clockable_employee(self, employee_id: int) -> Employee:
@@ -266,15 +256,3 @@ class TimeClockService:
         except (TypeError, ValueError):
             return 0
         return max(int((ended - started).total_seconds()), 0)
-
-    def _session_to_time_entry(self, session: AttendanceSession) -> TimeEntry:
-        entry_type = self.EXIT if session.clock_out_time else self.ENTRY
-        timestamp = session.clock_out_time or session.clock_in_time
-        return TimeEntry(
-            id=session.id,
-            employee_id=session.user_id,
-            entry_type=entry_type,
-            timestamp=timestamp,
-            notes=session.exit_note or session.notes,
-            business_id=session.business_id,
-        )

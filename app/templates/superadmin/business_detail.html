@@ -1,0 +1,119 @@
+{% extends "superadmin/base.html" %}
+
+{% set business = detail.business %}
+
+{% block title %}{{ business.business_name }}{% endblock %}
+{% block page_title %}{{ business.business_name }}{% endblock %}
+
+{% block topbar_actions %}
+<form method="post" action="/superadmin/businesses/{{ business.id }}/impersonate">
+  <button class="sa-btn sa-btn--primary" type="submit">Impersonar admin</button>
+</form>
+{% endblock %}
+
+{% block content %}
+<div class="sa-grid sa-grid--two">
+  <article class="sa-card">
+    <div class="sa-card__header"><h2>Datos del negocio</h2><span>{{ business.id }}</span></div>
+    <form class="sa-form" method="post" action="/superadmin/businesses/{{ business.id }}/update">
+      <label>Nombre<input name="business_name" value="{{ business.business_name }}" required></label>
+      <label>Email principal<input name="primary_email" value="{{ business.primary_email or business.owner_email or '' }}"></label>
+      <label>Telefono<input name="phone" value="{{ business.phone or '' }}"></label>
+      <label>Tipo<input name="business_type" value="{{ business.business_type }}"></label>
+      <label>Zona horaria<input name="timezone" value="{{ business.timezone or 'Europe/Madrid' }}"></label>
+      <label>Pais<input name="country" value="{{ business.country or '' }}"></label>
+      <button class="sa-btn sa-btn--primary" type="submit">Guardar cambios</button>
+    </form>
+  </article>
+
+  <article class="sa-card">
+    <div class="sa-card__header"><h2>Suscripcion</h2><span>{{ business.subscription_status or 'active' }}</span></div>
+    <div class="sa-detail-list">
+      <div><span>Plan actual</span><strong>{{ business.plan_name or 'Free' }}</strong></div>
+      <div><span>Precio mensual</span><strong>{{ business.price_monthly or 0 }} EUR</strong></div>
+      <div><span>Renovacion</span><strong>{{ business.renewal_date or business.current_period_end or '-' }}</strong></div>
+      <div><span>Trial hasta</span><strong>{{ business.trial_ends_at or '-' }}</strong></div>
+      <div><span>Estado pago</span><strong>{{ business.payment_status or 'none' }}</strong></div>
+    </div>
+    <form class="sa-inline-form" method="post" action="/superadmin/businesses/{{ business.id }}/change-plan">
+      <select name="plan_code">
+        {% for plan in plans %}
+        <option value="{{ plan.code }}" {% if business.plan_code == plan.code %}selected{% endif %}>{{ plan.name }}</option>
+        {% endfor %}
+      </select>
+      <button class="sa-btn sa-btn--primary" type="submit">Cambiar plan</button>
+    </form>
+  </article>
+</div>
+
+<div class="sa-kpi-grid">
+  <div class="sa-kpi"><span>Empleados</span><strong>{{ detail.employee_count }}</strong></div>
+  <div class="sa-kpi"><span>Admins</span><strong>{{ detail.admin_count }}</strong></div>
+  <div class="sa-kpi"><span>Fichajes</span><strong>{{ detail.session_count }}</strong></div>
+  <div class="sa-kpi"><span>Ultimo acceso</span><strong class="sa-kpi__small">{{ business.last_accessed_at or '-' }}</strong></div>
+</div>
+
+<div class="sa-grid sa-grid--two">
+  <article class="sa-card">
+    <div class="sa-card__header"><h2>Usuarios del negocio</h2></div>
+    <div class="sa-list">
+      {% for member in detail.members %}
+      <div>
+        <span>{{ member.full_name }} <small>{{ member.email or member.dni }}</small></span>
+        <form class="sa-row-form" method="post" action="/superadmin/businesses/{{ business.id }}/users/{{ member.id }}/role">
+          <select name="role">
+            {% for role in ['owner', 'admin', 'manager', 'employee'] %}
+            <option value="{{ role }}" {% if member.role == role %}selected{% endif %}>{{ role }}</option>
+            {% endfor %}
+          </select>
+          <button class="sa-btn sa-btn--ghost" type="submit">Guardar</button>
+        </form>
+      </div>
+      {% else %}
+      <p class="sa-empty">Sin usuarios asociados.</p>
+      {% endfor %}
+    </div>
+  </article>
+
+  <article class="sa-card">
+    <div class="sa-card__header"><h2>Ultimos fichajes</h2></div>
+    <div class="sa-list">
+      {% for session in detail.recent_sessions %}
+      <div><span>{{ session.employee_name or 'Empleado' }} <small>{{ session.clock_in_time }}</small></span><strong>{{ 'abierta' if session.is_active else 'cerrada' }}</strong></div>
+      {% else %}
+      <p class="sa-empty">Sin fichajes todavia.</p>
+      {% endfor %}
+    </div>
+  </article>
+</div>
+
+<article class="sa-card sa-danger-zone">
+  <div class="sa-card__header"><h2>Acciones criticas</h2><span>Doble confirmacion</span></div>
+  <div class="sa-grid sa-grid--three">
+    <form class="sa-form" method="post" action="/superadmin/businesses/{{ business.id }}/suspend">
+      <label>Motivo<input name="reason" placeholder="Motivo interno"></label>
+      <label>Confirmacion<input name="confirm_text" placeholder="SUSPENDER"></label>
+      <button class="sa-btn sa-btn--danger" type="submit">Suspender</button>
+    </form>
+    <form class="sa-form" method="post" action="/superadmin/businesses/{{ business.id }}/unsuspend">
+      <p>Reactiva el acceso del negocio y sus pantallas de cliente.</p>
+      <button class="sa-btn sa-btn--primary" type="submit">Reactivar</button>
+    </form>
+    <form class="sa-form" method="post" action="/superadmin/businesses/{{ business.id }}/archive">
+      <label>Escribe el ID completo<input name="confirm_text" placeholder="{{ business.id }}"></label>
+      <button class="sa-btn sa-btn--danger" type="submit">Archivar</button>
+    </form>
+  </div>
+</article>
+
+<article class="sa-card">
+  <div class="sa-card__header"><h2>Historial reciente</h2></div>
+  <div class="sa-list">
+    {% for log in detail.audit_logs %}
+    <div><span>{{ log.action }} <small>{{ log.created_at }}</small></span><strong>{{ log.actor_name or log.actor_email or '-' }}</strong></div>
+    {% else %}
+    <p class="sa-empty">Sin eventos criticos registrados.</p>
+    {% endfor %}
+  </div>
+</article>
+{% endblock %}

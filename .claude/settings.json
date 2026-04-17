@@ -24,7 +24,8 @@
       "Bash(docker --version)",
       "Bash(pip show:*)",
       "Bash(python -c \"from app.api.routes.employees import router\")",
-      "Bash(python -c ' *)"
+      "Bash(python -c ' *)",
+      "Bash(find \"c:\\\\Users\\\\epedr\\\\OneDrive\\\\App_Fichaje\\\\app\\\\api\\\\routes\" -name \"*.py\" -exec grep -l \"time_entries\\\\|attendance_sessions\" {} \\\\;)"
     ],
     "additionalDirectories": [
       "c:\\Users\\epedr\\OneDrive\\App_Fichaje\\app",

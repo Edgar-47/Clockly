@@ -295,27 +295,6 @@ class AttendanceSessionRepository:
         flow_log("repository.sessions.result", count=len(rows))
         return [normalize_row(row) for row in rows]
 
-    def list_exportable_sessions(
-        self,
-        *,
-        date_from: str | None = None,
-        date_to: str | None = None,
-        user_id: int | None = None,
-        is_active: int | None = None,
-    ) -> list[dict]:
-        """
-        Return attendance_sessions joined with users for reports/exports.
-
-        This is the canonical export query. The legacy time_entries table is
-        intentionally not involved here.
-        """
-        return self.list_with_user_names(
-            date_from=date_from,
-            date_to=date_to,
-            user_id=user_id,
-            is_active=is_active,
-        )
-
     # ------------------------------------------------------------------
     # Analytics queries
     # ------------------------------------------------------------------

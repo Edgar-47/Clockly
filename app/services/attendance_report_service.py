@@ -218,7 +218,7 @@ class AttendanceReportService:
             is_active=is_active,
             incident_filter=incident_filter,
         )
-        rows = self.attendance_session_repository.list_exportable_sessions(
+        rows = self.attendance_session_repository.list_with_user_names(
             date_from=date_from,
             date_to=date_to,
             user_id=user_id,

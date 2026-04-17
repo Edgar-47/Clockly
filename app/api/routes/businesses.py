@@ -24,11 +24,14 @@ from app.api.dependencies import (
     require_admin,
     require_active_business,
     set_active_business_id,
+    set_active_business_role,
     template_context,
 )
 from app.core.flow_debug import flow_log, form_keys
+from app.core.security import business_role_to_session_role
 from app.core.templates import templates
 from app.database.business_repository import BusinessRepository
+from app.database.business_user_repository import BusinessUserRepository
 from app.database.plan_repository import PlanRepository
 from app.models.employee import Employee
 from app.services.business_service import BusinessService
@@ -106,6 +109,13 @@ async def business_select(
             business_id=business_id,
         )
         set_active_business_id(request, business.id)
+        business_role = BusinessUserRepository().get_active_role(
+            business_id=business.id,
+            user_id=current_user.id,
+        )
+        set_active_business_role(request, business_role)
+        if business_role:
+            request.session["user_role"] = business_role_to_session_role(business_role)
         flash(request, f"Negocio cambiado a «{business.business_name}».", "success")
         flow_log(
             "businesses.select.success",
@@ -158,7 +168,7 @@ async def business_create(
     business_type = str(form_data.get("business_type", "otro")).strip()
     timezone = str(form_data.get("timezone", "Europe/Madrid")).strip()
     country = str(form_data.get("country", "")).strip() or None
-    plan_code = str(form_data.get("plan_code", "basic")).strip() or "basic"
+    plan_code = str(form_data.get("plan_code", "free")).strip() or "free"
     raw_code = str(form_data.get("login_code", "")).strip()
 
     flow_log(
@@ -202,6 +212,8 @@ async def business_create(
 
     # Activate the newly created business
     set_active_business_id(request, business.id)
+    set_active_business_role(request, "owner")
+    request.session["user_role"] = "admin"
 
     flow_log(
         "businesses.create.success",
@@ -319,5 +331,67 @@ async def business_settings_update(
         return templates.TemplateResponse(
             request, "businesses/settings.html", ctx, status_code=400
         )
+
+    return RedirectResponse(f"/businesses/{business_id}/settings", status_code=303)
+
+
+# ---------------------------------------------------------------------------
+# 5. Plan upgrade
+# ---------------------------------------------------------------------------
+
+@router.get("/{business_id}/upgrade", response_class=HTMLResponse)
+async def business_upgrade_form(
+    business_id: str,
+    request: Request,
+    current_user: Employee = Depends(require_admin),
+):
+    """Show available upgrade plans for the business."""
+    business = _load_business_or_404(business_id, current_user)
+    if not business:
+        flash(request, "Negocio no encontrado o sin acceso.", "error")
+        return RedirectResponse("/businesses", status_code=302)
+
+    svc = SubscriptionService()
+    usage = svc.get_usage_summary(business.id)
+    upgrade_options = svc.get_upgrade_options(business.id)
+
+    ctx = template_context(request)
+    ctx.update({
+        "business": business,
+        "usage": usage,
+        "upgrade_options": upgrade_options,
+    })
+    return templates.TemplateResponse(request, "businesses/upgrade.html", ctx)
+
+
+@router.post("/{business_id}/upgrade")
+async def business_upgrade(
+    business_id: str,
+    request: Request,
+    current_user: Employee = Depends(require_admin),
+):
+    """Switch the business to a new plan (manual upgrade without Stripe)."""
+    business = _load_business_or_404(business_id, current_user)
+    if not business:
+        flash(request, "Negocio no encontrado o sin acceso.", "error")
+        return RedirectResponse("/businesses", status_code=302)
+
+    form_data = await request.form()
+    target_plan_code = str(form_data.get("plan_code", "")).strip()
+
+    try:
+        SubscriptionService().upgrade_plan(
+            business_id=business.id,
+            target_plan_code=target_plan_code,
+        )
+        flash(request, "Plan actualizado correctamente. ¡Bienvenido al plan Pro!", "success")
+        flow_log(
+            "businesses.upgrade.success",
+            user_id=current_user.id,
+            business_id=business.id,
+            target_plan=target_plan_code,
+        )
+    except ValueError as exc:
+        flash(request, str(exc), "error")
 
     return RedirectResponse(f"/businesses/{business_id}/settings", status_code=303)

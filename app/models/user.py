@@ -18,6 +18,7 @@ class User:
     last_name: str = ""
     dni: str = ""
     role: str = "employee"
+    platform_role: str | None = None
 
     @classmethod
     def from_row(cls, row) -> "User":
@@ -40,4 +41,5 @@ class User:
             last_name=last_name,
             dni=d.get("dni") or "",
             role=d.get("role") or "employee",
+            platform_role=d.get("platform_role"),
         )

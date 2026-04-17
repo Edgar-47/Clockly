@@ -17,14 +17,19 @@ Session keys (admin):
   active_business_id (str)  — currently selected business UUID
 """
 
+from dataclasses import replace
+
 from fastapi import Request
 
 from app.core.security import (
+    AUTH_SESSION_KEYS,
     KIOSK_BUSINESS_KEY,
     KIOSK_EMPLOYEE_ID_KEY,
+    business_role_to_session_role,
     clear_kiosk_employee_context,
     reset_kiosk_context,
 )
+from app.models.plan_constants import PlatformRole
 from app.core.flow_debug import flow_log
 from app.database.employee_repository import EmployeeRepository
 from app.models.employee import Employee
@@ -48,6 +53,10 @@ class RequiresKioskException(Exception):
 
 class RequiresOnboardingException(Exception):
     """Raised when an admin has no businesses yet and must complete onboarding."""
+
+
+class RequiresPlatformAdminException(Exception):
+    """Raised when a route requires a global platform admin."""
 
 
 # ---------------------------------------------------------------------------
@@ -90,6 +99,14 @@ def require_user(request: Request) -> Employee:
         flow_log("session.invalid_user", path=request.url.path, user_id=user_id)
         request.session.clear()
         raise RequiresLoginException()
+    if employee.platform_role and not (
+        request.session.get("superadmin_user_id") == employee.id
+        and request.session.get("impersonation_superadmin_id") == employee.id
+    ):
+        flow_log("session.internal_user_on_normal_auth", path=request.url.path, user_id=user_id)
+        for key in AUTH_SESSION_KEYS:
+            request.session.pop(key, None)
+        raise RequiresLoginException()
 
     flow_log(
         "session.user_loaded",
@@ -97,7 +114,7 @@ def require_user(request: Request) -> Employee:
         user_id=employee.id,
         role=employee.role,
     )
-    return employee
+    return _with_active_business_role(request, employee)
 
 
 def require_admin(request: Request) -> Employee:
@@ -107,6 +124,8 @@ def require_admin(request: Request) -> Employee:
     Raises RequiresAdminException if logged in but not admin.
     """
     employee = require_user(request)
+    if employee.role != "admin" and not get_active_business_id(request):
+        employee = _load_default_business_admin_context(request, employee)
     if employee.role != "admin":
         flow_log(
             "permission.denied_admin_required",
@@ -116,6 +135,61 @@ def require_admin(request: Request) -> Employee:
         )
         raise RequiresAdminException()
     return employee
+
+
+def _with_active_business_role(request: Request, employee: Employee) -> Employee:
+    business_id = get_active_business_id(request)
+    if not business_id:
+        return employee
+
+    from app.database.business_user_repository import BusinessUserRepository
+
+    business_role = BusinessUserRepository().get_active_role(
+        business_id=business_id,
+        user_id=employee.id,
+    )
+    if not business_role:
+        return employee
+
+    session_role = business_role_to_session_role(business_role)
+    request.session["user_role"] = session_role
+    set_active_business_role(request, business_role)
+    return replace(employee, role=session_role)
+
+
+def _load_default_business_admin_context(request: Request, employee: Employee) -> Employee:
+    from app.database.business_user_repository import BusinessUserRepository
+    from app.services.business_service import BusinessService
+
+    business = BusinessService().choose_default_business(employee.id)
+    if not business:
+        return employee
+
+    business_role = BusinessUserRepository().get_active_role(
+        business_id=business.id,
+        user_id=employee.id,
+    )
+    if business_role and business_role_to_session_role(business_role) == "admin":
+        set_active_business_id(request, business.id)
+        set_active_business_role(request, business_role)
+        request.session["user_role"] = "admin"
+        return replace(employee, role="admin")
+    return employee
+
+
+def require_platform_admin(request: Request) -> Employee:
+    """
+    Deprecated guard kept so old imports fail closed.
+
+    Superadmin routes must use app.superadmin.dependencies.require_superadmin,
+    which validates the isolated internal session instead of normal auth.
+    """
+    flow_log("permission.platform_admin_deprecated_guard", path=request.url.path)
+    raise RequiresPlatformAdminException()
+
+
+def is_current_platform_admin(request: Request) -> bool:
+    return False
 
 
 # ---------------------------------------------------------------------------
@@ -137,17 +211,34 @@ def get_flash_messages(request: Request) -> list[dict]:
     return messages
 
 
+_MOBILE_UA_KEYWORDS = (
+    "mobile", "android", "iphone", "ipad", "ipod", "blackberry",
+    "windows phone", "opera mini", "opera mobi",
+)
+
+
+def _detect_mobile(request: Request) -> bool:
+    """Return True when the User-Agent looks like a mobile/tablet device."""
+    ua = request.headers.get("user-agent", "").lower()
+    return any(kw in ua for kw in _MOBILE_UA_KEYWORDS)
+
+
 def template_context(request: Request) -> dict:
     """
     Base context dict to pass to every template.
     NOTE: 'request' is NOT included here — Starlette 1.0+ injects it automatically
     when you call templates.TemplateResponse(request, name, context).
     """
+    is_mobile = _detect_mobile(request)
     return {
         "flash_messages": get_flash_messages(request),
         "current_user_id": request.session.get("user_id"),
         "current_user_name": request.session.get("user_name"),
         "current_user_role": request.session.get("user_role"),
+        "current_platform_role": None,
+        "is_platform_admin": False,
+        "impersonation_business_id": request.session.get("impersonation_business_id"),
+        "impersonation_business_name": request.session.get("impersonation_business_name"),
         # Active business is surfaced to every template for the sidebar/header
         "active_business_id": request.session.get("active_business_id"),
         "active_business_role": request.session.get("active_business_role"),
@@ -155,6 +246,8 @@ def template_context(request: Request) -> dict:
         "kiosk_employee_id": request.session.get(KIOSK_EMPLOYEE_ID_KEY),
         "kiosk_employee_name": request.session.get("kiosk_employee_name"),
         "kiosk_employee_role": request.session.get("kiosk_employee_role"),
+        # Platform detection — drives shell template selection in base.html
+        "is_mobile": is_mobile,
     }
 
 
@@ -199,6 +292,16 @@ def require_active_business(request: Request) -> str:
     if business_id:
         from app.database.business_repository import BusinessRepository
         from app.database.business_user_repository import BusinessUserRepository
+        if (
+            request.session.get("impersonation_business_id") == business_id
+            and request.session.get("impersonation_superadmin_id") == employee.id
+            and request.session.get("superadmin_user_id") == employee.id
+            and employee.platform_role == PlatformRole.SUPERADMIN.value
+        ):
+            business = BusinessRepository().get_by_id(business_id)
+            if business and business.is_active:
+                set_active_business_role(request, "owner")
+                return business_id
         if BusinessRepository().user_has_access(
             business_id=business_id,
             user_id=employee.id,

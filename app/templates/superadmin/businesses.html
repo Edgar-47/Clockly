@@ -1,0 +1,62 @@
+{% extends "superadmin/base.html" %}
+
+{% block title %}Clientes / negocios{% endblock %}
+{% block page_title %}Clientes / negocios{% endblock %}
+
+{% block content %}
+<form class="sa-filters" method="get">
+  <input name="search" value="{{ filters.search }}" placeholder="Buscar por nombre, email, ID o plan">
+  <select name="status">
+    <option value="">Estados activos</option>
+    {% for value,label in [('active','Activo'),('trial','Trial'),('suspended','Suspendido'),('inactive','Inactivo'),('cancelled','Cancelado'),('archived','Archivado')] %}
+    <option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+  <select name="plan">
+    <option value="">Todos los planes</option>
+    {% for plan in plans %}
+    <option value="{{ plan.code }}" {% if filters.plan == plan.code %}selected{% endif %}>{{ plan.name }}</option>
+    {% endfor %}
+  </select>
+  <button class="sa-btn sa-btn--primary" type="submit">Filtrar</button>
+</form>
+
+<article class="sa-card">
+  <div class="sa-card__header">
+    <h2>{{ total }} negocios</h2>
+    <span>Vista global multi-tenant</span>
+  </div>
+  <div class="sa-table-wrap">
+    <table class="sa-table">
+      <thead>
+        <tr>
+          <th>Negocio</th>
+          <th>ID</th>
+          <th>Contacto</th>
+          <th>Plan</th>
+          <th>Estado</th>
+          <th>Equipo</th>
+          <th>Actividad</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for biz in businesses %}
+        <tr>
+          <td><strong>{{ biz.business_name }}</strong><small>{{ biz.business_type }}</small></td>
+          <td><code>{{ biz.id }}</code></td>
+          <td>{{ biz.primary_email or biz.owner_email or '-' }}<small>{{ biz.phone or '' }}</small></td>
+          <td>{{ biz.plan_name }}<small>{{ biz.subscription_status }}</small></td>
+          <td><span class="sa-badge sa-badge--{{ biz.status_label }}">{{ biz.status_label }}</span></td>
+          <td>{{ biz.employee_count }} empleados<small>{{ biz.admin_count }} admins</small></td>
+          <td>{{ biz.session_count }} fichajes<small>{{ biz.last_accessed_at or 'Sin acceso' }}</small></td>
+          <td><a class="sa-btn sa-btn--ghost" href="/superadmin/businesses/{{ biz.id }}">Ver</a></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8"><p class="sa-empty">No hay negocios para estos filtros.</p></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</article>
+{% endblock %}

@@ -5,7 +5,8 @@ from app.models.user import User
 class UserRepository:
     _SELECT = """
         id, email, full_name, google_id, auth_provider, password_hash,
-        is_active, active, created_at, updated_at, first_name, last_name, dni, role
+        is_active, active, created_at, updated_at, first_name, last_name, dni,
+        role, platform_role
     """
 
     def get_by_id(self, user_id: int) -> User | None:
@@ -57,7 +58,7 @@ class UserRepository:
         with get_connection() as connection:
             existing = connection.execute(
                 """
-                SELECT id
+                SELECT id, platform_role
                 FROM users
                 WHERE google_id = %s OR LOWER(email) = LOWER(%s)
                 ORDER BY CASE WHEN google_id = %s THEN 0 ELSE 1 END
@@ -67,6 +68,8 @@ class UserRepository:
             ).fetchone()
 
             if existing:
+                if existing["platform_role"]:
+                    raise ValueError("Usa el acceso interno de Superadmin.")
                 user_id = int(existing["id"])
                 connection.execute(
                     """

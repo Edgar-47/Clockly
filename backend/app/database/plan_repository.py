@@ -4,8 +4,12 @@ from app.models.plan import Plan
 
 class PlanRepository:
     _SELECT = """
-        id, code, name, max_employees, max_admins, has_kiosk,
-        has_advanced_reports, has_geolocation, has_multi_location,
+        id, code, name, max_employees, max_admins,
+        has_kiosk, has_advanced_reports, has_geolocation, has_multi_location,
+        has_exports_basic, has_exports_advanced,
+        has_filters_advanced, has_incident_management,
+        has_admin_closures, has_implementation_support,
+        has_priority_support, has_custom_branding,
         price_monthly, price_yearly, is_active
     """
 

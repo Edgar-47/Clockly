@@ -1,0 +1,60 @@
+{% extends "superadmin/base.html" %}
+
+{% block title %}Suscripciones{% endblock %}
+{% block page_title %}Suscripciones{% endblock %}
+
+{% block content %}
+<form class="sa-filters" method="get">
+  <select name="status">
+    <option value="">Todos los estados</option>
+    {% for value in ['trial','active','past_due','paused','cancelled','expired','suspended'] %}
+    <option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ value }}</option>
+    {% endfor %}
+  </select>
+  <select name="plan">
+    <option value="">Todos los planes</option>
+    {% for plan in plans %}
+    <option value="{{ plan.code }}" {% if filters.plan == plan.code %}selected{% endif %}>{{ plan.name }}</option>
+    {% endfor %}
+  </select>
+  <button class="sa-btn sa-btn--primary" type="submit">Filtrar</button>
+</form>
+
+<article class="sa-card">
+  <div class="sa-card__header"><h2>{{ total }} suscripciones</h2><span>Capa interna preparada para Stripe</span></div>
+  <div class="sa-table-wrap">
+    <table class="sa-table">
+      <thead><tr><th>Negocio</th><th>Plan</th><th>Estado</th><th>Ciclo</th><th>Renovacion</th><th>Pago</th><th>Acciones</th></tr></thead>
+      <tbody>
+      {% for sub in subscriptions %}
+      <tr>
+        <td><a href="/superadmin/businesses/{{ sub.business_id }}">{{ sub.business_name }}</a><small>{{ sub.business_id }}</small></td>
+        <td>{{ sub.plan_name }}<small>{{ sub.price_monthly }} EUR / mes</small></td>
+        <td><span class="sa-badge sa-badge--{{ sub.status }}">{{ sub.status }}</span></td>
+        <td>{{ sub.billing_cycle }}</td>
+        <td>{{ sub.renewal_date or sub.current_period_end or '-' }}<small>Trial: {{ sub.trial_ends_at or '-' }}</small></td>
+        <td>{{ sub.payment_status }}<small>{{ sub.notes or '' }}</small></td>
+        <td>
+          <form class="sa-row-form" method="post" action="/superadmin/subscriptions/{{ sub.id }}/status">
+            <select name="status">
+              {% for value in ['trial','active','past_due','paused','cancelled','expired','suspended'] %}
+              <option value="{{ value }}" {% if sub.status == value %}selected{% endif %}>{{ value }}</option>
+              {% endfor %}
+            </select>
+            <input name="notes" placeholder="Nota interna">
+            <button class="sa-btn sa-btn--ghost" type="submit">Guardar</button>
+          </form>
+          <form class="sa-row-form" method="post" action="/superadmin/subscriptions/{{ sub.id }}/trial">
+            <input name="trial_ends_at" type="date">
+            <button class="sa-btn sa-btn--ghost" type="submit">Extender trial</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7"><p class="sa-empty">Sin suscripciones.</p></td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</article>
+{% endblock %}

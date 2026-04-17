@@ -195,6 +195,17 @@
     </div>
     {% endif %}
 
+    {% if impersonation_business_id %}
+    <div class="flash-container">
+      <div class="flash flash--warning" role="alert">
+        <span>Modo impersonacion activo en {{ impersonation_business_name or impersonation_business_id }}.</span>
+        <form method="post" action="/superadmin/impersonation/stop">
+          <button type="submit" class="btn btn--ghost btn--sm">Salir</button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+
     <div class="content">
       {% block content %}{% endblock %}
     </div>

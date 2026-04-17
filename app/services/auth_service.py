@@ -19,11 +19,11 @@ class AuthService:
             raise ValueError("Introduce identificador y contrasena.")
 
         employee = self.employee_repository.get_by_identifier(clean_identifier)
-        if not employee or not employee.active:
+        if not employee or not employee.active or employee.platform_role:
             flow_log(
                 "service.auth.login.rejected",
                 identifier=mask_identifier(clean_identifier),
-                reason="not_found_or_inactive",
+                reason="not_found_inactive_or_internal",
             )
             raise ValueError("Identificador o contrasena incorrectos.")
 
@@ -40,6 +40,7 @@ class AuthService:
             employee_id=employee.id,
             role=employee.role,
         )
+        self.employee_repository.mark_login_success(employee.id)
         return employee
 
     def verify_employee_password(self, employee_id: int, password: str) -> Employee:

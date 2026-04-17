@@ -1,0 +1,91 @@
+{% extends "superadmin/base.html" %}
+
+{% block title %}Dashboard global{% endblock %}
+{% block page_title %}Dashboard global{% endblock %}
+
+{% block content %}
+<div class="sa-kpi-grid">
+  <div class="sa-kpi"><span>Negocios registrados</span><strong>{{ stats.total_businesses }}</strong><small>{{ stats.businesses_this_month }} este mes</small></div>
+  <div class="sa-kpi"><span>Negocios activos</span><strong>{{ stats.active_businesses }}</strong><small>{{ stats.inactive_businesses }} inactivos</small></div>
+  <div class="sa-kpi"><span>Usuarios registrados</span><strong>{{ stats.total_users }}</strong><small>{{ stats.users_this_month }} este mes</small></div>
+  <div class="sa-kpi"><span>Empleados totales</span><strong>{{ stats.total_employees }}</strong><small>{{ stats.total_admins }} admins de negocio</small></div>
+  <div class="sa-kpi"><span>Suscripciones activas</span><strong>{{ stats.subscriptions_active }}</strong><small>{{ stats.subscriptions_trialing }} en prueba</small></div>
+  <div class="sa-kpi"><span>Canceladas</span><strong>{{ stats.subscriptions_canceled }}</strong><small>{{ stats.subscriptions_past_due }} past due</small></div>
+  <div class="sa-kpi"><span>MRR estimado</span><strong>{{ "%.0f"|format(stats.mrr) }} EUR</strong><small>Ingresos mensuales estimados</small></div>
+  <div class="sa-kpi"><span>ARR estimado</span><strong>{{ "%.0f"|format(stats.arr) }} EUR</strong><small>MRR x 12</small></div>
+</div>
+
+<div class="sa-grid sa-grid--two">
+  <article class="sa-card">
+    <div class="sa-card__header">
+      <h2>Crecimiento por mes</h2>
+      <span>Negocios y usuarios</span>
+    </div>
+    <div class="sa-bars">
+      {% for row in growth %}
+      {% set maxv = [row.businesses_created, row.users_created, 1]|max %}
+      <div class="sa-bar-row">
+        <span>{{ row.label }}</span>
+        <div class="sa-bar-pair">
+          <i style="width: {{ (row.businesses_created / maxv * 100)|round }}%"></i>
+          <b style="width: {{ (row.users_created / maxv * 100)|round }}%"></b>
+        </div>
+        <em>{{ row.businesses_created }} / {{ row.users_created }}</em>
+      </div>
+      {% endfor %}
+    </div>
+  </article>
+
+  <article class="sa-card">
+    <div class="sa-card__header">
+      <h2>Ingresos por mes</h2>
+      <span>MRR estimado</span>
+    </div>
+    <div class="sa-bars">
+      {% set max_mrr = revenue|map(attribute='mrr')|max if revenue else 1 %}
+      {% for row in revenue %}
+      <div class="sa-bar-row">
+        <span>{{ row.label }}</span>
+        <div class="sa-bar"><i style="width: {{ (row.mrr / (max_mrr or 1) * 100)|round }}%"></i></div>
+        <em>{{ "%.0f"|format(row.mrr) }} EUR</em>
+      </div>
+      {% endfor %}
+    </div>
+  </article>
+</div>
+
+<div class="sa-grid sa-grid--three">
+  <article class="sa-card">
+    <div class="sa-card__header"><h2>Distribucion por plan</h2></div>
+    <div class="sa-list">
+      {% for plan in stats.plan_distribution %}
+      <div><span>{{ plan.name }}</span><strong>{{ plan.count }}</strong></div>
+      {% else %}
+      <p class="sa-empty">Sin suscripciones todavia.</p>
+      {% endfor %}
+    </div>
+  </article>
+
+  <article class="sa-card">
+    <div class="sa-card__header"><h2>Negocios con mas empleados</h2></div>
+    <div class="sa-list">
+      {% for biz in stats.top_businesses_by_employees %}
+      <div><span>{{ biz.name }}</span><strong>{{ biz.count }}</strong></div>
+      {% else %}
+      <p class="sa-empty">Sin datos.</p>
+      {% endfor %}
+    </div>
+  </article>
+
+  <article class="sa-card">
+    <div class="sa-card__header"><h2>Negocios con mas uso</h2></div>
+    <div class="sa-list">
+      {% for biz in stats.top_businesses_by_sessions %}
+      <div><span>{{ biz.name }}</span><strong>{{ biz.count }}</strong></div>
+      {% else %}
+      <p class="sa-empty">Sin fichajes registrados.</p>
+      {% endfor %}
+    </div>
+  </article>
+</div>
+{% endblock %}

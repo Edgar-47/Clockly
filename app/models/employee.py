@@ -14,6 +14,10 @@ class Employee:
     active: bool
     created_at: str | None = None
     last_business_id: str | None = None
+    email: str | None = None
+    platform_role: str | None = None
+    last_login_at: str | None = None
+    force_password_change: bool = False
 
     @property
     def username(self) -> str:
@@ -60,4 +64,8 @@ class Employee:
             active=bool(row["active"]),
             created_at=normalize_datetime(row["created_at"]) if "created_at" in keys else None,
             last_business_id=row["last_business_id"] if "last_business_id" in keys else None,
+            email=row["email"] if "email" in keys else None,
+            platform_role=row["platform_role"] if "platform_role" in keys else None,
+            last_login_at=normalize_datetime(row["last_login_at"]) if "last_login_at" in keys else None,
+            force_password_change=bool(row["force_password_change"]) if "force_password_change" in keys else False,
         )

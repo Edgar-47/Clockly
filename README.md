@@ -114,7 +114,7 @@ Variables importantes:
 | `CLOCKLY_ENV` | `development` o `production` |
 | `CLOCKLY_SECRET_KEY` | Secreto de sesiones; obligatorio en produccion |
 | `CLOCKLY_DEFAULT_ADMIN_USERNAME` | Usuario admin inicial |
-| `CLOCKLY_DEFAULT_ADMIN_PASSWORD` | Password admin inicial; obligatorio en produccion |
+| `CLOCKLY_DEFAULT_ADMIN_PASSWORD` | Password admin de negocio inicial; obligatorio en produccion |
 | `CLOCKLY_SECURE_COOKIES` | Cookies HTTPS; por defecto activo en produccion |
 | `CLOCKLY_DOCS_ENABLED` | Habilita `/docs` y `/redoc` |
 
@@ -136,7 +136,7 @@ ejecutar_app.bat
 
 # Primer acceso
 
-En el primer arranque, si la base de datos está vacía, se crea automáticamente un usuario administrador.
+En el primer arranque, si la base de datos está vacía, se crea automáticamente un usuario administrador de negocio. Este usuario no tiene acceso Superadmin.
 
 | Campo | Valor |
 |---|---|
@@ -144,6 +144,19 @@ En el primer arranque, si la base de datos está vacía, se crea automáticament
 | Contraseña | `CLOCKLY_DEFAULT_ADMIN_PASSWORD` (`Admin123` en desarrollo) |
 
 ⚠️ Se recomienda **cambiar esta contraseña antes de usar la aplicación en producción**.
+
+### Acceso Superadmin interno
+
+El Superadmin está separado del login normal y se accede desde `/superadmin/login`.
+No hay registro público ni siembra automática de superadmins. Para crear o recuperar
+el acceso usa el comando operativo con acceso a la base de datos:
+
+```powershell
+python -m app.cli.superadmin create --email owner@example.com --name "Owner Name"
+```
+
+Si no pasas `--password`, el comando la pedirá por terminal. La contraseña mínima
+para Superadmin es de 12 caracteres.
 
 ---
 

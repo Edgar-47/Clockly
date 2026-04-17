@@ -546,10 +546,7 @@ class ExportService:
         employee_id: int | None = None,
         output_path: str | Path | None = None,
     ) -> Path:
-        """
-        Alias kept for call sites that haven't been updated yet.
-        Delegates to export_sessions_to_excel using attendance_sessions.
-        """
+        # Legacy name — delegates to the canonical method backed by attendance_sessions.
         return self.export_sessions_to_excel(
             date_from=date_from,
             date_to=date_to,
@@ -596,6 +593,8 @@ class ExportService:
             return "incidencia"
         if report.is_active:
             return "abierta"
+        if report.closed_by_admin:
+            return "cierre admin"
         return "cerrada"
 
     def _resolve_output_path(

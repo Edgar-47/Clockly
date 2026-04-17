@@ -1,0 +1,76 @@
+{% extends "superadmin/base.html" %}
+
+{% block title %}Usuarios globales{% endblock %}
+{% block page_title %}Usuarios globales{% endblock %}
+
+{% block content %}
+<form class="sa-filters" method="get" action="/superadmin/users">
+  <input name="search" value="{{ filters.search }}" placeholder="Buscar por nombre, email, DNI o negocio">
+  <select name="role">
+    <option value="">Todos los roles</option>
+    <option value="admin" {% if filters.role == 'admin' %}selected{% endif %}>Admins de negocio</option>
+    <option value="employee" {% if filters.role == 'employee' %}selected{% endif %}>Empleados</option>
+  </select>
+  <select name="platform">
+    <option value="">Plataforma y clientes</option>
+    <option value="tenant" {% if filters.platform == 'tenant' %}selected{% endif %}>Solo clientes</option>
+    <option value="internal" {% if filters.platform == 'internal' %}selected{% endif %}>Solo internos</option>
+  </select>
+  <select name="status">
+    <option value="">Activos e inactivos</option>
+    <option value="active" {% if filters.status == 'active' %}selected{% endif %}>Activos</option>
+    <option value="inactive" {% if filters.status == 'inactive' %}selected{% endif %}>Inactivos</option>
+  </select>
+  <button class="sa-btn sa-btn--primary" type="submit">Filtrar</button>
+</form>
+
+<article class="sa-card">
+  <div class="sa-card__header">
+    <h2>Directorio de plataforma</h2>
+    <span>{{ total }} usuarios</span>
+  </div>
+  <div class="sa-table-wrap">
+    <table class="sa-table">
+      <thead>
+        <tr>
+          <th>Usuario</th>
+          <th>Rol global</th>
+          <th>Negocios</th>
+          <th>Ultimo acceso</th>
+          <th>Estado</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for user in users %}
+        <tr>
+          <td>
+            <strong>{{ user.full_name or user.email or user.dni }}</strong>
+            <small>{{ user.email or user.dni }}</small>
+            {% if user.platform_role %}
+            <span class="sa-badge sa-badge--internal">{{ user.platform_role }}</span>
+            {% endif %}
+          </td>
+          <td>{{ user.role }}</td>
+          <td>
+            <strong>{{ user.business_count }}</strong>
+            <small>{{ user.memberships or 'Sin negocios asociados' }}</small>
+          </td>
+          <td>{{ user.last_login_at or '-' }}</td>
+          <td>{{ 'activo' if user.active else 'inactivo' }}</td>
+          <td>
+            <form class="sa-row-form" method="post" action="/superadmin/users/{{ user.id }}/active">
+              <input type="hidden" name="active" value="{{ 'false' if user.active else 'true' }}">
+              <button class="sa-btn sa-btn--ghost" type="submit">{{ 'Desactivar' if user.active else 'Activar' }}</button>
+            </form>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="6"><p class="sa-empty">No hay usuarios con esos filtros.</p></td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</article>
+{% endblock %}
+

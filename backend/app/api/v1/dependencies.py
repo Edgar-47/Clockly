@@ -8,6 +8,7 @@ from app.api.v1.errors import ApiError, forbidden, unauthorized
 from app.api.v1.serializers import business_to_dict, permissions_for_role, user_to_dict
 from app.config import SECURE_COOKIES, SESSION_MAX_AGE
 from app.core.jwt import TokenError, create_access_token, decode_access_token
+from app.core.security import business_role_to_session_role
 from app.database.business_repository import BusinessRepository
 from app.database.business_user_repository import BusinessUserRepository
 from app.database.employee_repository import EmployeeRepository
@@ -74,7 +75,7 @@ def build_auth_payload(
 
     token = create_access_token(
         user_id=user.id,
-        role=user.role,
+        role=business_role_to_session_role(active_role) if active_role else user.role,
         active_business_id=active_business_id,
     )
     return {
@@ -114,7 +115,7 @@ def require_api_user(request: Request) -> ApiContext:
         raise unauthorized("Token sin usuario valido.") from exc
 
     user = EmployeeRepository().get_by_id(user_id)
-    if user is None or not user.active:
+    if user is None or not user.active or user.platform_role:
         raise unauthorized("Usuario no disponible.")
 
     active_business_id = payload.get("active_business_id")

@@ -16,11 +16,25 @@ Session payload keys:
 """
 
 from app.config import SECRET_KEY, SESSION_MAX_AGE
+from app.models.plan_constants import PLATFORM_ADMIN_ROLES
 
 # SECRET_KEY and SESSION_MAX_AGE are loaded from app.config so .env, local CLI,
 # and Railway runtime settings all use the same source of truth.
 
-AUTH_SESSION_KEYS = ("user_id", "user_name", "user_role")
+AUTH_SESSION_KEYS = (
+    "user_id",
+    "user_name",
+    "user_role",
+    "user_email",
+    "active_business_id",
+    "active_business_role",
+    "impersonation_business_id",
+    "impersonation_business_name",
+    "impersonation_superadmin_id",
+    # Legacy key: old cookies may still contain it, but normal auth no longer
+    # uses platform privileges.
+    "user_platform_role",
+)
 KIOSK_BUSINESS_KEY = "kiosk_business_id"
 KIOSK_EMPLOYEE_ID_KEY = "kiosk_employee_id"
 KIOSK_EMPLOYEE_KEYS = (
@@ -28,9 +42,15 @@ KIOSK_EMPLOYEE_KEYS = (
     "kiosk_employee_name",
     "kiosk_employee_role",
 )
+ADMIN_BUSINESS_ROLES = {"owner", "admin", "manager"}
 
 
-def build_session_payload(employee) -> dict:
+def business_role_to_session_role(business_role: str | None) -> str:
+    """Map tenant-scoped roles to the legacy web session roles."""
+    return "admin" if business_role in ADMIN_BUSINESS_ROLES else "employee"
+
+
+def build_session_payload(employee, *, role: str | None = None) -> dict:
     """
     Build the dict to store in the session cookie from an Employee dataclass.
     Only stores the minimum needed — the full employee object is loaded from DB
@@ -40,13 +60,18 @@ def build_session_payload(employee) -> dict:
     return {
         "user_id": employee.id,
         "user_name": display_name,
-        "user_role": getattr(employee, "role", "employee"),
+        "user_email": getattr(employee, "email", None),
+        "user_role": role or getattr(employee, "role", "employee"),
     }
 
 
-def home_path_for_role(role: str | None) -> str:
+def home_path_for_role(role: str | None, platform_role: str | None = None) -> str:
     """Return the first safe page for an authenticated role."""
     return "/dashboard" if role == "admin" else "/me"
+
+
+def is_platform_admin_role(platform_role: str | None) -> bool:
+    return platform_role in PLATFORM_ADMIN_ROLES
 
 
 def build_kiosk_session_payload(business_id: str) -> dict:

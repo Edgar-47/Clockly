@@ -17,8 +17,9 @@ def _create_employee(
     last_name: str = "Lopez",
     dni: str = "12345678A",
     password: str = "segura123",
+    business_id: str | None = None,
 ) -> int:
-    return EmployeeService().create_employee(
+    return EmployeeService(business_id=business_id).create_employee(
         first_name=first_name,
         last_name=last_name,
         dni=dni,
@@ -36,6 +37,16 @@ def _admin_id() -> int:
     return int(row["id"])
 
 
+def _create_test_business(owner_id: int, name: str = "Test Business") -> object:
+    return BusinessService().create_business(
+        owner_user_id=owner_id,
+        business_name=name,
+        business_type="cafeteria",
+        login_code=name.upper().replace(" ", "-"),
+        plan_code="pro",
+    )
+
+
 def _insert_session(
     *,
     employee_id: int,
@@ -43,16 +54,17 @@ def _insert_session(
     clock_out: str | None = None,
     is_active: bool = False,
     total_seconds: int | None = None,
+    business_id: str | None = None,
 ) -> int:
     with get_connection() as connection:
         cursor = connection.execute(
             """
             INSERT INTO attendance_sessions
-                (user_id, clock_in_time, clock_out_time, is_active, total_seconds)
-            VALUES (%s, %s, %s, %s, %s)
+                (user_id, clock_in_time, clock_out_time, is_active, total_seconds, business_id)
+            VALUES (%s, %s, %s, %s, %s, %s)
             RETURNING id
             """,
-            (employee_id, clock_in, clock_out, is_active, total_seconds),
+            (employee_id, clock_in, clock_out, is_active, total_seconds, business_id),
         )
         return int(cursor.fetchone()["id"])
 
@@ -62,6 +74,41 @@ def test_admin_login_reaches_dashboard(db):
         response = client.post(
             "/login",
             data={"identifier": "admin", "password": "Admin123"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 303
+        assert response.headers["location"] == "/dashboard"
+        assert client.get("/dashboard").status_code == 200
+
+
+def test_business_scoped_admin_login_reaches_dashboard_even_if_global_role_is_employee(db):
+    owner_id = _admin_id()
+    business = BusinessService().create_business(
+        owner_user_id=owner_id,
+        business_name="Scoped Admin Cafe",
+        business_type="cafeteria",
+        login_code="SCOPED-ADMIN",
+        plan_code="pro",
+    )
+    scoped_admin_id = EmployeeService(business_id=business.id).create_employee(
+        first_name="Bea",
+        last_name="Admin",
+        dni="BIZADMIN001",
+        password="clave123",
+        role="admin",
+        actor_user_id=owner_id,
+    )
+    with get_connection() as connection:
+        connection.execute(
+            "UPDATE users SET role = 'employee' WHERE id = %s",
+            (scoped_admin_id,),
+        )
+
+    with TestClient(_app()) as client:
+        response = client.post(
+            "/login",
+            data={"identifier": "BIZADMIN001", "password": "clave123"},
             follow_redirects=False,
         )
 
@@ -120,19 +167,30 @@ def test_employee_admin_route_redirects_to_employee_flow(db):
 
 
 def test_session_filters_accept_blank_values_and_filter_results(db):
-    ana_id = _create_employee(first_name="Ana", last_name="Lopez", dni="12345678A")
-    luis_id = _create_employee(first_name="Luis", last_name="Martin", dni="87654321B")
+    # Sessions must be scoped to a business; the /sessions route requires an
+    # active business context and filters by business_id.
+    owner_id = _admin_id()
+    business = _create_test_business(owner_id, "Filter Test Bar")
+
+    ana_id = _create_employee(
+        first_name="Ana", last_name="Lopez", dni="12345678A", business_id=business.id
+    )
+    luis_id = _create_employee(
+        first_name="Luis", last_name="Martin", dni="87654321B", business_id=business.id
+    )
     _insert_session(
         employee_id=ana_id,
         clock_in="2026-04-13 09:00:00",
         clock_out="2026-04-13 17:00:00",
         is_active=False,
         total_seconds=28800,
+        business_id=business.id,
     )
     _insert_session(
         employee_id=luis_id,
         clock_in="2026-04-14 09:00:00",
         is_active=True,
+        business_id=business.id,
     )
 
     with TestClient(_app()) as client:

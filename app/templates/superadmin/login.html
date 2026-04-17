@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Consola interna - Clockly</title>
+  <link rel="stylesheet" href="/static/css/main.css">
+  <link rel="stylesheet" href="/static/css/superadmin.css">
+</head>
+<body class="sa-login">
+  <main class="sa-login__panel" aria-label="Acceso Superadmin">
+    <div class="sa-login__brand">
+      <span class="sa-brand__mark">C</span>
+      <div>
+        <strong>Clockly Internal</strong>
+        <small>Consola privada de plataforma</small>
+      </div>
+    </div>
+
+    <p class="sa-eyebrow">Acceso restringido</p>
+    <h1>Control global de Clockly</h1>
+    <p class="sa-login__copy">Solo operadores internos autorizados. Este acceso esta separado del panel de clientes.</p>
+
+    {% if error %}
+    <div class="sa-flash sa-flash--error" role="alert">{{ error }}</div>
+    {% endif %}
+
+    <form method="post" action="/superadmin/login" class="sa-form sa-login__form" novalidate>
+      <label>Email interno o identificador
+        <input name="identifier" value="{{ identifier or '' }}" autocomplete="username" required autofocus>
+      </label>
+      <label>Contrasena
+        <input name="password" type="password" autocomplete="current-password" required>
+      </label>
+      <button class="sa-btn sa-btn--primary" type="submit">Entrar a consola</button>
+    </form>
+  </main>
+</body>
+</html>
+

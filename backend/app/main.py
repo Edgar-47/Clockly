@@ -50,10 +50,16 @@ from app.api.dependencies import (
     RequiresLoginException,
     RequiresKioskException,
     RequiresOnboardingException,
+    RequiresPlatformAdminException,
 )
 from app.api.routes import auth, businesses, clock, dashboard, employees, expenses, kiosk, me, sessions
 from app.api.routes import analytics, schedules
+from app.api.routes import superadmin
 from app.database.schema import initialize_database
+from app.superadmin.dependencies import (
+    RequiresSuperadminException,
+    RequiresSuperadminLoginException,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -165,7 +171,9 @@ async def requires_admin_handler(request: Request, exc: RequiresAdminException):
         return RedirectResponse(target, status_code=302)
 
     target = (
-        home_path_for_role(request.session.get("user_role"))
+        home_path_for_role(
+            request.session.get("user_role"),
+        )
         if request.session.get("user_id")
         else "/login"
     )
@@ -177,6 +185,37 @@ async def requires_admin_handler(request: Request, exc: RequiresAdminException):
         target=target,
     )
     return RedirectResponse(target, status_code=302)
+
+
+@app.exception_handler(RequiresPlatformAdminException)
+async def requires_platform_admin_handler(request: Request, exc: RequiresPlatformAdminException):
+    """Block tenant admins from global platform operations."""
+    if request.url.path.startswith("/superadmin"):
+        return RedirectResponse("/superadmin/login", status_code=302)
+    target = (
+        home_path_for_role(request.session.get("user_role"))
+        if request.session.get("user_id")
+        else "/login"
+    )
+    flow_log(
+        "permission.redirect_platform_admin",
+        path=request.url.path,
+        user_id=request.session.get("user_id"),
+        role=request.session.get("user_role"),
+        platform_role=request.session.get("user_platform_role"),
+        target=target,
+    )
+    return RedirectResponse(target, status_code=302)
+
+
+@app.exception_handler(RequiresSuperadminLoginException)
+async def requires_superadmin_login_handler(request: Request, exc: RequiresSuperadminLoginException):
+    return RedirectResponse("/superadmin/login", status_code=302)
+
+
+@app.exception_handler(RequiresSuperadminException)
+async def requires_superadmin_handler(request: Request, exc: RequiresSuperadminException):
+    return RedirectResponse("/superadmin/login", status_code=302)
 
 
 @app.exception_handler(RequiresKioskException)
@@ -208,6 +247,7 @@ app.include_router(me.router)
 app.include_router(analytics.router)
 app.include_router(schedules.router)
 app.include_router(expenses.router)
+app.include_router(superadmin.router)
 app.include_router(api_v1_router)
 
 
@@ -220,6 +260,8 @@ async def root(request: Request):
     if not request.session.get("user_id"):
         return RedirectResponse("/login", status_code=302)
     return RedirectResponse(
-        home_path_for_role(request.session.get("user_role")),
+        home_path_for_role(
+            request.session.get("user_role"),
+        ),
         status_code=302,
     )

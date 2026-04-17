@@ -15,15 +15,22 @@ import secrets
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from app.api.dependencies import flash, set_active_business_id, template_context
+from app.api.dependencies import (
+    flash,
+    set_active_business_id,
+    set_active_business_role,
+    template_context,
+)
 from app.config import GOOGLE_AUTH_ENABLED, GOOGLE_REDIRECT_URI
 from app.core.flow_debug import flow_log, form_keys, mask_identifier
 from app.core.security import (
     build_session_payload,
+    business_role_to_session_role,
     clear_kiosk_employee_context,
     home_path_for_role,
 )
 from app.core.templates import templates
+from app.database.business_user_repository import BusinessUserRepository
 from app.database.user_repository import UserRepository
 from app.services.auth_service import AuthService
 from app.services.business_service import BusinessService
@@ -87,16 +94,14 @@ async def google_callback(request: Request, code: str | None = None, state: str 
             full_name=identity.full_name,
             google_id=identity.google_id,
         )
-    except GoogleAuthError as exc:
+    except (GoogleAuthError, ValueError) as exc:
         flash(request, str(exc), "error")
         return RedirectResponse("/login", status_code=302)
 
     request.session.update(build_session_payload(user))
 
-    business_service = BusinessService()
-    default_business = business_service.choose_default_business(user.id)
+    default_business, business_role = _activate_default_business_for_login(request, user)
     if default_business:
-        set_active_business_id(request, default_business.id)
         target = next_url if next_url.startswith("/") else "/dashboard"
     else:
         target = "/businesses/new"
@@ -105,6 +110,7 @@ async def google_callback(request: Request, code: str | None = None, state: str 
         "endpoint.google_login.success",
         user_id=user.id,
         business_id=default_business.id if default_business else None,
+        business_role=business_role,
         target=target,
     )
     return RedirectResponse(target, status_code=303)
@@ -136,15 +142,14 @@ async def login_post(request: Request):
 
         # Eagerly pick the user's default business so scoped screens and
         # employee self-service do not create unscoped attendance sessions.
-        default_business = BusinessService().choose_default_business(employee.id)
-        if default_business:
-            set_active_business_id(request, default_business.id)
+        default_business, business_role = _activate_default_business_for_login(request, employee)
 
-        target = home_path_for_role(employee.role)
+        target = home_path_for_role(request.session.get("user_role"))
         flow_log(
             "endpoint.login.success",
             user_id=employee.id,
-            role=employee.role,
+            role=request.session.get("user_role"),
+            business_role=business_role,
             target=target,
             business_id=default_business.id if default_business else None,
         )
@@ -198,3 +203,20 @@ def _google_redirect_uri(request: Request) -> str:
     if GOOGLE_REDIRECT_URI:
         return GOOGLE_REDIRECT_URI
     return str(request.url_for("google_callback"))
+
+
+def _activate_default_business_for_login(request: Request, user) -> tuple[object | None, str | None]:
+    business = BusinessService().choose_default_business(user.id)
+    if not business:
+        set_active_business_role(request, None)
+        return None, None
+
+    business_role = BusinessUserRepository().get_active_role(
+        business_id=business.id,
+        user_id=user.id,
+    )
+    set_active_business_id(request, business.id)
+    set_active_business_role(request, business_role)
+    if business_role:
+        request.session["user_role"] = business_role_to_session_role(business_role)
+    return business, business_role

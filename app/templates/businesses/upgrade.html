@@ -1,0 +1,354 @@
+{% extends "base.html" %}
+
+{% block title %}Actualizar plan — {{ business.business_name }}{% endblock %}
+{% block page_title %}Actualizar plan{% endblock %}
+
+{% block topbar_actions %}
+<a href="/businesses/{{ business.id }}/settings" class="btn btn--ghost">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <polyline points="15 18 9 12 15 6"/>
+  </svg>
+  Configuración
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="upgrade-wrap">
+
+  <!-- ── Current plan ──────────────────────────────────────────────────── -->
+  <div class="upgrade-current">
+    <span class="plan-badge plan-badge--free">Plan actual: Free</span>
+    <span class="upgrade-current__detail">
+      {{ usage.employee_count }} de {{ usage.plan.max_employees }} empleados usados
+    </span>
+  </div>
+
+  <!-- ── No upgrade options ────────────────────────────────────────────── -->
+  {% if not upgrade_options %}
+  <div class="card upgrade-maxed">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <polyline points="20 6 9 17 4 12"/>
+    </svg>
+    <div>
+      <p class="upgrade-maxed__title">Ya estás en el plan más completo</p>
+      <p class="upgrade-maxed__sub">Tienes acceso a todas las funcionalidades disponibles.</p>
+    </div>
+    <a href="/businesses/{{ business.id }}/settings" class="btn btn--ghost btn--sm">Volver</a>
+  </div>
+
+  {% else %}
+
+  <!-- ── Plan options ──────────────────────────────────────────────────── -->
+  {% for plan in upgrade_options %}
+  <div class="upgrade-plan-card upgrade-plan-card--featured">
+
+    <!-- Card header -->
+    <div class="upgrade-plan-card__head">
+      <div class="upgrade-plan-card__title-row">
+        <span class="plan-badge plan-badge--pro">⚡ Pro</span>
+        <h2 class="upgrade-plan-card__name">Plan {{ plan.name }}</h2>
+      </div>
+      <div class="upgrade-plan-card__price-block">
+        <span class="upgrade-plan-card__price">{{ plan.display_price }}</span>
+        {% if plan.price_monthly > 0 %}<span class="upgrade-plan-card__period">/mes</span>{% endif %}
+      </div>
+    </div>
+
+    <!-- Feature list: all Pro features -->
+    <ul class="plan-features upgrade-plan-card__features">
+      <li class="plan-features__item plan-features__item--on">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        Hasta {{ plan.max_employees }} empleados
+        <span class="upgrade-feature-new">+{{ plan.max_employees - usage.plan.max_employees }} más</span>
+      </li>
+      <li class="plan-features__item plan-features__item--on">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        Kiosk de fichaje
+      </li>
+      <li class="plan-features__item plan-features__item--on">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        Registro de sesiones y asistencia
+      </li>
+      <li class="plan-features__item plan-features__item--on">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        Exportación básica (CSV)
+      </li>
+      {% if plan.has_exports_advanced %}
+      <li class="plan-features__item plan-features__item--on plan-features__item--highlight">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        Exportación avanzada (PDF / Excel)
+        <span class="upgrade-feature-new">Nuevo</span>
+      </li>
+      {% endif %}
+      {% if plan.has_filters_advanced %}
+      <li class="plan-features__item plan-features__item--on plan-features__item--highlight">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        Filtros avanzados (fecha, empleado, estado)
+        <span class="upgrade-feature-new">Nuevo</span>
+      </li>
+      {% endif %}
+      {% if plan.has_incident_management %}
+      <li class="plan-features__item plan-features__item--on plan-features__item--highlight">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        Gestión de incidencias
+        <span class="upgrade-feature-new">Nuevo</span>
+      </li>
+      {% endif %}
+      {% if plan.has_admin_closures %}
+      <li class="plan-features__item plan-features__item--on plan-features__item--highlight">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        Cierres administrativos de sesiones
+        <span class="upgrade-feature-new">Nuevo</span>
+      </li>
+      {% endif %}
+      {% if plan.has_advanced_reports %}
+      <li class="plan-features__item plan-features__item--on plan-features__item--highlight">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        Analíticas e informes avanzados
+        <span class="upgrade-feature-new">Nuevo</span>
+      </li>
+      {% endif %}
+      {% if plan.has_geolocation %}
+      <li class="plan-features__item plan-features__item--on plan-features__item--highlight">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        Geolocalización de fichajes
+        <span class="upgrade-feature-new">Nuevo</span>
+      </li>
+      {% endif %}
+      {% if plan.has_implementation_support %}
+      <li class="plan-features__item plan-features__item--on plan-features__item--highlight">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        Soporte de implementación incluido
+        <span class="upgrade-feature-new">Nuevo</span>
+      </li>
+      {% endif %}
+    </ul>
+
+    <!-- Upgrade action -->
+    <div class="upgrade-plan-card__action">
+      <form method="POST" action="/businesses/{{ business.id }}/upgrade">
+        <input type="hidden" name="plan_code" value="{{ plan.code }}">
+        <button type="submit" class="btn btn--primary btn--lg upgrade-plan-card__cta"
+                data-confirm="¿Confirmas el cambio al plan {{ plan.name }}?">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="17 11 12 6 7 11"/><line x1="12" y1="18" x2="12" y2="6"/>
+          </svg>
+          Activar Plan {{ plan.name }}
+          {% if plan.price_monthly > 0 %} — {{ plan.price_monthly }}€/mes{% endif %}
+        </button>
+      </form>
+      <p class="upgrade-plan-card__disclaimer">
+        El cambio se aplica de inmediato. Sin permanencia, cancela cuando quieras.
+      </p>
+    </div>
+
+  </div>
+  {% endfor %}
+
+  {% endif %}
+
+</div>
+
+<style>
+.upgrade-wrap {
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Current plan row */
+.upgrade-current {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.upgrade-current__detail {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+/* Already on max plan */
+.upgrade-maxed {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 20px 24px;
+  flex-wrap: wrap;
+}
+.upgrade-maxed svg {
+  width: 32px; height: 32px; flex-shrink: 0;
+  color: var(--color-success);
+}
+.upgrade-maxed__title {
+  font-size: var(--text-sm);
+  font-weight: 740;
+  color: var(--color-text);
+  margin: 0 0 2px;
+}
+.upgrade-maxed__sub {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+/* Plan option card */
+.upgrade-plan-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.upgrade-plan-card--featured {
+  background: linear-gradient(135deg, rgba(10,132,255,0.07), var(--color-surface));
+  border-color: rgba(10,132,255,0.22);
+  box-shadow: 0 4px 24px rgba(10,132,255,0.10);
+}
+
+.upgrade-plan-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.upgrade-plan-card__title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.upgrade-plan-card__name {
+  font-size: var(--text-lg);
+  font-weight: 780;
+  margin: 0;
+  color: var(--color-text);
+}
+
+.upgrade-plan-card__price-block {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.upgrade-plan-card__price {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--color-primary-dark);
+  line-height: 1;
+}
+
+.upgrade-plan-card__period {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
+/* Feature list overrides for upgrade page */
+.upgrade-plan-card__features {
+  border-top: 1px solid var(--color-border-soft);
+  padding-top: 16px;
+  gap: 10px;
+}
+
+.plan-features__item--highlight {
+  font-weight: 580;
+}
+
+.upgrade-feature-new {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  font-size: 10px;
+  font-weight: 760;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: linear-gradient(135deg, rgba(10,132,255,0.16), rgba(10,132,255,0.08));
+  color: var(--color-primary-dark);
+  border-radius: var(--radius-full);
+  margin-left: auto;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* Action area */
+.upgrade-plan-card__action {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.upgrade-plan-card__cta {
+  width: 100%;
+  justify-content: center;
+  font-size: var(--text-base);
+  padding: 14px 20px;
+}
+
+.upgrade-plan-card__disclaimer {
+  font-size: var(--text-xs);
+  color: var(--color-text-xmuted);
+  margin: 0;
+  text-align: center;
+}
+
+/* Badge reuse from settings */
+.plan-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 780;
+  border-radius: var(--radius-full);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+.plan-badge--free {
+  background: rgba(15,23,42,0.06);
+  color: var(--color-text-muted);
+}
+.plan-badge--pro {
+  background: linear-gradient(135deg, rgba(10,132,255,0.18), rgba(10,132,255,0.10));
+  color: var(--color-primary-dark);
+  border: 1px solid rgba(10,132,255,0.15);
+}
+
+/* Plan features (reused) */
+.plan-features {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.plan-features__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-sm);
+}
+.plan-features__item svg {
+  width: 14px; height: 14px; flex-shrink: 0;
+}
+.plan-features__item--on { color: var(--color-text); }
+.plan-features__item--on svg { color: var(--color-success); }
+
+@media (max-width: 520px) {
+  .upgrade-wrap { max-width: none; gap: 16px; }
+  .upgrade-plan-card { padding: 20px; }
+  .upgrade-plan-card__price { font-size: 22px; }
+  .upgrade-plan-card__head { flex-direction: column; gap: 8px; }
+}
+</style>
+{% endblock %}
