@@ -10,6 +10,16 @@
 
 {% block content %}
 
+{% if not status %}
+<div class="empty-state">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+    <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/>
+    <line x1="12" y1="16" x2="12.01" y2="16"/>
+  </svg>
+  <p>No se pudo cargar tu perfil de fichaje. Contacta con tu administrador.</p>
+</div>
+{% else %}
+
 {% set active = status.is_clocked_in %}
 {% set session = status.active_session %}
 
@@ -65,7 +75,7 @@
       </p>
     {% else %}
       <p class="text-muted">
-        No tienes una sesion activa ahora mismo.
+        No tienes una sesión activa ahora mismo.
       </p>
     {% endif %}
 
@@ -100,7 +110,7 @@
 
 <div class="card">
   <div class="card__header">
-    <h2 class="card__title">Mis ultimas sesiones</h2>
+    <h2 class="card__title">Mis últimas sesiones</h2>
   </div>
 
   {% if recent_sessions %}
@@ -110,7 +120,7 @@
         <tr>
           <th>Entrada</th>
           <th>Salida</th>
-          <th>Duracion</th>
+          <th>Duración</th>
           <th>Estado</th>
         </tr>
       </thead>
@@ -121,7 +131,7 @@
           <td class="text-muted" data-label="Salida">
             {{ format_timestamp(s.clock_out_time, "%d/%m/%Y %H:%M") if s.clock_out_time else "-" }}
           </td>
-          <td data-label="Duracion">
+          <td data-label="Duración">
             {% if s.is_active %}
               <span class="duration-live" data-since="{{ s.clock_in_time }}">-</span>
             {% else %}
@@ -144,9 +154,11 @@
   </div>
   {% else %}
   <div class="empty-state">
-    <p>Todavia no tienes sesiones registradas.</p>
+    <p>Todavía no tienes sesiones registradas.</p>
   </div>
   {% endif %}
 </div>
+
+{% endif %}
 
 {% endblock %}

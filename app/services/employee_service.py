@@ -72,13 +72,13 @@ class EmployeeService:
         if not clean_dni:
             raise ValueError("El DNI es obligatorio.")
         if not access_secret:
-            raise ValueError("Introduce una contrasena o PIN de acceso.")
+            raise ValueError("Introduce una contraseña o PIN de acceso.")
         if password and len(password) < 6:
-            raise ValueError("La contrasena debe tener al menos 6 caracteres.")
+            raise ValueError("La contraseña debe tener al menos 6 caracteres.")
         if clean_pin and len(clean_pin) < 4:
-            raise ValueError("El PIN debe tener al menos 4 digitos.")
+            raise ValueError("El PIN debe tener al menos 4 dígitos.")
         if clean_role not in self.VALID_ROLES:
-            raise ValueError("Rol no valido.")
+            raise ValueError("Rol no válido.")
 
         if self.business_id:
             self._enforce_actor_can_manage_role(actor_user_id, clean_role)
@@ -117,7 +117,7 @@ class EmployeeService:
                 )
             return user_id
         except DatabaseIntegrityError as exc:
-            raise ValueError("Ya existe un empleado con ese DNI o codigo interno.") from exc
+            raise ValueError("Ya existe un empleado con ese DNI o código interno.") from exc
 
     def toggle_active(
         self,

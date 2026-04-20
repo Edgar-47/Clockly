@@ -58,7 +58,7 @@ async def login_page(request: Request):
 @router.get("/auth/google")
 async def google_start(request: Request, next: str = "/dashboard"):
     if not GOOGLE_AUTH_ENABLED:
-        flash(request, "Google OAuth no esta configurado todavia.", "error")
+        flash(request, "Google OAuth no está configurado todavía.", "error")
         return RedirectResponse("/login", status_code=302)
 
     state = secrets.token_urlsafe(32)
@@ -78,10 +78,10 @@ async def google_callback(request: Request, code: str | None = None, state: str 
     next_url = request.session.pop("google_oauth_next", "/dashboard")
 
     if error:
-        flash(request, "Google cancelo o rechazo el inicio de sesion.", "error")
+        flash(request, "Google canceló o rechazó el inicio de sesión.", "error")
         return RedirectResponse("/login", status_code=302)
     if not code or not state or state != expected_state:
-        flash(request, "No se pudo validar la sesion de Google.", "error")
+        flash(request, "No se pudo validar la sesión de Google.", "error")
         return RedirectResponse("/login", status_code=302)
 
     try:
@@ -183,7 +183,7 @@ async def logout(request: Request):
         request.session["kiosk_business_id"] = kiosk_business_id
         return RedirectResponse("/kiosk", status_code=303)
 
-    return RedirectResponse("/kiosk/enter", status_code=303)
+    return RedirectResponse("/login", status_code=303)
 
 
 @router.get("/logout")
@@ -196,7 +196,7 @@ async def logout_get(request: Request):
         request.session["kiosk_business_id"] = kiosk_business_id
         return RedirectResponse("/kiosk", status_code=302)
 
-    return RedirectResponse("/kiosk/enter", status_code=302)
+    return RedirectResponse("/login", status_code=302)
 
 
 def _google_redirect_uri(request: Request) -> str:

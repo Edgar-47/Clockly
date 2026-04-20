@@ -51,6 +51,13 @@ async def employee_portal(
         return RedirectResponse("/dashboard", status_code=302)
 
     business_id = _resolve_employee_business_id(request, current_user)
+    if not business_id:
+        from app.api.dependencies import flash
+        flash(request, "No se encontró un negocio activo para tu cuenta. Contacta con tu administrador.", "error")
+        ctx = template_context(request)
+        ctx.update({"employee": current_user, "status": None, "recent_sessions": []})
+        return templates.TemplateResponse(request, "employee/portal.html", ctx)
+
     clock_service = TimeClockService(business_id=business_id)
     report_service = AttendanceReportService(business_id=business_id)
 
@@ -86,6 +93,9 @@ async def employee_punch(
 
     form_data = await request.form()
     business_id = _resolve_employee_business_id(request, current_user)
+    if not business_id:
+        flash(request, "No se pudo registrar el fichaje: no hay negocio activo. Contacta con tu administrador.", "error")
+        return RedirectResponse("/me", status_code=303)
     clock_service = TimeClockService(business_id=business_id)
     active_session = clock_service.get_active_session(current_user.id)
     entry_type = TimeClockService.EXIT if active_session else TimeClockService.ENTRY

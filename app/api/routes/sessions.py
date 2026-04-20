@@ -333,7 +333,7 @@ def _parse_employee_filter(
     try:
         return int(raw_value)
     except ValueError:
-        errors.append("El filtro de empleado no es valido.")
+        errors.append("El filtro de empleado no es válido.")
         return None
 
 
@@ -342,7 +342,7 @@ def _parse_status_filter(value: str | None, *, errors: list[str]) -> int | None:
     if clean_value is None:
         return None
     if clean_value not in {"0", "1"}:
-        errors.append("El filtro de estado no es valido.")
+        errors.append("El filtro de estado no es válido.")
         return None
     return int(clean_value)
 
@@ -350,7 +350,7 @@ def _parse_status_filter(value: str | None, *, errors: list[str]) -> int | None:
 def _parse_incident_filter(value: str | None, *, errors: list[str]) -> str:
     clean_value = _blank_to_none(value) or AttendanceReportService.INCIDENT_FILTER_ALL
     if clean_value not in _VALID_INCIDENT_FILTERS:
-        errors.append("El filtro de incidencias no es valido.")
+        errors.append("El filtro de incidencias no es válido.")
         return AttendanceReportService.INCIDENT_FILTER_ALL
     return clean_value
 

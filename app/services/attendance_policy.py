@@ -32,7 +32,7 @@ def normalize_incident_type(incident_type: str | None) -> str | None:
     if clean_type in NO_INCIDENT_VALUES:
         return None
     if clean_type not in EXIT_INCIDENT_TYPE_LABELS:
-        raise ValueError("Tipo de incidencia no valido.")
+        raise ValueError("Tipo de incidencia no válido.")
     return clean_type
 
 

@@ -55,7 +55,7 @@ class TimeClockService:
             incident_type=incident_type,
         )
         if entry_type not in self.VALID_TYPES:
-            raise ValueError("Tipo de fichaje no valido.")
+            raise ValueError("Tipo de fichaje no válido.")
 
         if entry_type == self.ENTRY:
             session = self.start_session_for_employee(employee_id)
@@ -241,7 +241,7 @@ class TimeClockService:
     def _require_clockable_employee(self, employee_id: int) -> Employee:
         employee = self.employee_repository.get_by_id(employee_id)
         if not employee or not employee.active:
-            raise ValueError("Empleado no valido o inactivo.")
+            raise ValueError("Empleado no válido o inactivo.")
         if employee.role != "employee":
             raise ValueError("Solo los empleados pueden registrar asistencia.")
         return employee

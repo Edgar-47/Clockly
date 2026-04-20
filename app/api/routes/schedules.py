@@ -79,7 +79,7 @@ async def create_schedule(
     try:
         weekly_target = float(weekly_target_raw) if weekly_target_raw else None
     except ValueError:
-        flash(request, "El objetivo semanal debe ser un numero.", "error")
+        flash(request, "El objetivo semanal debe ser un número.", "error")
         ctx = template_context(request)
         ctx.update({
             "dow_names": _DOW_NAMES,
@@ -190,7 +190,7 @@ async def update_schedule(
     try:
         weekly_target = float(weekly_target_raw) if weekly_target_raw else None
     except ValueError:
-        flash(request, "El objetivo semanal debe ser un numero.", "error")
+        flash(request, "El objetivo semanal debe ser un número.", "error")
         swd = WorkScheduleService(business_id=business_id).get_schedule(schedule_id)
         ctx = template_context(request)
         ctx.update({
@@ -314,6 +314,7 @@ def _parse_days_from_form(form) -> list[dict]:
     Extract day definitions from a multi-row schedule form.
     Expects form fields: day_dow[], day_start[], day_end[],
     day_break[], day_late_tol[], day_early_tol[]
+    Raises ValueError if any row contains invalid data.
     """
     dows = form.getlist("day_dow")
     starts = form.getlist("day_start")
@@ -323,6 +324,7 @@ def _parse_days_from_form(form) -> list[dict]:
     early_tols = form.getlist("day_early_tol")
 
     days = []
+    errors = []
     for i, dow in enumerate(dows):
         try:
             days.append({
@@ -334,5 +336,8 @@ def _parse_days_from_form(form) -> list[dict]:
                 "early_leave_tolerance_minutes": int(early_tols[i]) if i < len(early_tols) and early_tols[i] else 0,
             })
         except (ValueError, TypeError):
-            continue
+            day_name = _DOW_NAMES[int(dow) % 7] if dow.isdigit() else f"fila {i + 1}"
+            errors.append(day_name)
+    if errors:
+        raise ValueError(f"Datos inválidos en los días: {', '.join(errors)}. Revisa los campos de hora y minutos.")
     return days

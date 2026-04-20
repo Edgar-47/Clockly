@@ -57,7 +57,7 @@ class GoogleAuthService:
                 },
             )
             if token_response.status_code >= 400:
-                raise GoogleAuthError("Google no pudo validar el codigo de acceso.")
+                raise GoogleAuthError("Google no pudo validar el código de acceso.")
             token_data = token_response.json()
 
             id_token = token_data.get("id_token")

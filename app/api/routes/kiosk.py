@@ -58,7 +58,7 @@ async def kiosk_enter_form(request: Request):
             ctx["active_kiosk_business"] = business
         else:
             reset_kiosk_context(request.session)
-            flash(request, "El negocio activo del kiosk ya no esta disponible.", "warning")
+            flash(request, "El negocio activo del kiosk ya no está disponible.", "warning")
             ctx = template_context(request)
     return templates.TemplateResponse(request, "kiosk/enter.html", ctx)
 
@@ -120,7 +120,7 @@ async def kiosk_change_get(request: Request):
     """Reset kiosk context and return to business selection."""
     previous_business_id = reset_kiosk_context(request.session)
     flow_log("kiosk.change", previous_business_id=previous_business_id, method="GET")
-    flash(request, "Contexto del kiosk reiniciado. Introduce el codigo del negocio.", "info")
+    flash(request, "Contexto del kiosk reiniciado. Introduce el código del negocio.", "info")
     return RedirectResponse("/kiosk/enter", status_code=302)
 
 
@@ -129,7 +129,7 @@ async def kiosk_change_post(request: Request):
     """Reset kiosk context and return to business selection."""
     previous_business_id = reset_kiosk_context(request.session)
     flow_log("kiosk.change", previous_business_id=previous_business_id, method="POST")
-    flash(request, "Contexto del kiosk reiniciado. Introduce el codigo del negocio.", "info")
+    flash(request, "Contexto del kiosk reiniciado. Introduce el código del negocio.", "info")
     return RedirectResponse("/kiosk/enter", status_code=303)
 
 
@@ -190,7 +190,7 @@ async def kiosk_login_form(
     business = business_repo.get_by_id(business_id)
     if not business:
         reset_kiosk_context(request.session)
-        flash(request, "El negocio activo del kiosk ya no esta disponible.", "error")
+        flash(request, "El negocio activo del kiosk ya no está disponible.", "error")
         return RedirectResponse("/kiosk/enter", status_code=302)
 
     ctx = template_context(request)

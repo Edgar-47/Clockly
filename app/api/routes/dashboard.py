@@ -4,6 +4,7 @@ app/api/routes/dashboard.py
 Main dashboard: live attendance + high-level workforce KPIs.
 All data is scoped to the admin's active business.
 """
+import logging
 from datetime import date
 
 from fastapi import APIRouter, Depends, Request
@@ -24,6 +25,7 @@ from app.services.subscription_service import SubscriptionService
 from app.services.time_clock_service import TimeClockService
 
 router = APIRouter(tags=["dashboard"])
+_log = logging.getLogger(__name__)
 
 
 @router.get("/dashboard", response_class=HTMLResponse)
@@ -71,6 +73,7 @@ async def dashboard(
             analytics = AnalyticsService(business_id=business_id)
             kpis = analytics.get_dashboard_kpis(user_ids=user_ids, today=date.today())
         except Exception:
+            _log.exception("Failed to load dashboard KPIs for business %s", business_id)
             kpis = None
 
     ctx = template_context(request)

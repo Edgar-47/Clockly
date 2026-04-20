@@ -16,7 +16,7 @@ class AuthService:
             password_present=bool(password),
         )
         if not clean_identifier or not password:
-            raise ValueError("Introduce identificador y contrasena.")
+            raise ValueError("Introduce identificador y contraseña.")
 
         employee = self.employee_repository.get_by_identifier(clean_identifier)
         if not employee or not employee.active or employee.platform_role:
@@ -25,7 +25,7 @@ class AuthService:
                 identifier=mask_identifier(clean_identifier),
                 reason="not_found_inactive_or_internal",
             )
-            raise ValueError("Identificador o contrasena incorrectos.")
+            raise ValueError("Identificador o contraseña incorrectos.")
 
         if not verify_password(password, employee.password_hash):
             flow_log(
@@ -33,7 +33,7 @@ class AuthService:
                 employee_id=employee.id,
                 reason="wrong_password",
             )
-            raise ValueError("Identificador o contrasena incorrectos.")
+            raise ValueError("Identificador o contraseña incorrectos.")
 
         flow_log(
             "service.auth.login.result",
@@ -50,7 +50,7 @@ class AuthService:
             password_present=bool(password),
         )
         if not password:
-            raise ValueError("Introduce la contrasena.")
+            raise ValueError("Introduce la contraseña.")
 
         employee = self.employee_repository.get_by_id(employee_id)
         if not employee or not employee.active:
@@ -59,7 +59,7 @@ class AuthService:
                 employee_id=employee_id,
                 reason="not_found_or_inactive",
             )
-            raise ValueError("Empleado no valido o inactivo.")
+            raise ValueError("Empleado no válido o inactivo.")
 
         if not verify_password(password, employee.password_hash):
             flow_log(
@@ -67,7 +67,7 @@ class AuthService:
                 employee_id=employee_id,
                 reason="wrong_password",
             )
-            raise ValueError("Contrasena incorrecta.")
+            raise ValueError("Contraseña incorrecta.")
 
         flow_log(
             "service.auth.verify_employee_password.result",

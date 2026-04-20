@@ -104,7 +104,7 @@ class BusinessService:
     ) -> Business:
         owner = self.employee_repository.get_by_id(owner_user_id)
         if not owner or not owner.active:
-            raise ValueError("Usuario propietario no valido.")
+            raise ValueError("Usuario propietario no válido.")
         if owner.role != "admin":
             raise ValueError("Solo un administrador puede crear negocios.")
 
@@ -122,16 +122,16 @@ class BusinessService:
             raise ValueError("El nombre del negocio debe tener al menos 2 caracteres.")
         if raw_login_code and not clean_login_code:
             raise ValueError(
-                "El codigo de inicio solo puede contener letras, numeros, guiones y guiones bajos."
+                "El código de inicio solo puede contener letras, números, guiones y guiones bajos."
             )
         if not clean_login_code:
             clean_login_code = self._generate_unique_login_code(clean_name)
             login_code_generated = True
         if len(clean_login_code) < 3:
-            raise ValueError("El codigo de inicio de sesion debe tener al menos 3 caracteres.")
+            raise ValueError("El código de inicio de sesión debe tener al menos 3 caracteres.")
 
         if self.business_repository.get_by_login_code(clean_login_code):
-            raise ValueError("Ya existe un negocio activo con ese codigo de inicio.")
+            raise ValueError("Ya existe un negocio activo con ese código de inicio.")
 
         include_legacy_records = self.business_repository.count_all() == 0
         settings_json = json.dumps(
@@ -167,7 +167,7 @@ class BusinessService:
                 if login_code_generated and attempt < 4:
                     clean_login_code = self._generate_unique_login_code(clean_name)
                     continue
-                raise ValueError("Ya existe un negocio con ese codigo o identificador.") from exc
+                raise ValueError("Ya existe un negocio con ese código o identificador.") from exc
         if business is None:
             raise RuntimeError("No se pudo crear el negocio.")
 
@@ -216,13 +216,13 @@ class BusinessService:
         if len(clean_name) < 2:
             raise ValueError("El nombre del negocio debe tener al menos 2 caracteres.")
         if not clean_login_code:
-            raise ValueError("El codigo de inicio de sesion es obligatorio.")
+            raise ValueError("El código de inicio de sesión es obligatorio.")
         if len(clean_login_code) < 3:
-            raise ValueError("El codigo de inicio de sesion debe tener al menos 3 caracteres.")
+            raise ValueError("El código de inicio de sesión debe tener al menos 3 caracteres.")
 
         duplicate = self.business_repository.get_by_login_code(clean_login_code)
         if duplicate and duplicate.id != business_id:
-            raise ValueError("Ya existe un negocio activo con ese codigo de inicio.")
+            raise ValueError("Ya existe un negocio activo con ese código de inicio.")
 
         try:
             return self.business_repository.update(
@@ -235,7 +235,7 @@ class BusinessService:
                 country=clean_country,
             )
         except DatabaseIntegrityError as exc:
-            raise ValueError("Ya existe un negocio con ese codigo o identificador.") from exc
+            raise ValueError("Ya existe un negocio con ese código o identificador.") from exc
 
     def _clean_business_name(self, value: str) -> str:
         return re.sub(r"\s+", " ", value).strip()
@@ -244,7 +244,7 @@ class BusinessService:
         clean = self._ascii_key(value or "otro")
         clean = re.sub(r"\s+", "_", clean)
         if clean not in self.BUSINESS_TYPES:
-            raise ValueError("Selecciona un tipo de negocio valido.")
+            raise ValueError("Selecciona un tipo de negocio válido.")
         return clean
 
     def _normalize_timezone(self, value: str | None) -> str:
@@ -276,7 +276,7 @@ class BusinessService:
             candidate = f"{prefix}-{secrets.token_hex(3).upper()}"
             if not self.business_repository.get_by_login_code(candidate):
                 return candidate
-        raise ValueError("No se pudo generar un codigo de inicio unico.")
+        raise ValueError("No se pudo generar un código de inicio único.")
 
     def _normalize_settings_json(
         self,
@@ -293,9 +293,9 @@ class BusinessService:
             try:
                 parsed = json.loads(text)
             except json.JSONDecodeError as exc:
-                raise ValueError("La configuracion del negocio debe ser JSON valido.") from exc
+                raise ValueError("La configuración del negocio debe ser JSON válido.") from exc
         if not isinstance(parsed, dict):
-            raise ValueError("La configuracion del negocio debe ser un objeto JSON.")
+            raise ValueError("La configuración del negocio debe ser un objeto JSON.")
         return json.dumps(parsed, ensure_ascii=True, separators=(",", ":"))
 
     def _now(self) -> str:

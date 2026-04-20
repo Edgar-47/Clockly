@@ -50,7 +50,7 @@ def _parse_profile_fields(form_data) -> dict:
     contract_type = str(form_data.get("contract_type", "")).strip() or None
     valid_contract_types = {value for value, _label in CONTRACT_TYPE_CHOICES}
     if contract_type and contract_type not in valid_contract_types:
-        raise ValueError("Tipo de contrato no valido.")
+        raise ValueError("Tipo de contrato no válido.")
 
     return {
         "hire_date": hire_date,
@@ -83,9 +83,9 @@ def _maybe_assign_schedule(
     schedule_id = int(raw)
     effective_from_raw = str(form_data.get("schedule_effective_from", "")).strip()
     try:
-        effective_from = date.fromisoformat(effective_from_raw)
-    except (ValueError, TypeError):
-        effective_from = date.today()
+        effective_from = date.fromisoformat(effective_from_raw) if effective_from_raw else date.today()
+    except ValueError:
+        raise ValueError(f"La fecha de inicio del horario no es válida: «{effective_from_raw}». Use el formato AAAA-MM-DD.")
 
     svc = WorkScheduleService(business_id=business_id)
     svc.assign_schedule(
@@ -183,7 +183,7 @@ async def employee_create(
         try:
             _maybe_assign_schedule(user_id, form_data, business_id=business_id)
         except ValueError as exc:
-            flash(request, f"Empleado creado, pero el horario no se asigno: {exc}", "warning")
+            flash(request, f"Empleado creado, pero el horario no se pudo asignar: {exc}", "warning")
 
         flash(request, "Empleado creado correctamente.", "success")
         return RedirectResponse("/employees", status_code=303)
@@ -264,7 +264,7 @@ async def employee_update(
         try:
             _maybe_assign_schedule(employee_id, form_data, business_id=business_id)
         except ValueError as schedule_exc:
-            flash(request, f"Datos de empleado guardados, pero horario: {schedule_exc}", "warning")
+            flash(request, f"Datos del empleado guardados, pero el horario no se pudo asignar: {schedule_exc}", "warning")
             return RedirectResponse(f"/employees/{employee_id}/edit", status_code=303)
 
         flash(request, "Empleado actualizado.", "success")
