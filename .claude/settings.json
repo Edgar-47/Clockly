@@ -25,7 +25,9 @@
       "Bash(pip show:*)",
       "Bash(python -c \"from app.api.routes.employees import router\")",
       "Bash(python -c ' *)",
-      "Bash(find \"c:\\\\Users\\\\epedr\\\\OneDrive\\\\App_Fichaje\\\\app\\\\api\\\\routes\" -name \"*.py\" -exec grep -l \"time_entries\\\\|attendance_sessions\" {} \\\\;)"
+      "Bash(find \"c:\\\\Users\\\\epedr\\\\OneDrive\\\\App_Fichaje\\\\app\\\\api\\\\routes\" -name \"*.py\" -exec grep -l \"time_entries\\\\|attendance_sessions\" {} \\\\;)",
+      "Bash(netstat -ano)",
+      "Bash(findstr :8000)"
     ],
     "additionalDirectories": [
       "c:\\Users\\epedr\\OneDrive\\App_Fichaje\\app",
