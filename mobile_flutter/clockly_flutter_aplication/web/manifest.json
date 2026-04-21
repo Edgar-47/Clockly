@@ -1,23 +1,31 @@
 {
-    "name": "clockly_flutter_aplication",
-    "short_name": "clockly_flutter_aplication",
-    "start_url": ".",
+    "id": "/",
+    "name": "ClockLy — Control Horario",
+    "short_name": "ClockLy",
+    "description": "Control horario profesional para equipos de hostelería, comercios y operaciones móviles.",
+    "start_url": "/",
+    "scope": "/",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+    "background_color": "#F4F7FB",
+    "theme_color": "#0A84FF",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
+    "categories": ["business", "productivity", "utilities"],
+    "lang": "es",
+    "dir": "ltr",
     "icons": [
         {
             "src": "icons/Icon-192.png",
             "sizes": "192x192",
-            "type": "image/png"
+            "type": "image/png",
+            "purpose": "any"
         },
         {
             "src": "icons/Icon-512.png",
             "sizes": "512x512",
-            "type": "image/png"
+            "type": "image/png",
+            "purpose": "any"
         },
         {
             "src": "icons/Icon-maskable-192.png",
@@ -30,6 +38,15 @@
             "sizes": "512x512",
             "type": "image/png",
             "purpose": "maskable"
+        }
+    ],
+    "shortcuts": [
+        {
+            "name": "Fichar",
+            "short_name": "Fichar",
+            "description": "Registrar entrada o salida",
+            "url": "/attendance",
+            "icons": [{ "src": "icons/Icon-192.png", "sizes": "192x192" }]
         }
     ]
 }

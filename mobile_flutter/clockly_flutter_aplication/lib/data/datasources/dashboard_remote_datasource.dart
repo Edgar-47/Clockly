@@ -8,10 +8,8 @@ class DashboardRemoteDatasource {
   final ApiClient _client;
 
   Future<DashboardMetricsModel> getMetrics({String? businessId}) async {
-    final params = <String, String>{
-      if (businessId != null) 'business_id': businessId,
-    };
-    final data = await _client.get(ApiConstants.dashboardMetrics, queryParams: params)
+    // business_id is derived from the JWT token on the backend; no query param needed
+    final data = await _client.get(ApiConstants.dashboardMetrics)
         as Map<String, dynamic>;
     return DashboardMetricsModel.fromJson(data);
   }

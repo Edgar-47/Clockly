@@ -30,7 +30,9 @@ class AuthRemoteDatasource {
       ApiConstants.switchBusiness,
       body: {'business_id': businessId},
     ) as Map<String, dynamic>;
-    final session = AuthSessionModel.fromJson(data);
+    // Backend returns {"business": {...}, "auth": {...}} — auth payload is nested
+    final authPayload = data['auth'] as Map<String, dynamic>? ?? data;
+    final session = AuthSessionModel.fromJson(authPayload);
     _client.setAccessToken(session.accessToken);
     return session;
   }

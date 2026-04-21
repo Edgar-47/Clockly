@@ -9,13 +9,16 @@ Production:
   uvicorn app.main:app --host 0.0.0.0 --port $PORT
 
 Notes:
-  - The old desktop (Tkinter) entry point has been replaced by FastAPI.
+  - `app` is a compatibility package that loads the canonical backend from
+    `backend/app` first.
   - Set DATABASE_URL, CLOCKLY_SECRET_KEY, and CLOCKLY_DEFAULT_ADMIN_PASSWORD in production.
 """
 
 import argparse
 import os
 import uvicorn
+
+from app.config import DOCS_ENABLED
 
 
 def main() -> None:
@@ -29,8 +32,11 @@ def main() -> None:
     parser.add_argument("--reload", action="store_true", help="Enable auto-reload (dev only)")
     args = parser.parse_args()
 
-    print(f"\n  Clockly running at  http://{args.host}:{args.port}")
-    print(f"  Docs available at   http://{args.host}:{args.port}/docs\n")
+    print(f"\n  ClockLy running at  http://{args.host}:{args.port}")
+    if DOCS_ENABLED:
+        print(f"  Docs available at   http://{args.host}:{args.port}/docs\n")
+    else:
+        print("  API docs disabled by configuration\n")
 
     uvicorn.run(
         "app.main:app",

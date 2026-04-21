@@ -29,6 +29,7 @@ from app.api.dependencies import (
     require_user,
     template_context,
 )
+from app.config import UPLOADS_DIR
 from app.core.templates import templates
 from app.database.employee_repository import EmployeeRepository
 from app.models.expense import (
@@ -318,7 +319,9 @@ async def expenses_attachment(
     if attachment is None:
         return RedirectResponse("/expenses", status_code=302)
 
-    file_path = Path(attachment.file_path)
+    # Support both relative paths (new records) and absolute (legacy records).
+    raw = Path(attachment.file_path)
+    file_path = raw if raw.is_absolute() else UPLOADS_DIR / raw
     if not file_path.exists():
         flash(request, "El archivo no está disponible.", "error")
         return RedirectResponse(f"/expenses/{expense_id}", status_code=302)
@@ -327,6 +330,7 @@ async def expenses_attachment(
         path=str(file_path),
         media_type=attachment.mime_type or "image/jpeg",
         filename=attachment.file_name,
+        headers={"Content-Disposition": f'attachment; filename="{attachment.file_name}"'},
     )
 
 

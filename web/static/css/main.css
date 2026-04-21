@@ -1929,6 +1929,77 @@ button.is-loading::after {
   font-size: var(--text-sm);
 }
 
+.error-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.error-card {
+  width: min(520px, 100%);
+  padding: 32px;
+  border: 1px solid var(--color-border-soft);
+  border-radius: 24px;
+  background: var(--color-surface-strong);
+  box-shadow: var(--shadow-md);
+  text-align: center;
+}
+
+.error-card__eyebrow {
+  margin: 0 0 10px;
+  color: var(--color-primary);
+  font-size: var(--text-xs);
+  font-weight: 780;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.error-card h1 {
+  margin: 0 0 10px;
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  letter-spacing: -0.04em;
+}
+
+.error-card p {
+  color: var(--color-text-muted);
+}
+
+.error-card__actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 22px;
+}
+
+.credential-box {
+  margin: 18px 0 22px;
+  padding: 18px;
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+  background: rgba(15, 23, 42, 0.04);
+}
+
+.credential-box__label,
+.credential-box__value {
+  display: block;
+}
+
+.credential-box__label {
+  margin-bottom: 8px;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.credential-box__value {
+  font-family: var(--font-mono);
+  font-size: 1.35rem;
+  letter-spacing: 0.04em;
+  word-break: break-all;
+}
+
 /* ── 20. Subsections ───────────────────────────────────────────── */
 .section-sub {
   padding: 20px 22px;

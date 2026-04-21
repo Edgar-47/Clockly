@@ -18,20 +18,21 @@ class TicketRemoteDatasource {
     int page = 1,
   }) async {
     final params = <String, String>{
-      'page': page.toString(),
-      if (businessId != null) 'business_id': businessId,
       if (status != null) 'status': status,
-      if (from != null) 'from': from.toIso8601String().split('T').first,
-      if (to != null) 'to': to.toIso8601String().split('T').first,
+      if (from != null) 'from_date': from.toIso8601String().split('T').first,
+      if (to != null) 'to_date': to.toIso8601String().split('T').first,
     };
     final data = await _client.get(ApiConstants.tickets, queryParams: params);
-    final list = data is List ? data : (data as Map<String, dynamic>)['results'] as List? ?? [];
+    // Backend returns {"items": [...]}
+    final list = data is List ? data : (data as Map<String, dynamic>)['items'] as List? ?? [];
     return list.map((e) => TicketModel.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   Future<TicketModel> getTicket(int id) async {
-    final data = await _client.get('${ApiConstants.tickets}$id/') as Map<String, dynamic>;
-    return TicketModel.fromJson(data);
+    final data = await _client.get('${ApiConstants.tickets}/$id') as Map<String, dynamic>;
+    // Backend returns {"ticket": {...}}
+    final ticket = data['ticket'] as Map<String, dynamic>? ?? data;
+    return TicketModel.fromJson(ticket);
   }
 
   Future<TicketModel> createTicket({
@@ -49,9 +50,10 @@ class TicketRemoteDatasource {
       'date': date.toIso8601String().split('T').first,
       if (description != null && description.isNotEmpty) 'description': description,
     };
-    // For now, create ticket without file; multipart upload handled separately
     final data = await _client.post(ApiConstants.tickets, body: body) as Map<String, dynamic>;
-    return TicketModel.fromJson(data);
+    // Backend returns {"ticket": {...}}
+    final ticket = data['ticket'] as Map<String, dynamic>? ?? data;
+    return TicketModel.fromJson(ticket);
   }
 
   Future<TicketModel> reviewTicket({
@@ -60,13 +62,14 @@ class TicketRemoteDatasource {
     String? reviewNote,
   }) async {
     final data = await _client.patch(
-      '${ApiConstants.tickets}$ticketId/',
+      '${ApiConstants.tickets}/$ticketId',
       body: {
         'status': status,
         if (reviewNote != null && reviewNote.isNotEmpty) 'review_note': reviewNote,
-        'reviewed_at': DateTime.now().toIso8601String(),
       },
     ) as Map<String, dynamic>;
-    return TicketModel.fromJson(data);
+    // Backend returns {"ticket": {...}}
+    final ticket = data['ticket'] as Map<String, dynamic>? ?? data;
+    return TicketModel.fromJson(ticket);
   }
 }

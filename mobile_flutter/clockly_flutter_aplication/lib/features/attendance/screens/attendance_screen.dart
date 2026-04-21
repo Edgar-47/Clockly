@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/date_utils.dart';
+import '../../../shared/extensions/attendance_method_extension.dart';
 import '../../../shared/extensions/context_extensions.dart';
 import '../../../shared/widgets/error_view.dart';
 import '../providers/attendance_provider.dart';
@@ -329,7 +330,7 @@ class _StatusCard extends StatelessWidget {
                 ),
                 _SessionStat(
                   label: 'Método',
-                  value: _methodLabel(activeSession.method.name),
+                  value: activeSession.method.label,
                 ),
               ],
             ),
@@ -339,11 +340,6 @@ class _StatusCard extends StatelessWidget {
     );
   }
 
-  String _methodLabel(String method) => switch (method) {
-        'kiosk' => 'Kiosko',
-        'admin' => 'Admin',
-        _ => 'App',
-      };
 }
 
 class _SessionStat extends StatelessWidget {

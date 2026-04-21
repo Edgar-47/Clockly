@@ -30,6 +30,7 @@ def _env_bool(name: str, *, default: bool = False) -> bool:
 
 
 KIOSK_MODE = _env_bool("CLOCKLY_KIOSK_MODE")
+DEFAULT_ROUTE = os.getenv("DEFAULT_ROUTE", "/kiosk").strip()
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "app" / "data"
 

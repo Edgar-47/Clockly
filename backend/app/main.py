@@ -29,16 +29,22 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.config import (
+    ALLOWED_ORIGINS,
+    DEFAULT_ROUTE,
     DOCS_ENABLED,
+    IS_PRODUCTION,
     SECURE_COOKIES,
-    UPLOADS_DIR,
+    TRUSTED_HOSTS,
     WEB_STATIC_DIR,
+    ensure_runtime_directories,
     validate_runtime_config,
 )
 from app.api.v1 import router as api_v1_router
@@ -70,6 +76,7 @@ from app.superadmin.dependencies import (
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     validate_runtime_config()
+    ensure_runtime_directories()
     # Initialize PostgreSQL schema and run all pending migrations on startup.
     # Safe to call every time — all migrations are idempotent.
     configure_flow_logging()
@@ -82,7 +89,7 @@ async def lifespan(app: FastAPI):
 # ---------------------------------------------------------------------------
 
 app = FastAPI(
-    title="Clockly",
+    title="ClockLy",
     description="Employee time-tracking web application",
     version="2.0.0",
     # Disable auto-generated docs in production; enable for development.
@@ -97,13 +104,17 @@ app = FastAPI(
 # Middleware
 # ---------------------------------------------------------------------------
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+if TRUSTED_HOSTS and "*" not in TRUSTED_HOSTS:
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=TRUSTED_HOSTS)
+
+if ALLOWED_ORIGINS:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=ALLOWED_ORIGINS,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+        allow_headers=["Authorization", "Content-Type", "Accept"],
+    )
 
 app.add_middleware(
     SessionMiddleware,
@@ -114,16 +125,27 @@ app.add_middleware(
 )
 
 
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+    response.headers.setdefault("Content-Security-Policy", "frame-ancestors 'none'")
+    if IS_PRODUCTION and SECURE_COOKIES:
+        response.headers.setdefault(
+            "Strict-Transport-Security",
+            "max-age=31536000; includeSubDomains",
+        )
+    return response
+
+
 # ---------------------------------------------------------------------------
 # Static files
 # ---------------------------------------------------------------------------
 
 app.mount("/static", StaticFiles(directory=str(WEB_STATIC_DIR)), name="static")
-
-# Serve uploaded expense ticket images.
-# The directory is created on first upload; ensure it exists at startup.
-UPLOADS_DIR.joinpath("tickets").mkdir(parents=True, exist_ok=True)
-app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
 
 
 # ---------------------------------------------------------------------------
@@ -166,6 +188,53 @@ async def api_validation_error_handler(request: Request, exc: RequestValidationE
             ),
         )
     return await request_validation_exception_handler(request, exc)
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    if request.url.path.startswith("/api/v1"):
+        message = "Recurso no encontrado." if exc.status_code == 404 else "No se pudo completar la peticion."
+        code = "not_found" if exc.status_code == 404 else "http_error"
+        return JSONResponse(
+            status_code=exc.status_code,
+            content=error_payload(code, message),
+        )
+
+    if exc.status_code == 404:
+        return templates.TemplateResponse(
+            request,
+            "errors/404.html",
+            {"request": request},
+            status_code=404,
+        )
+
+    return HTMLResponse(
+        "No se pudo completar la peticion.",
+        status_code=exc.status_code,
+    )
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    flow_log(
+        "error.unhandled",
+        path=request.url.path,
+        error_type=type(exc).__name__,
+    )
+    if request.url.path.startswith("/api/v1"):
+        return JSONResponse(
+            status_code=500,
+            content=error_payload(
+                "internal_error",
+                "Ha ocurrido un error inesperado. Intentalo de nuevo.",
+            ),
+        )
+    return templates.TemplateResponse(
+        request,
+        "errors/500.html",
+        {"request": request},
+        status_code=500,
+    )
 
 
 @app.exception_handler(RequiresAdminException)
@@ -266,6 +335,9 @@ app.include_router(api_v1_router)
 
 @app.get("/")
 async def root(request: Request):
+    if DEFAULT_ROUTE and DEFAULT_ROUTE != "/":
+        return RedirectResponse(DEFAULT_ROUTE, status_code=302)
+
     if not request.session.get("user_id"):
         return RedirectResponse("/login", status_code=302)
     return RedirectResponse(

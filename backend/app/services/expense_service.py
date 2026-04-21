@@ -16,6 +16,7 @@ import uuid
 from datetime import date, datetime
 from pathlib import Path
 
+from app.config import MAX_UPLOAD_BYTES, MAX_UPLOAD_MB, UPLOADS_DIR
 from app.database.expense_repository import ExpenseRepository
 from app.models.expense import (
     ALLOWED_EXTENSIONS,
@@ -26,13 +27,12 @@ from app.models.expense import (
     EXPENSE_STATUS_REIMBURSED,
     EXPENSE_STATUS_REJECTED,
     EXPENSE_STATUSES,
-    MAX_FILE_SIZE_BYTES,
     Expense,
     ExpenseAttachment,
 )
 
 # Upload root — resolved relative to project root at service instantiation time.
-_UPLOADS_ROOT = Path("uploads") / "tickets"
+_UPLOADS_ROOT = UPLOADS_DIR / "tickets"
 
 
 class ExpensePermissionError(Exception):
@@ -243,9 +243,9 @@ class ExpenseService:
         if not file_bytes:
             raise ExpenseValidationError("El archivo está vacío.")
 
-        if len(file_bytes) > MAX_FILE_SIZE_BYTES:
+        if len(file_bytes) > MAX_UPLOAD_BYTES:
             raise ExpenseValidationError(
-                f"El archivo supera el tamaño máximo de {MAX_FILE_SIZE_BYTES // (1024 * 1024)} MB."
+                f"El archivo supera el tamaño máximo de {MAX_UPLOAD_MB} MB."
             )
 
         suffix = Path(original_filename).suffix.lower()
@@ -280,8 +280,14 @@ class ExpenseService:
 
         file_path.write_bytes(file_bytes)
 
-        # Store path relative to project root so it's portable.
-        relative_path = str(file_path.as_posix())
+        # Store path relative to UPLOADS_DIR so the record is portable across
+        # deployments.  The serving endpoint resolves it back to an absolute
+        # path using UPLOADS_DIR at request time.
+        try:
+            relative_path = str(file_path.relative_to(UPLOADS_DIR).as_posix())
+        except ValueError:
+            # Fallback: file is outside UPLOADS_DIR (should not happen)
+            relative_path = str(file_path.as_posix())
 
         attachment_id = self.repo.add_attachment(
             expense_id=expense_id,

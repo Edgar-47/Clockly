@@ -8,14 +8,12 @@ class AttendanceRemoteDatasource {
   final ApiClient _client;
 
   Future<List<AttendanceStatusModel>> getStatus() async {
-    final data = await _client.get(ApiConstants.attendanceStatus);
-    if (data is List) {
-      return data
-          .map((e) => AttendanceStatusModel.fromJson(e as Map<String, dynamic>))
-          .toList();
-    }
-    final single = AttendanceStatusModel.fromJson(data as Map<String, dynamic>);
-    return [single];
+    // Backend returns {"items": [...]} from GET /attendance
+    final data = await _client.get(ApiConstants.attendanceStatus) as Map<String, dynamic>;
+    final items = data['items'] as List<dynamic>? ?? [];
+    return items
+        .map((e) => AttendanceStatusModel.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   Future<AttendanceSessionModel> clockIn({
@@ -23,15 +21,13 @@ class AttendanceRemoteDatasource {
     double? lng,
     double? accuracy,
   }) async {
-    final body = <String, dynamic>{
-      'method': 'app',
-      if (lat != null) 'location_lat': lat,
-      if (lng != null) 'location_lng': lng,
-      if (accuracy != null) 'location_accuracy': accuracy,
-    };
-    final data = await _client.post(ApiConstants.attendanceClockIn, body: body)
+    // Backend ClockRequest only accepts: employee_id, exit_note, incident_type
+    // Location fields are not in the schema — omit them to avoid 400
+    final data = await _client.post(ApiConstants.attendanceClockIn, body: {})
         as Map<String, dynamic>;
-    return AttendanceSessionModel.fromJson(data);
+    // Backend wraps session: {"session": {...}}
+    final sessionData = data['session'] as Map<String, dynamic>? ?? data;
+    return AttendanceSessionModel.fromJson(sessionData);
   }
 
   Future<AttendanceSessionModel> clockOut({
@@ -42,15 +38,14 @@ class AttendanceRemoteDatasource {
     double? accuracy,
   }) async {
     final body = <String, dynamic>{
-      if (notes != null && notes.isNotEmpty) 'notes': notes,
+      if (notes != null && notes.isNotEmpty) 'exit_note': notes,
       if (incidentType != null) 'incident_type': incidentType,
-      if (lat != null) 'location_lat': lat,
-      if (lng != null) 'location_lng': lng,
-      if (accuracy != null) 'location_accuracy': accuracy,
     };
     final data = await _client.post(ApiConstants.attendanceClockOut, body: body)
         as Map<String, dynamic>;
-    return AttendanceSessionModel.fromJson(data);
+    // Backend wraps session: {"session": {...}}
+    final sessionData = data['session'] as Map<String, dynamic>? ?? data;
+    return AttendanceSessionModel.fromJson(sessionData);
   }
 
   Future<List<AttendanceSessionModel>> getHistory({
@@ -61,14 +56,13 @@ class AttendanceRemoteDatasource {
     int page = 1,
   }) async {
     final params = <String, String>{
-      'page': page.toString(),
-      if (businessId != null) 'business_id': businessId,
-      if (userId != null) 'user_id': userId.toString(),
-      if (from != null) 'from': from.toIso8601String().split('T').first,
-      if (to != null) 'to': to.toIso8601String().split('T').first,
+      if (from != null) 'date_from': from.toIso8601String().split('T').first,
+      if (to != null) 'date_to': to.toIso8601String().split('T').first,
+      if (userId != null) 'employee_id': userId.toString(),
     };
     final data = await _client.get(ApiConstants.attendanceHistory, queryParams: params);
-    final list = data is List ? data : (data as Map<String, dynamic>)['results'] as List? ?? [];
+    // Backend returns {"items": [...]}
+    final list = data is List ? data : (data as Map<String, dynamic>)['items'] as List? ?? [];
     return list
         .map((e) => AttendanceSessionModel.fromJson(e as Map<String, dynamic>))
         .toList();

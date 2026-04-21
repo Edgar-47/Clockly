@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m compileall backend/app/schemas/api_v1.py backend/app/services/expense_service.py backend/app/api/routes/expenses.py)"
+    ]
+  }
+}

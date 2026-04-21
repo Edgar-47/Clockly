@@ -14,33 +14,40 @@ class EmployeeRemoteDatasource {
     int page = 1,
   }) async {
     final params = <String, String>{
-      'page': page.toString(),
-      if (businessId != null) 'business_id': businessId,
       if (isActive != null) 'is_active': isActive.toString(),
       if (search != null && search.isNotEmpty) 'search': search,
     };
     final data = await _client.get(ApiConstants.employees, queryParams: params);
-    final list = data is List ? data : (data as Map<String, dynamic>)['results'] as List? ?? [];
+    // Backend returns {"items": [...]}
+    final list = data is List ? data : (data as Map<String, dynamic>)['items'] as List? ?? [];
     return list.map((e) => EmployeeModel.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   Future<EmployeeModel> getEmployee(int id) async {
-    final data = await _client.get('${ApiConstants.employees}$id/') as Map<String, dynamic>;
-    return EmployeeModel.fromJson(data);
+    final data = await _client.get('${ApiConstants.employees}/$id') as Map<String, dynamic>;
+    // Backend returns {"employee": {...}}
+    final employee = data['employee'] as Map<String, dynamic>? ?? data;
+    return EmployeeModel.fromJson(employee);
   }
 
   Future<EmployeeModel> createEmployee(Map<String, dynamic> body) async {
     final data = await _client.post(ApiConstants.employees, body: body) as Map<String, dynamic>;
-    return EmployeeModel.fromJson(data);
+    // Backend returns {"employee": {...}}
+    final employee = data['employee'] as Map<String, dynamic>? ?? data;
+    return EmployeeModel.fromJson(employee);
   }
 
   Future<EmployeeModel> updateEmployee(int id, Map<String, dynamic> body) async {
-    final data = await _client.patch('${ApiConstants.employees}$id/', body: body)
+    // Backend uses PUT (not PATCH) for full employee update
+    final data = await _client.put('${ApiConstants.employees}/$id', body: body)
         as Map<String, dynamic>;
-    return EmployeeModel.fromJson(data);
+    // Backend returns {"employee": {...}}
+    final employee = data['employee'] as Map<String, dynamic>? ?? data;
+    return EmployeeModel.fromJson(employee);
   }
 
   Future<void> deactivateEmployee(int id) async {
-    await _client.patch('${ApiConstants.employees}$id/', body: {'is_active': false});
+    // Backend PATCH /{id} for partial updates (toggle active)
+    await _client.patch('${ApiConstants.employees}/$id', body: {'active': false});
   }
 }

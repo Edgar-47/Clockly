@@ -328,11 +328,22 @@ async def employee_reset_password(
     try:
         service = EmployeeService(business_id=business_id)
         temp_password = service.reset_password(employee_id, actor_user_id=current_user.id)
-        flash(
-            request,
-            f"Contraseña temporal generada: {temp_password} — comunícasela al empleado.",
-            "success",
+        employee = service.employee_repository.get_by_id(employee_id)
+        ctx = template_context(request)
+        ctx.update(
+            {
+                "employee": employee,
+                "temp_password": temp_password,
+            }
         )
+        response = templates.TemplateResponse(
+            request,
+            "employees/reset_password_result.html",
+            ctx,
+            status_code=200,
+        )
+        response.headers["Cache-Control"] = "no-store"
+        return response
     except ValueError as exc:
         flash(request, str(exc), "error")
     return RedirectResponse("/employees", status_code=303)

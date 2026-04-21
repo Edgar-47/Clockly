@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.v1 import attendance, auth, businesses, dashboard, employees, roles
+from app.api.v1 import attendance, auth, businesses, dashboard, employees, roles, tickets
 
 
 router = APIRouter(prefix="/api/v1")
@@ -11,3 +11,4 @@ router.include_router(employees.router)
 router.include_router(attendance.router)
 router.include_router(dashboard.router)
 router.include_router(roles.router)
+router.include_router(tickets.router)

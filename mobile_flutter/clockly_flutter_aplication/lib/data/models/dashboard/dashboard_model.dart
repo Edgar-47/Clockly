@@ -24,19 +24,23 @@ class DashboardMetricsModel {
   final List<EmployeeHoursSummaryModel> employeeHours;
 
   factory DashboardMetricsModel.fromJson(Map<String, dynamic> json) {
-    final employees = json['employee_hours'] as List<dynamic>? ?? [];
+    // Backend response shape from GET /dashboard/summary:
+    // { total_employees, total_clocked_in, total_clocked_out,
+    //   kpis: { total_hours_today, total_hours_week, total_hours_month, ... } }
+    final kpis = json['kpis'] as Map<String, dynamic>?;
+    final totalClockedIn = json['total_clocked_in'] as int? ?? 0;
+    final totalClockedOut = json['total_clocked_out'] as int? ?? 0;
+
     return DashboardMetricsModel(
-      hoursToday: (json['hours_today'] as num?)?.toDouble() ?? 0.0,
-      hoursWeek: (json['hours_week'] as num?)?.toDouble() ?? 0.0,
-      hoursMonth: (json['hours_month'] as num?)?.toDouble() ?? 0.0,
-      activeSessions: json['active_sessions'] as int? ?? 0,
+      hoursToday: (kpis?['total_hours_today'] as num?)?.toDouble() ?? 0.0,
+      hoursWeek: (kpis?['total_hours_week'] as num?)?.toDouble() ?? 0.0,
+      hoursMonth: (kpis?['total_hours_month'] as num?)?.toDouble() ?? 0.0,
+      activeSessions: totalClockedIn,
       totalEmployees: json['total_employees'] as int? ?? 0,
-      presentToday: json['present_today'] as int? ?? 0,
-      absentsToday: json['absents_today'] as int? ?? 0,
+      presentToday: totalClockedIn,
+      absentsToday: totalClockedOut,
       pendingTickets: json['pending_tickets'] as int? ?? 0,
-      employeeHours: employees
-          .map((e) => EmployeeHoursSummaryModel.fromJson(e as Map<String, dynamic>))
-          .toList(),
+      employeeHours: const [],
     );
   }
 

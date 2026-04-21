@@ -37,29 +37,46 @@ class AttendanceSessionModel {
   final int? closedByAdminId;
   final String? closedByAdminReason;
 
-  factory AttendanceSessionModel.fromJson(Map<String, dynamic> json) =>
-      AttendanceSessionModel(
-        id: json['id'] as int,
-        businessId: json['business_id']?.toString() ?? '',
-        userId: json['user_id'] as int? ?? 0,
-        clockIn: DateTime.parse(
-          (json['clock_in'] ?? json['clock_in_time'] ?? json['created_at']) as String,
-        ),
-        clockOut: json['clock_out'] != null || json['clock_out_time'] != null
-            ? DateTime.parse((json['clock_out'] ?? json['clock_out_time']) as String)
-            : null,
-        breakSeconds: json['break_seconds'] as int? ?? 0,
-        durationSeconds: json['duration_seconds'] as int?,
-        status: (json['status'] ?? 'active') as String,
-        method: (json['method'] ?? 'app') as String,
-        locationLat: (json['location_lat'] as num?)?.toDouble(),
-        locationLng: (json['location_lng'] as num?)?.toDouble(),
-        locationAccuracy: (json['location_accuracy'] as num?)?.toDouble(),
-        notes: (json['notes'] ?? json['exit_note']) as String?,
-        incidentType: json['incident_type'] as String?,
-        closedByAdminId: json['closed_by_admin_id'] as int?,
-        closedByAdminReason: json['closed_by_admin_reason'] as String?,
-      );
+  factory AttendanceSessionModel.fromJson(Map<String, dynamic> json) {
+    // Derive status: backend sends is_active (bool) or status (string)
+    final String status;
+    if (json.containsKey('status') && json['status'] is String) {
+      status = json['status'] as String;
+    } else {
+      final isActive = json['is_active'] as bool?;
+      final closedByAdmin = json['closed_by_admin'] as bool? ?? false;
+      if (closedByAdmin) {
+        status = 'manual_close';
+      } else {
+        status = (isActive ?? true) ? 'active' : 'closed';
+      }
+    }
+    return AttendanceSessionModel(
+      id: json['id'] as int,
+      businessId: json['business_id']?.toString() ?? '',
+      userId: json['user_id'] as int? ?? 0,
+      clockIn: DateTime.parse(
+        (json['clock_in'] ?? json['clock_in_time'] ?? json['created_at']) as String,
+      ),
+      clockOut: json['clock_out'] != null || json['clock_out_time'] != null
+          ? DateTime.parse((json['clock_out'] ?? json['clock_out_time']) as String)
+          : null,
+      breakSeconds: json['break_seconds'] as int? ?? 0,
+      durationSeconds:
+          json['duration_seconds'] as int? ?? json['total_seconds'] as int?,
+      status: status,
+      method: (json['method'] ?? 'web') as String,
+      locationLat: (json['location_lat'] as num?)?.toDouble(),
+      locationLng: (json['location_lng'] as num?)?.toDouble(),
+      locationAccuracy: (json['location_accuracy'] as num?)?.toDouble(),
+      notes: (json['notes'] ?? json['exit_note']) as String?,
+      incidentType: json['incident_type'] as String?,
+      closedByAdminId:
+          json['closed_by_admin_id'] as int? ?? json['closed_by_user_id'] as int?,
+      closedByAdminReason:
+          json['closed_by_admin_reason'] as String? ?? json['manual_close_reason'] as String?,
+    );
+  }
 
   AttendanceSessionEntity toEntity() => AttendanceSessionEntity(
         id: id,
@@ -86,12 +103,18 @@ class AttendanceSessionModel {
         _ => AttendanceStatus.closed,
       };
 
-  static AttendanceMethod _parseMethod(String m) => switch (m) {
-        'kiosk' => AttendanceMethod.kiosk,
-        'admin' => AttendanceMethod.admin,
-        'api' => AttendanceMethod.api,
-        _ => AttendanceMethod.app,
-      };
+  static AttendanceMethod _parseMethod(String m) {
+    final normalized = m.trim().toLowerCase().replaceAll('-', '_');
+    return switch (normalized) {
+      'web' => AttendanceMethod.web,
+      'mobile' || 'app' => AttendanceMethod.mobile,
+      'kiosk' => AttendanceMethod.kiosk,
+      'rfid' => AttendanceMethod.rfid,
+      'admin' => AttendanceMethod.admin,
+      'api' => AttendanceMethod.api,
+      _ => AttendanceMethod.unknown,
+    };
+  }
 }
 
 class AttendanceStatusModel {

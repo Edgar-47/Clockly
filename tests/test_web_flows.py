@@ -82,6 +82,36 @@ def test_admin_login_reaches_dashboard(db):
         assert client.get("/dashboard").status_code == 200
 
 
+def test_root_redirects_to_default_kiosk_route_without_breaking_existing_routes(db):
+    with TestClient(_app()) as client:
+        root = client.get("/", follow_redirects=False)
+        assert root.status_code == 302
+        assert root.headers["location"] == "/kiosk"
+
+        kiosk = client.get("/kiosk", follow_redirects=False)
+        assert kiosk.status_code == 302
+        assert kiosk.headers["location"] == "/kiosk/enter"
+
+        login = client.get("/login", follow_redirects=False)
+        assert login.status_code == 200
+
+        dashboard = client.get("/dashboard", follow_redirects=False)
+        assert dashboard.status_code == 302
+        assert dashboard.headers["location"] == "/login"
+
+
+def test_security_headers_and_private_uploads_are_production_ready(db):
+    with TestClient(_app()) as client:
+        response = client.get("/login")
+        assert response.status_code == 200
+        assert response.headers["x-content-type-options"] == "nosniff"
+        assert response.headers["x-frame-options"] == "DENY"
+        assert response.headers["content-security-policy"] == "frame-ancestors 'none'"
+
+        public_upload = client.get("/uploads/tickets/not-public.png")
+        assert public_upload.status_code == 404
+
+
 def test_business_scoped_admin_login_reaches_dashboard_even_if_global_role_is_employee(db):
     owner_id = _admin_id()
     business = BusinessService().create_business(

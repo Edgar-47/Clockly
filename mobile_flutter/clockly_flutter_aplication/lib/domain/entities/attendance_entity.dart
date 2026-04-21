@@ -2,7 +2,7 @@ import 'package:equatable/equatable.dart';
 
 enum AttendanceStatus { active, closed, manualClose }
 
-enum AttendanceMethod { app, kiosk, admin, api }
+enum AttendanceMethod { web, mobile, kiosk, rfid, admin, api, unknown }
 
 class AttendanceSessionEntity extends Equatable {
   const AttendanceSessionEntity({

@@ -2,6 +2,16 @@ __pycache__/
 *.py[cod]
 .venv/
 .env
+.env.*
+!.env.example
+!.env.development.example
+!.env.production.example
+.idea/
+.claude/*.json
+.dart_tool/
+build/
+mobile_flutter/clockly_flutter_aplication/.dart_tool/
+mobile_flutter/clockly_flutter_aplication/build/
 app/data/*.sqlite3
 app/data/*.sqlite3-*
 app/data/*.db
@@ -13,4 +23,5 @@ backend/app/data/*.db
 backend/app/data/*.db-*
 backend/app/data/_pytest_tmp/
 exports/*.xlsx
-.claude/*.json
+exports/*.pdf
+uploads/

@@ -32,7 +32,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.config import DOCS_ENABLED, SECURE_COOKIES, validate_runtime_config
+from app.config import DEFAULT_ROUTE, DOCS_ENABLED, SECURE_COOKIES, validate_runtime_config
 from app.core.flow_debug import configure_flow_logging, flow_log
 from app.core.security import SECRET_KEY, SESSION_MAX_AGE, home_path_for_role
 from app.core.templates import templates  # noqa: F401 — imported to register Jinja2 globals
@@ -232,6 +232,9 @@ app.include_router(superadmin.router)
 
 @app.get("/")
 async def root(request: Request):
+    if DEFAULT_ROUTE and DEFAULT_ROUTE != "/":
+        return RedirectResponse(DEFAULT_ROUTE, status_code=302)
+
     if not request.session.get("user_id"):
         return RedirectResponse("/login", status_code=302)
     return RedirectResponse(

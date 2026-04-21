@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends
 from app.api.v1.dependencies import ApiContext, require_any_api_permission, require_api_permission
 from app.api.v1.errors import not_found, validation_error
 from app.api.v1.serializers import user_to_dict
-from app.schemas.api_v1 import EmployeeCreateRequest, EmployeeUpdateRequest
+from app.schemas.api_v1 import EmployeeCreateRequest, EmployeePatchRequest, EmployeeUpdateRequest
 from app.services.employee_service import EmployeeService
 
 
@@ -83,6 +83,24 @@ async def update_employee(
         )
     except ValueError as exc:
         raise validation_error(str(exc)) from exc
+    employee = service.employee_repository.get_by_id(employee_id)
+    if employee is None:
+        raise not_found("Empleado no encontrado.")
+    return {"employee": user_to_dict(employee)}
+
+
+@router.patch("/{employee_id}")
+async def patch_employee(
+    employee_id: int,
+    payload: EmployeePatchRequest,
+    ctx: ApiContext = Depends(require_api_permission("employees:manage")),
+) -> dict:
+    service = EmployeeService(business_id=ctx.active_business_id)
+    if payload.active is not None:
+        try:
+            service.toggle_active(employee_id, actor_user_id=ctx.user.id)
+        except ValueError as exc:
+            raise validation_error(str(exc)) from exc
     employee = service.employee_repository.get_by_id(employee_id)
     if employee is None:
         raise not_found("Empleado no encontrado.")
