@@ -266,6 +266,23 @@ hr {
   flex-shrink: 0;
 }
 
+.sidebar__brand-logo {
+  display: block;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.sidebar__brand-logo--full {
+  width: 132px;
+  height: 33px;
+}
+
+.sidebar__brand-logo--icon {
+  display: none;
+  width: 30px;
+  height: 30px;
+}
+
 .sidebar__nav {
   display: flex;
   flex-direction: column;
@@ -2095,11 +2112,16 @@ html[data-motion="reduced"] *,
   }
 
   .sidebar__brand span,
+  .sidebar__brand-logo--full,
   .sidebar__link span,
   .sidebar__user,
   .sidebar__logout span,
   .sidebar__business-label {
     display: none;
+  }
+
+  .sidebar__brand-logo--icon {
+    display: block;
   }
 
   .sidebar__brand,
@@ -2306,10 +2328,19 @@ html[data-motion="reduced"] *,
 
   /* Re-show all labels that were hidden at 1024px */
   .sidebar__brand span,
+  .sidebar__brand-logo--full,
   .sidebar__link span,
   .sidebar__logout span,
   .sidebar__business-label {
     display: inline;
+  }
+
+  .sidebar__brand-logo--full {
+    display: block;
+  }
+
+  .sidebar__brand-logo--icon {
+    display: none;
   }
 
   .sidebar__user {
@@ -2471,10 +2502,19 @@ html[data-motion="reduced"] *,
   }
 
   .sidebar__brand span,
+  .sidebar__brand-logo--full,
   .sidebar__link span,
   .sidebar__logout span,
   .sidebar__business-label {
     display: inline;
+  }
+
+  .sidebar__brand-logo--full {
+    display: block;
+  }
+
+  .sidebar__brand-logo--icon {
+    display: none;
   }
 
   .sidebar__user {

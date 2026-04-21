@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Acceso Administrador — Clockly</title>
+  <link rel="icon" type="image/svg+xml" href="/static/img/brand/clockly-flow-icon.svg">
   <link rel="stylesheet" href="/static/css/main.css">
   <style>
     /* ── Admin login page — full-screen centred card ── */
@@ -26,20 +27,16 @@
     /* Brand row */
     .login-card__brand {
       display: flex;
+      flex-direction: column;
       align-items: center;
-      gap: var(--space-3);
-      font-family: var(--font-display);
-      font-size: 1.35rem;
-      font-weight: 760;
-      letter-spacing: -0.03em;
-      color: var(--color-text);
+      justify-content: center;
+      gap: var(--space-2);
       margin-bottom: var(--space-8);
     }
 
     .login-card__logo {
-      width: 28px;
-      height: 28px;
-      color: var(--color-primary);
+      width: 152px;
+      height: auto;
     }
 
     /* Admin badge */
@@ -256,11 +253,9 @@
 
   <div class="login-card">
     <div class="login-card__brand">
-      <svg class="login-card__logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <circle cx="12" cy="12" r="10"/>
-        <polyline points="12 6 12 12 16 14"/>
-      </svg>
-      <span>Clockly</span>
+      <img class="login-card__logo"
+           src="/static/img/brand/clockly-flow-vertical.svg"
+           alt="ClockLy">
     </div>
 
     <div class="login-card__badge">

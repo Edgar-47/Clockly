@@ -8,6 +8,7 @@ import '../../../core/utils/date_utils.dart';
 import '../../../shared/extensions/attendance_method_extension.dart';
 import '../../../shared/extensions/context_extensions.dart';
 import '../../../shared/widgets/error_view.dart';
+import '../../../shared/widgets/brand_logo.dart';
 import '../providers/attendance_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 
@@ -174,6 +175,16 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
           floating: true,
           pinned: false,
           backgroundColor: AppColors.background,
+          leadingWidth: 56,
+          leading: const Padding(
+            padding: EdgeInsets.only(left: 16),
+            child: Center(
+              child: ClocklyBrandLogo(
+                variant: ClocklyLogoVariant.mark,
+                markSize: 28,
+              ),
+            ),
+          ),
           title: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

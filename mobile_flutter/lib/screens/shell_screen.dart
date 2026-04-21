@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../widgets/brand_logo.dart';
 import 'business_screen.dart';
 import 'history_screen.dart';
 import 'home_screen.dart';
@@ -31,8 +32,14 @@ class _ShellScreenState extends State<ShellScreen> {
         onDestinationSelected: (value) => setState(() => _index = value),
         destinations: const [
           NavigationDestination(
-            icon: Icon(Icons.punch_clock_outlined),
-            selectedIcon: Icon(Icons.punch_clock),
+            icon: ClocklyBrandLogo(
+              variant: ClocklyLogoVariant.mark,
+              markSize: 24,
+            ),
+            selectedIcon: ClocklyBrandLogo(
+              variant: ClocklyLogoVariant.mark,
+              markSize: 26,
+            ),
             label: 'Fichaje',
           ),
           NavigationDestination(

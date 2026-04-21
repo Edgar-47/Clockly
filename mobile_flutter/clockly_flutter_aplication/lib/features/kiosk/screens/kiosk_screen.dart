@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../shared/extensions/context_extensions.dart';
+import '../../../shared/widgets/brand_logo.dart';
 import '../../attendance/providers/attendance_provider.dart';
 
 class KioskScreen extends ConsumerStatefulWidget {
@@ -164,6 +165,13 @@ class _KioskIdle extends StatelessWidget {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
+        const ClocklyBrandLogo(
+          variant: ClocklyLogoVariant.horizontal,
+          markSize: 42,
+          wordmarkSize: 30,
+          inverse: true,
+        ),
+        const SizedBox(height: 32),
         // Clock
         Text(
           AppDateUtils.formatTime(now),

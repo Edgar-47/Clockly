@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../core/app_state.dart';
 import '../widgets/attendance_status_card.dart';
+import '../widgets/brand_logo.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -15,6 +16,15 @@ class HomeScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
+        leading: const Padding(
+          padding: EdgeInsets.only(left: 16),
+          child: Center(
+            child: ClocklyBrandLogo(
+              variant: ClocklyLogoVariant.mark,
+              markSize: 28,
+            ),
+          ),
+        ),
         title: Text(state.session?.activeBusiness?.name ?? 'Mi fichaje'),
         actions: [
           IconButton(

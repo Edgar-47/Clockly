@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Selecciona tu Negocio — Clockly</title>
+    <link rel="icon" type="image/svg+xml" href="/static/img/brand/clockly-flow-icon.svg">
     <link rel="stylesheet" href="/static/css/main.css">
     <style>
         /* ── Full-screen centred entry screen ── */
@@ -45,10 +46,10 @@
             flex-shrink: 0;
         }
 
-        .enter-topbar__brand svg {
+        .enter-topbar__brand img {
             width: 18px;
             height: 18px;
-            color: var(--color-primary);
+            object-fit: contain;
         }
 
         .enter-topbar__clock {
@@ -117,20 +118,16 @@
         /* Brand */
         .enter-card__brand {
             display: flex;
+            flex-direction: column;
             align-items: center;
-            gap: var(--space-3);
-            font-family: var(--font-display);
-            font-size: 1.35rem;
-            font-weight: 760;
-            letter-spacing: -0.03em;
-            color: var(--color-text);
+            justify-content: center;
+            gap: var(--space-2);
             margin-bottom: var(--space-8);
         }
 
         .enter-card__logo {
-            width: 32px;
-            height: 32px;
-            color: var(--color-primary);
+            width: 152px;
+            height: auto;
         }
 
         .enter-card__heading {
@@ -298,11 +295,8 @@
     <!-- Top bar: brand | clock (centre) | admin link -->
     <div class="enter-topbar">
         <div class="enter-topbar__brand">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"/>
-                <polyline points="12 6 12 12 16 14"/>
-            </svg>
-            Clockly
+            <img src="/static/img/brand/clockly-flow-icon.svg" alt="ClockLy">
+            <span>ClockLy</span>
         </div>
 
         <div id="live-clock" class="enter-topbar__clock">--:--:--</div>
@@ -320,11 +314,9 @@
     <div class="enter-wrapper">
         <div class="enter-card">
             <div class="enter-card__brand">
-                <svg class="enter-card__logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10"/>
-                    <polyline points="12 6 12 12 16 14"/>
-                </svg>
-                Clockly
+                <img class="enter-card__logo"
+                     src="/static/img/brand/clockly-flow-vertical.svg"
+                     alt="ClockLy">
             </div>
 
             <h1 class="enter-card__heading">¿Cuál es tu negocio?</h1>

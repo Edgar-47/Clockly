@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 120" width="320" height="120" role="img" aria-label="ClockLy">
+  <title>ClockLy — dark background</title>
+  <desc>Horizontal lockup on ink background. Top bar switches to paper; accent shifts to cobalt-light for contrast.</desc>
+  <rect id="bg" x="0" y="0" width="320" height="120" fill="#0A1020"></rect>
+  <g id="icon" transform="translate(40,36)">
+    <rect x="4" y="12" width="28" height="10" rx="5" fill="#FAFAF7"></rect>
+    <rect x="16" y="26" width="28" height="10" rx="5" fill="#6B8CFF"></rect>
+  </g>
+  <g id="wordmark">
+    <text x="100" y="70" font-family="Geist, &#39;Geist Sans&#39;, Inter, -apple-system, &#39;Helvetica Neue&#39;, Arial, sans-serif" font-weight="500" font-size="30" letter-spacing="-1.05" fill="#FAFAF7">ClockLy</text>
+  </g>
+</svg>

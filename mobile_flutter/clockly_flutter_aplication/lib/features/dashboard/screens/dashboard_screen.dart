@@ -7,6 +7,7 @@ import '../../../shared/widgets/error_view.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/stat_card.dart';
 import '../../../shared/widgets/user_avatar.dart';
+import '../../../shared/widgets/brand_logo.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/dashboard_provider.dart';
 
@@ -51,6 +52,16 @@ class DashboardScreen extends ConsumerWidget {
           expandedHeight: 0,
           floating: true,
           backgroundColor: AppColors.background,
+          leadingWidth: 56,
+          leading: const Padding(
+            padding: EdgeInsets.only(left: 16),
+            child: Center(
+              child: ClocklyBrandLogo(
+                variant: ClocklyLogoVariant.mark,
+                markSize: 28,
+              ),
+            ),
+          ),
           title: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

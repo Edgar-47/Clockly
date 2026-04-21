@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 120" width="160" height="120" role="img" aria-label="ClockLy">
+  <title>ClockLy</title>
+  <desc>Vertical lockup: Flow icon stacked above wordmark.</desc>
+  <g id="icon" transform="translate(56,8)">
+    <rect x="4" y="12" width="28" height="10" rx="5" fill="#0A1020"></rect>
+    <rect x="16" y="26" width="28" height="10" rx="5" fill="#2F5BFF"></rect>
+  </g>
+  <g id="wordmark">
+    <text x="80" y="104" text-anchor="middle" font-family="Geist, &#39;Geist Sans&#39;, Inter, -apple-system, &#39;Helvetica Neue&#39;, Arial, sans-serif" font-weight="500" font-size="28" letter-spacing="-0.98" fill="#0A1020">ClockLy</text>
+  </g>
+</svg>

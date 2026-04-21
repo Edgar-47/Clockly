@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Kiosk — Clockly{% endblock %}</title>
+    <link rel="icon" type="image/svg+xml" href="/static/img/brand/clockly-flow-icon.svg">
     <link rel="stylesheet" href="/static/css/main.css">
     <style>
         /* ── Kiosk layout: full-screen, no sidebar ── */
@@ -39,9 +40,9 @@
         }
 
         .kiosk-brand-icon {
-            width: 28px;
-            height: 28px;
-            color: var(--color-primary);
+            width: 30px;
+            height: 30px;
+            object-fit: contain;
             flex-shrink: 0;
         }
 
@@ -225,10 +226,9 @@
     <header class="kiosk-header">
         <!-- Business name / app brand -->
         <div class="kiosk-header__left">
-            <svg class="kiosk-brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"/>
-                <polyline points="12 6 12 12 16 14"/>
-            </svg>
+            <img class="kiosk-brand-icon"
+                 src="/static/img/brand/clockly-flow-icon.svg"
+                 alt="ClockLy">
             <h1 class="kiosk-title">{% block header_title %}Clockly{% endblock %}</h1>
         </div>
 

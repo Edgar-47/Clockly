@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../shared/extensions/context_extensions.dart';
 import '../../../shared/widgets/app_button.dart';
 import '../../../shared/widgets/app_text_field.dart';
-import '../../../shared/extensions/context_extensions.dart';
+import '../../../shared/widgets/brand_logo.dart';
 import '../providers/auth_provider.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -55,7 +56,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Logo / brand
                     _buildHeader(context),
                     const SizedBox(height: 48),
 
@@ -91,7 +91,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       obscureText: true,
                       onSubmitted: (_) => _submit(),
                       validator: (v) {
-                        if (v == null || v.isEmpty) return 'Introduce tu contraseña';
+                        if (v == null || v.isEmpty) {
+                          return 'Introduce tu contraseña';
+                        }
                         if (v.length < 4) return 'Contraseña demasiado corta';
                         return null;
                       },
@@ -121,32 +123,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget _buildHeader(BuildContext context) {
     return Column(
       children: [
-        Container(
-          width: 72,
-          height: 72,
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [AppColors.primary, AppColors.accent],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: const Icon(
-            Icons.fingerprint_rounded,
-            size: 40,
-            color: Colors.white,
-          ),
+        const ClocklyBrandLogo(
+          variant: ClocklyLogoVariant.vertical,
+          markSize: 58,
+          wordmarkSize: 34,
         ),
         const SizedBox(height: 24),
-        Text(
-          'ClockLy',
-          style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                fontWeight: FontWeight.w800,
-                color: AppColors.textPrimary,
-              ),
-        ),
-        const SizedBox(height: 8),
         Text(
           'Control de presencia inteligente',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
