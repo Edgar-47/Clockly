@@ -1,2 +1,0 @@
-"""Isolated Superadmin console package."""
-

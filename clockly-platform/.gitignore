@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+!.env.development.example
+!.env.production.example
+
+# IDE / local agent state
+.idea/
+.vscode/
+.claude/
+
+# Runtime data
+backend/app/data/*.sqlite3
+backend/app/data/*.sqlite3-*
+backend/app/data/*.db
+backend/app/data/*.db-*
+backend/app/data/_pytest_tmp/
+exports/
+uploads/
+
+# Generated files
+*.xlsx
+*.pdf
+*.log
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: clockly-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: clockly
+      POSTGRES_PASSWORD: clockly
+      POSTGRES_DB: clockly
+    ports:
+      - "5432:5432"
+    volumes:
+      - clockly-postgres-data:/var/lib/postgresql/data
+      - ./scripts/init-local-db.sql:/docker-entrypoint-initdb.d/10-init-local-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U clockly -d clockly"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  clockly-postgres-data:
