@@ -10,10 +10,14 @@ itsdangerous>=2.2.0
 
 # ── Data validation (FastAPI uses Pydantic internally) ──────────────────────
 pydantic>=2.7.0
+pydantic-settings>=2.3.0
 
 # Database
 psycopg[binary]>=3.2.0
+SQLAlchemy>=2.0.30
+alembic>=1.13.2
 python-dotenv>=1.0.1
+PyJWT>=2.8.0
 
 # ── Exports ────────────────────────────────────────────────────────────────────
 openpyxl==3.1.5

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" role="img" aria-label="ClockLy">
+  <title>ClockLy</title>
+  <desc>Flow mark — two offset shift bars representing the handoff of time between employees.</desc>
+  <g id="clockly-flow-icon">
+    <rect id="bar-top" x="4" y="12" width="28" height="10" rx="5" fill="#0A1020"></rect>
+    <rect id="bar-bottom" x="16" y="26" width="28" height="10" rx="5" fill="#2F5BFF"></rect>
+  </g>
+</svg>

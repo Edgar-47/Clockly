@@ -17,6 +17,7 @@ venv/
 !.env.example
 !.env.development.example
 !.env.production.example
+!.env.local.example
 
 # IDE / local agent state
 .idea/
@@ -36,6 +37,9 @@ uploads/
 *.xlsx
 *.pdf
 *.log
+.next/
+node_modules/
+*.tsbuildinfo
 
 # OS
 .DS_Store

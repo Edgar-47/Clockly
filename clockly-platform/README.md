@@ -28,6 +28,7 @@ clockly-platform/
     app/                # Backend canonico FastAPI
     migrations/         # Convencion y registro de migraciones DB
     main.py             # Entrada alternativa desde backend/
+  backend_v2/           # Backend REST nuevo: FastAPI + SQLAlchemy + Alembic
   frontend/
     templates/          # HTML Jinja2 productivo
     static/             # CSS, JS e imagenes de marca
@@ -85,6 +86,23 @@ Desde `backend/` tambien funciona:
 ```powershell
 python main.py --host 127.0.0.1 --port 8000 --reload
 ```
+
+## Backend v2
+
+`backend_v2/` contiene la nueva base separada del frontend: FastAPI REST,
+PostgreSQL, SQLAlchemy 2.x, Alembic, Pydantic v2, JWT access/refresh y
+aislamiento por `company_id`. Convive con `backend/app` para no romper el
+backend web actual durante la migracion.
+
+```powershell
+cd backend_v2
+copy .env.example .env
+python -m alembic upgrade head
+python -m app.db.bootstrap --company-name "ClockLy Demo" --email admin@clockly.local --password "Admin12345"
+python main.py --host 127.0.0.1 --port 8010 --reload
+```
+
+Mas detalle en `backend_v2/README.md`.
 
 ## Variables de entorno
 
